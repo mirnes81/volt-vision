@@ -1,18 +1,28 @@
 import { Intervention, Material, Task, Worker, WorkerHour, Product } from '@/types/intervention';
 import { mockInterventions, mockProducts, mockWorker, delay } from './mockData';
-
-// Simulated API - Replace with real Dolibarr API endpoints
-const API_BASE = '/api/mv3_electricien';
+import { isDolibarrConfigured } from './dolibarrConfig';
+import * as dolibarrApi from './dolibarrApi';
 
 // Store for mock data mutations
 let interventions = [...mockInterventions];
 let currentToken: string | null = localStorage.getItem('mv3_token');
 
+// Helper to check if we should use real API
+function useRealApi(): boolean {
+  return isDolibarrConfigured();
+}
+
 // Auth
 export async function login(username: string, password: string): Promise<{ token: string; worker: Worker }> {
-  await delay(800);
+  // Use real API if configured
+  if (useRealApi()) {
+    const result = await dolibarrApi.dolibarrLogin(username, password);
+    currentToken = result.token;
+    return result;
+  }
   
-  // Mock validation
+  // Mock mode
+  await delay(800);
   if (username === 'demo' && password === 'demo') {
     const token = 'mock_token_' + Date.now();
     localStorage.setItem('mv3_token', token);
@@ -41,12 +51,19 @@ export function getCurrentWorker(): Worker | null {
 
 // Interventions
 export async function getTodayInterventions(): Promise<Intervention[]> {
+  if (useRealApi()) {
+    return dolibarrApi.fetchInterventions();
+  }
+  
   await delay(500);
-  // Return all interventions that are not 'facture' status
   return interventions.filter(i => i.status !== 'facture');
 }
 
 export async function getIntervention(id: number): Promise<Intervention> {
+  if (useRealApi()) {
+    return dolibarrApi.fetchIntervention(id);
+  }
+  
   await delay(300);
   const intervention = interventions.find(i => i.id === id);
   if (!intervention) throw new Error('Intervention non trouvée');
@@ -55,6 +72,10 @@ export async function getIntervention(id: number): Promise<Intervention> {
 
 // Hours
 export async function startHours(interventionId: number, workType: string): Promise<WorkerHour> {
+  if (useRealApi()) {
+    return dolibarrApi.dolibarrStartHours(interventionId, workType);
+  }
+  
   await delay(300);
   const worker = getCurrentWorker();
   if (!worker) throw new Error('Non authentifié');
@@ -79,6 +100,10 @@ export async function startHours(interventionId: number, workType: string): Prom
 }
 
 export async function stopHours(interventionId: number, hourId: number): Promise<WorkerHour> {
+  if (useRealApi()) {
+    return dolibarrApi.dolibarrStopHours(interventionId, hourId);
+  }
+  
   await delay(300);
   
   const intervention = interventions.find(i => i.id === interventionId);
@@ -99,6 +124,10 @@ export async function addManualHours(
   interventionId: number, 
   data: { dateStart: string; dateEnd: string; workType: string; comment?: string }
 ): Promise<WorkerHour> {
+  if (useRealApi()) {
+    return dolibarrApi.dolibarrAddManualHours(interventionId, data);
+  }
+  
   await delay(300);
   const worker = getCurrentWorker();
   if (!worker) throw new Error('Non authentifié');
@@ -126,6 +155,10 @@ export async function addManualHours(
 
 // Materials
 export async function getProducts(): Promise<Product[]> {
+  if (useRealApi()) {
+    return dolibarrApi.fetchProducts();
+  }
+  
   await delay(200);
   return mockProducts;
 }
@@ -134,6 +167,14 @@ export async function addMaterial(
   interventionId: number, 
   data: { productId: number; qty: number; comment?: string }
 ): Promise<Material> {
+  if (useRealApi()) {
+    return dolibarrApi.dolibarrAddMaterial(interventionId, { 
+      productId: data.productId, 
+      qtyUsed: data.qty, 
+      comment: data.comment 
+    });
+  }
+  
   await delay(300);
   
   const intervention = interventions.find(i => i.id === interventionId);
@@ -161,6 +202,10 @@ export async function updateTaskStatus(
   taskId: number, 
   status: 'a_faire' | 'fait'
 ): Promise<Task> {
+  if (useRealApi()) {
+    return dolibarrApi.dolibarrUpdateTask(interventionId, taskId, status);
+  }
+  
   await delay(200);
   
   const intervention = interventions.find(i => i.id === interventionId);
@@ -187,6 +232,10 @@ export async function uploadPhoto(
   file: File, 
   type: 'avant' | 'pendant' | 'apres' | 'oibt' | 'defaut'
 ): Promise<{ id: number; filePath: string }> {
+  if (useRealApi()) {
+    return dolibarrApi.dolibarrUploadPhoto(interventionId, file, type);
+  }
+  
   await delay(500);
   
   const intervention = interventions.find(i => i.id === interventionId);
@@ -208,7 +257,12 @@ export async function uploadPhoto(
 }
 
 // Signature
-export async function saveSignature(interventionId: number, signatureDataUrl: string): Promise<void> {
+export async function saveSignature(interventionId: number, signatureDataUrl: string, signerName?: string): Promise<void> {
+  if (useRealApi()) {
+    await dolibarrApi.dolibarrSaveSignature(interventionId, signatureDataUrl, signerName || 'Client');
+    return;
+  }
+  
   await delay(300);
   
   const intervention = interventions.find(i => i.id === interventionId);
@@ -219,6 +273,11 @@ export async function saveSignature(interventionId: number, signatureDataUrl: st
 
 // AI
 export async function generateAiSummary(interventionId: number): Promise<string> {
+  if (useRealApi()) {
+    const result = await dolibarrApi.dolibarrGenerateAiSummary(interventionId);
+    return result.summary;
+  }
+  
   await delay(1500);
   
   const intervention = interventions.find(i => i.id === interventionId);
@@ -248,6 +307,10 @@ Heures travaillées: ${intervention.hours.reduce((acc, h) => acc + (h.durationHo
 }
 
 export async function generateAiDiagnostic(interventionId: number): Promise<string> {
+  if (useRealApi()) {
+    return dolibarrApi.dolibarrGenerateAiDiagnostic(interventionId);
+  }
+  
   await delay(1500);
   
   const intervention = interventions.find(i => i.id === interventionId);
