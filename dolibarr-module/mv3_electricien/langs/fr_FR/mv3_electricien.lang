@@ -1,0 +1,129 @@
+# MV3 Électricien - French language file
+# Copyright (C) 2024 MV-3 PRO Électricien
+
+# Module
+Module500100Name = MV3 Électricien
+Module500100Desc = Gestion des interventions électriques avec application mobile PWA
+
+# Menu
+MV3Electricien = MV3 Électricien
+ListeInterventions = Liste interventions
+NouvelleIntervention = Nouvelle intervention
+ControlesOIBT = Contrôles OIBT
+Statistiques = Statistiques
+
+# Intervention types
+TypeInstallation = Installation
+TypeDepannage = Dépannage
+TypeRenovation = Rénovation
+TypeTableau = Tableau électrique
+TypeCuisine = Cuisine
+TypeOIBT = Contrôle OIBT
+
+# Status
+StatusAPlanifier = À planifier
+StatusEnCours = En cours
+StatusTermine = Terminé
+StatusFacture = Facturé
+
+# Priority
+PriorityNormal = Normal
+PriorityUrgent = Urgent
+
+# Fields
+InterventionRef = Référence
+InterventionLabel = Libellé
+InterventionClient = Client
+InterventionProject = Projet
+InterventionLocation = Adresse
+InterventionType = Type
+InterventionPriority = Priorité
+InterventionStatus = Statut
+InterventionDescription = Description
+InterventionDatePlanned = Date prévue
+InterventionDateStart = Date début
+InterventionDateEnd = Date fin
+
+# Tasks
+Tasks = Tâches
+TaskLabel = Libellé
+TaskStatus = Statut
+TaskDone = Fait
+TaskToDo = À faire
+
+# Materials
+Materials = Matériaux
+MaterialProduct = Produit
+MaterialQty = Quantité
+MaterialUnit = Unité
+MaterialComment = Commentaire
+
+# Hours
+WorkerHours = Heures
+HourDateStart = Début
+HourDateEnd = Fin
+HourDuration = Durée
+HourWorkType = Type
+HourComment = Commentaire
+WorkTypeTravail = Travail
+WorkTypeDeplacement = Déplacement
+WorkTypePause = Pause
+
+# Photos
+Photos = Photos
+PhotoType = Type
+PhotoAvant = Avant
+PhotoPendant = Pendant
+PhotoApres = Après
+PhotoOIBT = OIBT
+PhotoDefaut = Défaut
+
+# OIBT
+OIBTControl = Contrôle OIBT
+OIBTVoltage = Tension (V)
+OIBTAmperage = Intensité (A)
+OIBTIsolation = Résistance d'isolation (MΩ)
+OIBTEarth = Résistance de terre (Ω)
+OIBTLoop = Impédance de boucle (Ω)
+OIBTRcdTime = Temps de déclenchement RCD (ms)
+OIBTRcdCurrent = Courant de déclenchement RCD (mA)
+OIBTResult = Résultat global
+OIBTConforme = Conforme
+OIBTNonConforme = Non conforme
+OIBTReserve = Avec réserves
+OIBTComments = Commentaires
+
+# AI
+AIFeatures = Fonctions IA
+AISummary = Résumé IA
+AIClientText = Texte client
+AIDiagnostic = Diagnostic IA
+GenerateSummary = Générer résumé
+GenerateDiagnostic = Générer diagnostic
+
+# Signature
+Signature = Signature
+SignatureDate = Date de signature
+SignatureName = Nom du signataire
+
+# Vehicle Stock
+VehicleStock = Stock véhicule
+StockLow = Stock bas
+StockRefill = Réapprovisionner
+
+# Messages
+InterventionCreated = Intervention créée avec succès
+InterventionUpdated = Intervention mise à jour
+InterventionDeleted = Intervention supprimée
+ErrorCreatingIntervention = Erreur lors de la création de l'intervention
+ErrorUpdatingIntervention = Erreur lors de la mise à jour
+NoInterventionFound = Aucune intervention trouvée
+
+# Setup
+SetupPage = Configuration MV3 Électricien
+EnableOIBT = Activer les contrôles OIBT
+EnableGPS = Activer le suivi GPS
+EnableAI = Activer les fonctions IA
+AIApiUrl = URL de l'API IA
+AIApiKey = Clé API IA
+SetupSaved = Configuration enregistrée
