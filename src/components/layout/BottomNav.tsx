@@ -1,14 +1,18 @@
-import { Home, ClipboardList, User, Settings } from 'lucide-react';
+import { Home, ClipboardList, Calendar, User } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 
-const navItems = [
-  { to: '/dashboard', icon: Home, label: 'Accueil' },
-  { to: '/interventions', icon: ClipboardList, label: 'Travaux' },
-  { to: '/profile', icon: User, label: 'Profil' },
-];
-
 export function BottomNav() {
+  const { t } = useLanguage();
+  
+  const navItems = [
+    { to: '/dashboard', icon: Home, label: t('nav.home') },
+    { to: '/interventions', icon: ClipboardList, label: t('nav.interventions') },
+    { to: '/calendar', icon: Calendar, label: t('nav.calendar') },
+    { to: '/profile', icon: User, label: t('nav.profile') },
+  ];
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border safe-bottom">
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
@@ -25,15 +29,9 @@ export function BottomNav() {
                   "p-1.5 rounded-xl transition-all duration-200",
                   isActive && "bg-primary/10"
                 )}>
-                  <item.icon className={cn(
-                    "w-6 h-6 transition-all duration-200",
-                    isActive && "scale-110"
-                  )} />
+                  <item.icon className={cn("w-5 h-5 transition-all duration-200", isActive && "scale-110")} />
                 </div>
-                <span className={cn(
-                  "text-xs mt-0.5 font-medium transition-all duration-200",
-                  isActive && "font-semibold"
-                )}>
+                <span className={cn("text-[10px] mt-0.5 font-medium", isActive && "font-semibold")}>
                   {item.label}
                 </span>
               </>
