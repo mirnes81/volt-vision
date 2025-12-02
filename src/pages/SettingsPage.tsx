@@ -1,0 +1,267 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import { 
+  getDolibarrConfig, 
+  saveDolibarrConfig, 
+  testDolibarrConnection,
+  DolibarrConfig 
+} from '@/lib/dolibarrConfig';
+
+export default function SettingsPage() {
+  const navigate = useNavigate();
+  const { toast } = useToast();
+  
+  const [config, setConfig] = useState<DolibarrConfig>(getDolibarrConfig());
+  const [url, setUrl] = useState(config.baseUrl);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{ success: boolean; message: string; version?: string } | null>(null);
+  
+  useEffect(() => {
+    const storedConfig = getDolibarrConfig();
+    setConfig(storedConfig);
+    setUrl(storedConfig.baseUrl);
+  }, []);
+
+  const handleTest = async () => {
+    if (!url.trim()) {
+      toast({
+        title: 'URL requise',
+        description: 'Veuillez entrer l\'URL de votre Dolibarr',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setIsTesting(true);
+    setTestResult(null);
+    
+    try {
+      const result = await testDolibarrConnection(url);
+      setTestResult(result);
+      
+      if (result.success) {
+        toast({
+          title: 'Connexion réussie',
+          description: result.version ? `Dolibarr ${result.version} détecté` : result.message,
+        });
+      } else {
+        toast({
+          title: 'Échec de connexion',
+          description: result.message,
+          variant: 'destructive',
+        });
+      }
+    } catch (error) {
+      setTestResult({
+        success: false,
+        message: 'Erreur lors du test',
+      });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  const handleSave = () => {
+    const updated = saveDolibarrConfig({
+      baseUrl: url.trim(),
+      lastTest: new Date().toISOString(),
+      testStatus: testResult?.success ? 'success' : undefined,
+    });
+    setConfig(updated);
+    
+    toast({
+      title: 'Configuration sauvegardée',
+      description: url ? 'Mode Dolibarr actif' : 'Mode démo actif',
+    });
+  };
+
+  const handleReset = () => {
+    setUrl('');
+    saveDolibarrConfig({ baseUrl: '', testStatus: undefined, lastTest: undefined });
+    setConfig(getDolibarrConfig());
+    setTestResult(null);
+    
+    toast({
+      title: 'Configuration réinitialisée',
+      description: 'Mode démo activé',
+    });
+  };
+
+  return (
+    <div className="min-h-screen bg-background">
+      {/* Header */}
+      <header className="sticky top-0 z-40 bg-card border-b border-border">
+        <div className="flex items-center gap-3 p-4">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <h1 className="text-lg font-semibold">Configuration</h1>
+        </div>
+      </header>
+
+      <div className="p-4 space-y-4 pb-24">
+        {/* Connection Status */}
+        <Card>
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Server className="h-5 w-5" />
+                État de la connexion
+              </CardTitle>
+              {config.isConfigured ? (
+                <Badge variant="default" className="bg-green-500">
+                  <Wifi className="h-3 w-3 mr-1" />
+                  Connecté
+                </Badge>
+              ) : (
+                <Badge variant="secondary">
+                  <WifiOff className="h-3 w-3 mr-1" />
+                  Mode démo
+                </Badge>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent>
+            {config.isConfigured ? (
+              <div className="text-sm text-muted-foreground">
+                <p>Connecté à: <span className="font-mono text-foreground">{config.baseUrl}</span></p>
+                {config.lastTest && (
+                  <p className="mt-1">
+                    Dernier test: {new Date(config.lastTest).toLocaleString('fr-CH')}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
+                <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5" />
+                <div className="text-sm">
+                  <p className="font-medium">Mode démonstration actif</p>
+                  <p className="text-muted-foreground">
+                    Les données sont simulées. Configurez votre Dolibarr pour synchroniser les vraies données.
+                  </p>
+                </div>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Dolibarr Configuration */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Connexion Dolibarr</CardTitle>
+            <CardDescription>
+              Entrez l'URL de votre instance Dolibarr pour connecter l'application
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="dolibarr-url">URL Dolibarr</Label>
+              <Input
+                id="dolibarr-url"
+                type="url"
+                placeholder="https://votre-dolibarr.com"
+                value={url}
+                onChange={(e) => setUrl(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Exemple: https://erp.monentreprise.ch ou http://192.168.1.100/dolibarr
+              </p>
+            </div>
+
+            {/* Test Result */}
+            {testResult && (
+              <div className={`flex items-start gap-2 p-3 rounded-lg ${
+                testResult.success ? 'bg-green-500/10 border border-green-500/30' : 'bg-destructive/10 border border-destructive/30'
+              }`}>
+                {testResult.success ? (
+                  <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                ) : (
+                  <XCircle className="h-5 w-5 text-destructive mt-0.5" />
+                )}
+                <div className="text-sm">
+                  <p className="font-medium">{testResult.success ? 'Connexion réussie' : 'Échec de connexion'}</p>
+                  <p className="text-muted-foreground">{testResult.message}</p>
+                  {testResult.version && (
+                    <p className="text-muted-foreground">Version: {testResult.version}</p>
+                  )}
+                </div>
+              </div>
+            )}
+
+            <Separator />
+
+            <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                onClick={handleTest} 
+                disabled={isTesting || !url.trim()}
+                className="flex-1"
+              >
+                {isTesting ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Test en cours...
+                  </>
+                ) : (
+                  'Tester la connexion'
+                )}
+              </Button>
+              <Button onClick={handleSave} className="flex-1">
+                Sauvegarder
+              </Button>
+            </div>
+
+            {config.isConfigured && (
+              <Button 
+                variant="ghost" 
+                onClick={handleReset}
+                className="w-full text-muted-foreground"
+              >
+                Réinitialiser (mode démo)
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Help */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Configuration requise</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 text-sm text-muted-foreground">
+            <div className="space-y-2">
+              <p className="font-medium text-foreground">Sur votre Dolibarr:</p>
+              <ol className="list-decimal list-inside space-y-1 ml-2">
+                <li>Installer le module <span className="font-mono text-primary">mv3_electricien</span></li>
+                <li>Activer le module dans Configuration → Modules</li>
+                <li>Activer l'API REST dans Configuration → Modules → API</li>
+                <li>Configurer CORS si nécessaire</li>
+              </ol>
+            </div>
+            <Separator />
+            <div className="space-y-2">
+              <p className="font-medium text-foreground">CORS (Cross-Origin):</p>
+              <p>
+                Si vous avez des erreurs CORS, ajoutez dans votre <span className="font-mono">.htaccess</span> Dolibarr:
+              </p>
+              <pre className="bg-muted p-2 rounded text-xs overflow-x-auto">
+{`Header set Access-Control-Allow-Origin "*"
+Header set Access-Control-Allow-Headers "DOLAPIKEY, Content-Type"
+Header set Access-Control-Allow-Methods "GET, POST, PUT, DELETE"`}
+              </pre>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

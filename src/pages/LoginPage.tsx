@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Zap, Eye, EyeOff, Loader2 } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Zap, Eye, EyeOff, Loader2, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { isDolibarrConfigured } from '@/lib/dolibarrConfig';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -95,9 +96,26 @@ export default function LoginPage() {
       </form>
 
       {/* Demo hint */}
-      <p className="mt-8 text-xs text-muted-foreground text-center animate-fade-in" style={{ animationDelay: '0.3s' }}>
-        Demo: identifiant <strong>demo</strong> / mot de passe <strong>demo</strong>
-      </p>
+      <div className="mt-8 text-center animate-fade-in space-y-2" style={{ animationDelay: '0.3s' }}>
+        {!isDolibarrConfigured() ? (
+          <>
+            <p className="text-xs text-muted-foreground">
+              Mode démo: identifiant <strong>demo</strong> / mot de passe <strong>demo</strong>
+            </p>
+            <Link 
+              to="/settings" 
+              className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <Settings className="w-3 h-3" />
+              Configurer Dolibarr
+            </Link>
+          </>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Connectez-vous avec vos identifiants Dolibarr
+          </p>
+        )}
+      </div>
     </div>
   );
 }

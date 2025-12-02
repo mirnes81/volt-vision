@@ -1,4 +1,4 @@
-import { LogOut, User, Phone, Mail, Shield, HelpCircle, Moon, Sun, Globe, Wifi, WifiOff } from 'lucide-react';
+import { LogOut, User, Phone, Mail, Shield, HelpCircle, Moon, Sun, Globe, Wifi, WifiOff, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { isDolibarrConfigured } from '@/lib/dolibarrConfig';
 
 export default function ProfilePage() {
   const { worker, logout } = useAuth();
@@ -127,6 +128,22 @@ export default function ProfilePage() {
             <p className="text-xs text-muted-foreground">{t('profile.offlineDesc')}</p>
           </div>
         </div>
+
+        {/* Dolibarr Settings */}
+        <button
+          onClick={() => navigate('/settings')}
+          className="w-full bg-card rounded-xl p-4 shadow-card border border-border/50 flex items-center gap-4 text-left hover:bg-secondary/50 transition-colors"
+        >
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+            <Settings className="w-5 h-5 text-primary" />
+          </div>
+          <div className="flex-1">
+            <p className="font-medium">Configuration Dolibarr</p>
+            <p className="text-xs text-muted-foreground">
+              {isDolibarrConfigured() ? 'Mode connecté' : 'Mode démo actif'}
+            </p>
+          </div>
+        </button>
 
         {/* Logout */}
         <Button variant="destructive" size="full" onClick={handleLogout} className="gap-3">
