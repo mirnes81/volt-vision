@@ -7,7 +7,7 @@ function getApiUrl(): string {
   if (!config.isConfigured || !config.baseUrl) {
     throw new Error('Dolibarr non configuré');
   }
-  return `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/mv3electricien`;
+  return `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/mv3_electricien`;
 }
 
 function getToken(): string {
@@ -55,7 +55,7 @@ export async function dolibarrLogin(username: string, password: string): Promise
     throw new Error('Dolibarr non configuré');
   }
   
-  const baseUrl = `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/mv3electricien`;
+  const baseUrl = `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/mv3_electricien`;
   
   const response = await fetch(`${baseUrl}/login`, {
     method: 'POST',
