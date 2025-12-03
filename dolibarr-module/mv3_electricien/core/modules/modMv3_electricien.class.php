@@ -155,17 +155,17 @@ class modMv3_electricien extends DolibarrModules
         $this->menu = array();
         $r = 0;
 
-        // Top menu
+        // Top menu - use module number as base for unique IDs
         $this->menu[$r++] = array(
             'fk_menu' => '',
             'type' => 'top',
             'titre' => 'MV3 Électricien',
             'prefix' => img_picto('', $this->picto, 'class="paddingright pictofixedwidth valignmiddle"'),
-            'mainmenu' => 'mv3_electricien',
+            'mainmenu' => 'mv3electricien',
             'leftmenu' => '',
             'url' => '/mv3_electricien/index.php',
             'langs' => 'mv3_electricien@mv3_electricien',
-            'position' => 1000 + $r,
+            'position' => 500100,
             'enabled' => '$conf->mv3_electricien->enabled',
             'perms' => '$user->rights->mv3_electricien->intervention->read',
             'target' => '',
@@ -174,14 +174,14 @@ class modMv3_electricien extends DolibarrModules
 
         // Left menu - Interventions list
         $this->menu[$r++] = array(
-            'fk_menu' => 'fk_mainmenu=mv3_electricien',
+            'fk_menu' => 'fk_mainmenu=mv3electricien',
             'type' => 'left',
             'titre' => 'Liste interventions',
-            'mainmenu' => 'mv3_electricien',
-            'leftmenu' => 'mv3_electricien_list',
+            'mainmenu' => 'mv3electricien',
+            'leftmenu' => 'mv3electricien_list',
             'url' => '/mv3_electricien/intervention_list.php',
             'langs' => 'mv3_electricien@mv3_electricien',
-            'position' => 1000 + $r,
+            'position' => 500101,
             'enabled' => '$conf->mv3_electricien->enabled',
             'perms' => '$user->rights->mv3_electricien->intervention->read',
             'target' => '',
@@ -190,14 +190,14 @@ class modMv3_electricien extends DolibarrModules
 
         // Left menu - New intervention
         $this->menu[$r++] = array(
-            'fk_menu' => 'fk_mainmenu=mv3_electricien',
+            'fk_menu' => 'fk_mainmenu=mv3electricien',
             'type' => 'left',
             'titre' => 'Nouvelle intervention',
-            'mainmenu' => 'mv3_electricien',
-            'leftmenu' => 'mv3_electricien_new',
+            'mainmenu' => 'mv3electricien',
+            'leftmenu' => 'mv3electricien_new',
             'url' => '/mv3_electricien/intervention_card.php?action=create',
             'langs' => 'mv3_electricien@mv3_electricien',
-            'position' => 1000 + $r,
+            'position' => 500102,
             'enabled' => '$conf->mv3_electricien->enabled',
             'perms' => '$user->rights->mv3_electricien->intervention->write',
             'target' => '',
@@ -206,14 +206,14 @@ class modMv3_electricien extends DolibarrModules
 
         // Left menu - OIBT Controls
         $this->menu[$r++] = array(
-            'fk_menu' => 'fk_mainmenu=mv3_electricien',
+            'fk_menu' => 'fk_mainmenu=mv3electricien',
             'type' => 'left',
             'titre' => 'Contrôles OIBT',
-            'mainmenu' => 'mv3_electricien',
-            'leftmenu' => 'mv3_electricien_oibt',
+            'mainmenu' => 'mv3electricien',
+            'leftmenu' => 'mv3electricien_oibt',
             'url' => '/mv3_electricien/oibt_list.php',
             'langs' => 'mv3_electricien@mv3_electricien',
-            'position' => 1000 + $r,
+            'position' => 500103,
             'enabled' => '$conf->mv3_electricien->enabled && $conf->global->MV3EL_OIBT_ENABLED',
             'perms' => '$user->rights->mv3_electricien->intervention->read',
             'target' => '',
@@ -222,14 +222,14 @@ class modMv3_electricien extends DolibarrModules
 
         // Left menu - Statistics
         $this->menu[$r++] = array(
-            'fk_menu' => 'fk_mainmenu=mv3_electricien',
+            'fk_menu' => 'fk_mainmenu=mv3electricien',
             'type' => 'left',
             'titre' => 'Statistiques',
-            'mainmenu' => 'mv3_electricien',
-            'leftmenu' => 'mv3_electricien_stats',
+            'mainmenu' => 'mv3electricien',
+            'leftmenu' => 'mv3electricien_stats',
             'url' => '/mv3_electricien/stats.php',
             'langs' => 'mv3_electricien@mv3_electricien',
-            'position' => 1000 + $r,
+            'position' => 500104,
             'enabled' => '$conf->mv3_electricien->enabled',
             'perms' => '$user->rights->mv3_electricien->intervention->read',
             'target' => '',
