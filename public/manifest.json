@@ -1,11 +1,11 @@
 {
-  "name": "MV3 Pro Électricien",
-  "short_name": "MV3 Pro",
-  "description": "Application de gestion des interventions électriques pour ouvriers",
+  "name": "SmartElectric Mobile",
+  "short_name": "SmartElectric",
+  "description": "Application mobile pour électriciens - Gestion des interventions, heures, matériaux et contrôles OIBT",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f7fa",
-  "theme_color": "#2563eb",
+  "background_color": "#0a0a0a",
+  "theme_color": "#f97316",
   "orientation": "portrait-primary",
   "icons": [
     {
@@ -19,6 +19,25 @@
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "utilities"],
+  "lang": "fr-CH",
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Interventions",
+      "short_name": "Interventions",
+      "description": "Voir mes interventions",
+      "url": "/interventions",
+      "icons": [{"src": "/icon-192.png", "sizes": "192x192"}]
+    },
+    {
+      "name": "Calendrier",
+      "short_name": "Calendrier",
+      "description": "Voir le calendrier",
+      "url": "/calendar",
+      "icons": [{"src": "/icon-192.png", "sizes": "192x192"}]
     }
   ]
 }
