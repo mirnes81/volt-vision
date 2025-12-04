@@ -1,17 +1,17 @@
-// Real Dolibarr API Client
+// SmartElectric API Client
 import { Intervention, Material, Task, Worker, WorkerHour, Product, Photo } from '@/types/intervention';
 import { getDolibarrConfig } from './dolibarrConfig';
 
 function getApiUrl(): string {
   const config = getDolibarrConfig();
   if (!config.isConfigured || !config.baseUrl) {
-    throw new Error('Dolibarr non configuré');
+    throw new Error('SmartElectric non configuré');
   }
-  return `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/mv3_electricien`;
+  return `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/smartelectric`;
 }
 
 function getToken(): string {
-  const token = localStorage.getItem('mv3_token');
+  const token = localStorage.getItem('smelec_token');
   if (!token) {
     throw new Error('Non authentifié');
   }
@@ -36,8 +36,8 @@ async function apiRequest<T>(
   
   if (!response.ok) {
     if (response.status === 401) {
-      localStorage.removeItem('mv3_token');
-      localStorage.removeItem('mv3_worker');
+      localStorage.removeItem('smelec_token');
+      localStorage.removeItem('smelec_worker');
       throw new Error('Session expirée - veuillez vous reconnecter');
     }
     
@@ -52,10 +52,10 @@ async function apiRequest<T>(
 export async function dolibarrLogin(username: string, password: string): Promise<{ token: string; worker: Worker }> {
   const config = getDolibarrConfig();
   if (!config.isConfigured || !config.baseUrl) {
-    throw new Error('Dolibarr non configuré');
+    throw new Error('SmartElectric non configuré');
   }
   
-  const baseUrl = `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/mv3_electricien`;
+  const baseUrl = `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/smartelectric`;
   
   const response = await fetch(`${baseUrl}/login`, {
     method: 'POST',
@@ -75,8 +75,8 @@ export async function dolibarrLogin(username: string, password: string): Promise
   const data = await response.json();
   
   // Store credentials
-  localStorage.setItem('mv3_token', data.token);
-  localStorage.setItem('mv3_worker', JSON.stringify(data.worker));
+  localStorage.setItem('smelec_token', data.token);
+  localStorage.setItem('smelec_worker', JSON.stringify(data.worker));
   
   return data;
 }

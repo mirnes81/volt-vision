@@ -1,4 +1,4 @@
-// Dolibarr Configuration Manager
+// SmartElectric Configuration Manager
 
 export interface DolibarrConfig {
   baseUrl: string;
@@ -7,7 +7,7 @@ export interface DolibarrConfig {
   testStatus?: 'success' | 'error';
 }
 
-const CONFIG_KEY = 'mv3_dolibarr_config';
+const CONFIG_KEY = 'smelec_config';
 
 export function getDolibarrConfig(): DolibarrConfig {
   const stored = localStorage.getItem(CONFIG_KEY);
@@ -38,11 +38,9 @@ export function saveDolibarrConfig(config: Partial<DolibarrConfig>): DolibarrCon
 export function getApiBaseUrl(): string {
   const config = getDolibarrConfig();
   if (config.isConfigured && config.baseUrl) {
-    // Ensure URL ends without trailing slash and add API path
     const baseUrl = config.baseUrl.replace(/\/+$/, '');
-    return `${baseUrl}/api/index.php/mv3electricien`;
+    return `${baseUrl}/api/index.php/smartelectric`;
   }
-  // Return empty string to trigger mock mode
   return '';
 }
 
