@@ -12,7 +12,7 @@ export type InterventionStatus =
   | 'termine' 
   | 'facture';
 
-export type Priority = 'normal' | 'urgent';
+export type Priority = 'normal' | 'urgent' | 'critical';
 
 export interface Task {
   id: number;

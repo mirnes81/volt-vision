@@ -36,13 +36,16 @@ export default function LoginPage() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-secondary/30">
-      {/* Logo */}
+      {/* Logo SmartElectric */}
       <div className="mb-8 text-center animate-slide-up">
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary-dark flex items-center justify-center mx-auto mb-4 shadow-glow">
-          <Zap className="w-10 h-10 text-primary-foreground" />
+        <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center mx-auto mb-4 shadow-glow relative overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent" />
+          <Zap className="w-12 h-12 text-primary-foreground drop-shadow-lg" />
         </div>
-        <h1 className="text-2xl font-bold">MV3 Pro</h1>
-        <p className="text-muted-foreground">Électricien</p>
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
+          SmartElectric
+        </h1>
+        <p className="text-muted-foreground mt-1">Suite Électricien Suisse</p>
       </div>
 
       {/* Form */}
@@ -53,7 +56,7 @@ export default function LoginPage() {
             type="text"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            placeholder="Votre login"
+            placeholder="Votre login Dolibarr"
             className="h-14 text-base rounded-xl"
             autoComplete="username"
           />
@@ -116,6 +119,11 @@ export default function LoginPage() {
           </p>
         )}
       </div>
+
+      {/* Version */}
+      <p className="absolute bottom-4 text-xs text-muted-foreground/50">
+        SmartElectric Suite v1.0.0
+      </p>
     </div>
   );
 }
