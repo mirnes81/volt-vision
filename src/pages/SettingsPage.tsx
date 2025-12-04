@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
+import { NotificationSettings } from '@/components/settings/NotificationSettings';
 import { 
   getDolibarrConfig, 
   saveDolibarrConfig, 
@@ -108,6 +109,9 @@ export default function SettingsPage() {
       </header>
 
       <div className="p-4 space-y-4 pb-24">
+        {/* Notifications */}
+        <NotificationSettings />
+
         {/* Connection Status */}
         <Card>
           <CardHeader className="pb-3">
