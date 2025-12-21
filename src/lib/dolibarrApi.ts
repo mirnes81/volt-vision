@@ -1,4 +1,4 @@
-// SmartElectric API Client
+// SmartElectric API Client - MV-3 PRO
 import { Intervention, Material, Task, Worker, WorkerHour, Product, Photo } from '@/types/intervention';
 import { getDolibarrConfig } from './dolibarrConfig';
 
@@ -81,18 +81,38 @@ export async function dolibarrLogin(username: string, password: string): Promise
   return data;
 }
 
+// Clients
+export async function fetchClients(search?: string): Promise<Array<{ id: number; name: string; address?: string; zip?: string; town?: string; email?: string }>> {
+  const query = search ? `?search=${encodeURIComponent(search)}` : '';
+  return apiRequest(`/clients${query}`);
+}
+
 // Interventions
 export async function fetchInterventions(): Promise<Intervention[]> {
   return apiRequest<Intervention[]>('/worker/interventions');
 }
 
 export async function fetchIntervention(id: number): Promise<Intervention> {
-  return apiRequest<Intervention>(`/intervention/${id}`);
+  return apiRequest<Intervention>(`/interventions/${id}`);
+}
+
+export async function createIntervention(data: {
+  clientId: number;
+  label: string;
+  location?: string;
+  type?: string;
+  priority?: number;
+  description?: string;
+}): Promise<{ id: number; ref: string }> {
+  return apiRequest<{ id: number; ref: string }>('/interventions', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
 }
 
 // Hours
 export async function dolibarrStartHours(interventionId: number, workType: string): Promise<WorkerHour> {
-  return apiRequest<WorkerHour>(`/intervention/${interventionId}/hours`, {
+  return apiRequest<WorkerHour>(`/interventions/${interventionId}/hours`, {
     method: 'POST',
     body: JSON.stringify({
       action: 'start',
@@ -102,7 +122,7 @@ export async function dolibarrStartHours(interventionId: number, workType: strin
 }
 
 export async function dolibarrStopHours(interventionId: number, hourId: number, comment?: string): Promise<WorkerHour> {
-  return apiRequest<WorkerHour>(`/intervention/${interventionId}/hours`, {
+  return apiRequest<WorkerHour>(`/interventions/${interventionId}/hours`, {
     method: 'POST',
     body: JSON.stringify({
       action: 'stop',
@@ -115,7 +135,7 @@ export async function dolibarrAddManualHours(
   interventionId: number,
   data: { dateStart: string; dateEnd: string; workType: string; comment?: string }
 ): Promise<WorkerHour> {
-  return apiRequest<WorkerHour>(`/intervention/${interventionId}/hours`, {
+  return apiRequest<WorkerHour>(`/interventions/${interventionId}/hours`, {
     method: 'POST',
     body: JSON.stringify({
       action: 'manual',
@@ -134,7 +154,7 @@ export async function dolibarrAddMaterial(
   interventionId: number,
   data: { productId: number; qtyUsed: number; comment?: string }
 ): Promise<Material> {
-  return apiRequest<Material>(`/intervention/${interventionId}/material`, {
+  return apiRequest<Material>(`/interventions/${interventionId}/materials`, {
     method: 'POST',
     body: JSON.stringify(data),
   });
@@ -147,7 +167,7 @@ export async function dolibarrUpdateTask(
   status: 'a_faire' | 'fait',
   comment?: string
 ): Promise<Task> {
-  return apiRequest<Task>(`/intervention/${interventionId}/task/${taskId}`, {
+  return apiRequest<Task>(`/interventions/${interventionId}/tasks/${taskId}`, {
     method: 'POST',
     body: JSON.stringify({ status, comment }),
   });
@@ -166,7 +186,7 @@ export async function dolibarrUploadPhoto(
   formData.append('photo', file);
   formData.append('type', type);
   
-  const response = await fetch(`${baseUrl}/intervention/${interventionId}/photo`, {
+  const response = await fetch(`${baseUrl}/interventions/${interventionId}/photos`, {
     method: 'POST',
     headers: {
       'DOLAPIKEY': token,
@@ -187,21 +207,36 @@ export async function dolibarrSaveSignature(
   signatureData: string,
   signerName: string
 ): Promise<void> {
-  await apiRequest(`/intervention/${interventionId}/sign`, {
+  await apiRequest(`/interventions/${interventionId}/signature`, {
     method: 'POST',
     body: JSON.stringify({ signatureData, signerName }),
   });
 }
 
+// PDF
+export async function generatePdf(interventionId: number): Promise<{ filePath: string; fileName: string; downloadUrl?: string }> {
+  return apiRequest<{ filePath: string; fileName: string; downloadUrl?: string }>(`/interventions/${interventionId}/pdf`, {
+    method: 'POST',
+  });
+}
+
+// Email
+export async function sendInterventionEmail(interventionId: number, recipientEmail?: string): Promise<void> {
+  await apiRequest(`/interventions/${interventionId}/send-email`, {
+    method: 'POST',
+    body: JSON.stringify({ recipientEmail }),
+  });
+}
+
 // AI
 export async function dolibarrGenerateAiSummary(interventionId: number): Promise<{ summary: string; clientText: string }> {
-  return apiRequest<{ summary: string; clientText: string }>(`/intervention/${interventionId}/ai-summary`, {
+  return apiRequest<{ summary: string; clientText: string }>(`/interventions/${interventionId}/ai-summary`, {
     method: 'POST',
   });
 }
 
 export async function dolibarrGenerateAiDiagnostic(interventionId: number, symptoms?: string): Promise<string> {
-  const result = await apiRequest<{ diagnostic: string }>(`/intervention/${interventionId}/ai-diagnostic`, {
+  const result = await apiRequest<{ diagnostic: string }>(`/interventions/${interventionId}/ai-diagnostic`, {
     method: 'POST',
     body: JSON.stringify({ symptoms }),
   });

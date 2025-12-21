@@ -12,6 +12,7 @@ import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
 import InterventionsPage from "./pages/InterventionsPage";
 import InterventionDetailPage from "./pages/InterventionDetailPage";
+import NewInterventionPage from "./pages/NewInterventionPage";
 import CalendarPage from "./pages/CalendarPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
@@ -41,6 +42,7 @@ const AppRoutes = () => (
     <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/interventions" element={<InterventionsPage />} />
+      <Route path="/intervention/new" element={<NewInterventionPage />} />
       <Route path="/intervention/:id" element={<InterventionDetailPage />} />
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/profile" element={<ProfilePage />} />
