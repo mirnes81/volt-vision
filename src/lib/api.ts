@@ -7,6 +7,13 @@ import * as dolibarrApi from './dolibarrApi';
 let interventions = [...mockInterventions];
 let currentToken: string | null = localStorage.getItem('mv3_token');
 
+// Mock clients
+const mockClients = [
+  { id: 1, name: 'Dupont SA', address: 'Rue du Lac 15', zip: '1200', town: 'Genève', email: 'contact@dupont.ch' },
+  { id: 2, name: 'Martin & Fils', address: 'Avenue de la Gare 8', zip: '1003', town: 'Lausanne', email: 'info@martin-fils.ch' },
+  { id: 3, name: 'Résidence Les Alpes', address: 'Chemin des Pins 22', zip: '1950', town: 'Sion', email: 'syndic@alpes.ch' },
+];
+
 // Helper to check if we should use real API
 function useRealApi(): boolean {
   return isDolibarrConfigured();
@@ -14,14 +21,12 @@ function useRealApi(): boolean {
 
 // Auth
 export async function login(username: string, password: string): Promise<{ token: string; worker: Worker }> {
-  // Use real API if configured
   if (useRealApi()) {
     const result = await dolibarrApi.dolibarrLogin(username, password);
     currentToken = result.token;
     return result;
   }
   
-  // Mock mode
   await delay(800);
   if (username === 'demo' && password === 'demo') {
     const token = 'mock_token_' + Date.now();
@@ -49,6 +54,19 @@ export function getCurrentWorker(): Worker | null {
   return data ? JSON.parse(data) : null;
 }
 
+// Clients
+export async function getClients(search?: string): Promise<Array<{ id: number; name: string; address?: string; zip?: string; town?: string; email?: string }>> {
+  if (useRealApi()) {
+    return dolibarrApi.fetchClients(search);
+  }
+  
+  await delay(200);
+  if (search) {
+    return mockClients.filter(c => c.name.toLowerCase().includes(search.toLowerCase()));
+  }
+  return mockClients;
+}
+
 // Interventions
 export async function getTodayInterventions(): Promise<Intervention[]> {
   if (useRealApi()) {
@@ -68,6 +86,47 @@ export async function getIntervention(id: number): Promise<Intervention> {
   const intervention = interventions.find(i => i.id === id);
   if (!intervention) throw new Error('Intervention non trouvée');
   return { ...intervention };
+}
+
+export async function createIntervention(data: {
+  clientId: number;
+  label: string;
+  location?: string;
+  type?: string;
+  priority?: number;
+  description?: string;
+}): Promise<{ id: number; ref: string }> {
+  if (useRealApi()) {
+    return dolibarrApi.createIntervention(data);
+  }
+  
+  await delay(500);
+  
+  const client = mockClients.find(c => c.id === data.clientId);
+  const newId = Date.now();
+  const newRef = `MV3-INT-${new Date().getFullYear()}-${String(interventions.length + 1).padStart(4, '0')}`;
+  
+  const newIntervention: Intervention = {
+    id: newId,
+    ref: newRef,
+    label: data.label,
+    clientId: data.clientId,
+    clientName: client?.name || 'Client inconnu',
+    location: data.location || '',
+    type: (data.type || 'depannage') as Intervention['type'],
+    priority: data.priority === 1 ? 'urgent' : 'normal',
+    status: 'a_planifier',
+    description: data.description || '',
+    dateCreation: new Date().toISOString(),
+    tasks: [],
+    materials: [],
+    hours: [],
+    photos: [],
+  };
+  
+  interventions.push(newIntervention);
+  
+  return { id: newId, ref: newRef };
 }
 
 // Hours
@@ -241,7 +300,6 @@ export async function uploadPhoto(
   const intervention = interventions.find(i => i.id === interventionId);
   if (!intervention) throw new Error('Intervention non trouvée');
   
-  // Create object URL for preview (in real app, upload to server)
   const filePath = URL.createObjectURL(file);
   
   const photo = {
@@ -269,6 +327,31 @@ export async function saveSignature(interventionId: number, signatureDataUrl: st
   if (!intervention) throw new Error('Intervention non trouvée');
   
   intervention.signaturePath = signatureDataUrl;
+  intervention.status = 'termine';
+}
+
+// PDF
+export async function generatePdf(interventionId: number): Promise<{ filePath: string; fileName: string }> {
+  if (useRealApi()) {
+    return dolibarrApi.generatePdf(interventionId);
+  }
+  
+  await delay(1000);
+  return { 
+    filePath: `/documents/intervention_${interventionId}.pdf`, 
+    fileName: `intervention_${interventionId}.pdf` 
+  };
+}
+
+// Email
+export async function sendInterventionEmail(interventionId: number, recipientEmail?: string): Promise<void> {
+  if (useRealApi()) {
+    await dolibarrApi.sendInterventionEmail(interventionId, recipientEmail);
+    return;
+  }
+  
+  await delay(800);
+  console.log('Email envoyé (mock) pour intervention:', interventionId);
 }
 
 // AI
@@ -283,7 +366,6 @@ export async function generateAiSummary(interventionId: number): Promise<string>
   const intervention = interventions.find(i => i.id === interventionId);
   if (!intervention) throw new Error('Intervention non trouvée');
   
-  // Mock AI response
   const summary = `Intervention ${intervention.ref} - ${intervention.label}
 
 Résumé automatique:
@@ -316,7 +398,6 @@ export async function generateAiDiagnostic(interventionId: number): Promise<stri
   const intervention = interventions.find(i => i.id === interventionId);
   if (!intervention) throw new Error('Intervention non trouvée');
   
-  // Mock AI diagnostic for troubleshooting
   const diagnostic = `Diagnostic IA - ${intervention.ref}
 
 Basé sur la description: "${intervention.description}"

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Zap, ClipboardList, Clock, AlertTriangle, ChevronRight, Wifi, WifiOff } from 'lucide-react';
+import { Zap, ClipboardList, Clock, AlertTriangle, ChevronRight, Wifi, WifiOff, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { InterventionCard } from '@/components/intervention/InterventionCard';
@@ -112,21 +112,29 @@ export default function DashboardPage() {
         </div>
 
         {/* Quick Actions */}
-        <Link 
-          to="/interventions"
-          className="flex items-center justify-between bg-gradient-to-r from-primary to-accent rounded-2xl p-4 text-primary-foreground shadow-lg card-hover"
-        >
-          <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center">
-              <Zap className="w-6 h-6" />
+        <div className="grid grid-cols-2 gap-3">
+          <Link 
+            to="/intervention/new"
+            className="flex flex-col items-center justify-center bg-gradient-to-r from-success to-emerald-500 rounded-2xl p-4 text-white shadow-lg card-hover"
+          >
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2">
+              <Plus className="w-6 h-6" />
             </div>
-            <div>
-              <p className="font-bold">Mes interventions</p>
-              <p className="text-sm opacity-80">{inProgressCount} en cours</p>
+            <p className="font-bold text-sm">Nouvelle</p>
+            <p className="text-xs opacity-80">Intervention</p>
+          </Link>
+
+          <Link 
+            to="/interventions"
+            className="flex flex-col items-center justify-center bg-gradient-to-r from-primary to-accent rounded-2xl p-4 text-primary-foreground shadow-lg card-hover"
+          >
+            <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2">
+              <ClipboardList className="w-6 h-6" />
             </div>
-          </div>
-          <ChevronRight className="w-6 h-6" />
-        </Link>
+            <p className="font-bold text-sm">Interventions</p>
+            <p className="text-xs opacity-80">{inProgressCount} en cours</p>
+          </Link>
+        </div>
 
         {/* Today's Interventions */}
         <div>
