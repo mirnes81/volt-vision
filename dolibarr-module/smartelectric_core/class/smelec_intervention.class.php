@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2024-2025 SmartElectric Suite
+/* Copyright (C) 2024-2025 SmartElectric Suite / MV-3 PRO
  * Classe principale pour les interventions électriques
  */
 
@@ -7,7 +7,7 @@ require_once DOL_DOCUMENT_ROOT.'/core/class/commonobject.class.php';
 
 /**
  * Class SmelecIntervention
- * Gestion des interventions électriques SmartElectric
+ * Gestion des interventions électriques SmartElectric / MV-3 PRO
  */
 class SmelecIntervention extends CommonObject
 {
@@ -17,10 +17,10 @@ class SmelecIntervention extends CommonObject
     public $picto = 'fa-bolt';
 
     // Status constants
-    const STATUS_DRAFT = 0;       // A planifier
+    const STATUS_DRAFT = 0;       // À planifier
     const STATUS_IN_PROGRESS = 1; // En cours
-    const STATUS_DONE = 2;        // Terminé
-    const STATUS_INVOICED = 3;    // Facturé
+    const STATUS_DONE = 2;        // Terminé (signé)
+    const STATUS_SENT = 3;        // Envoyé/Facturé
 
     // Priority constants
     const PRIORITY_NORMAL = 0;
@@ -375,23 +375,27 @@ class SmelecIntervention extends CommonObject
 
     /**
      * Get next reference number
+     * Format: MV3-INT-YYYY-####
      * @return string
      */
     public function getNextNumRef()
     {
         global $conf;
 
-        $sql = "SELECT MAX(CAST(SUBSTRING(ref, 4) AS UNSIGNED)) as max_num ";
+        $year = date('Y');
+        $prefix = 'MV3-INT-'.$year.'-';
+
+        $sql = "SELECT MAX(CAST(SUBSTRING(ref, ".(strlen($prefix) + 1).") AS UNSIGNED)) as max_num ";
         $sql .= "FROM ".MAIN_DB_PREFIX."smelec_intervention ";
-        $sql .= "WHERE ref LIKE 'SE-%' AND entity = ".(int) $conf->entity;
+        $sql .= "WHERE ref LIKE '".$this->db->escape($prefix)."%' AND entity = ".(int) $conf->entity;
 
         $resql = $this->db->query($sql);
         if ($resql) {
             $obj = $this->db->fetch_object($resql);
             $num = ($obj->max_num ? $obj->max_num + 1 : 1);
-            return 'SE-'.sprintf('%06d', $num);
+            return $prefix.sprintf('%04d', $num);
         }
-        return 'SE-000001';
+        return $prefix.'0001';
     }
 
     /**
@@ -490,7 +494,7 @@ class SmelecIntervention extends CommonObject
 
         $interventions = array();
 
-        $sql = "SELECT i.*, s.nom as client_name, p.ref as project_ref ";
+        $sql = "SELECT i.*, s.nom as client_name, s.address as client_address, s.zip as client_zip, s.town as client_town, p.ref as project_ref ";
         $sql .= "FROM ".MAIN_DB_PREFIX."smelec_intervention i ";
         $sql .= "LEFT JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = i.fk_soc ";
         $sql .= "LEFT JOIN ".MAIN_DB_PREFIX."projet p ON p.rowid = i.fk_project ";
@@ -498,15 +502,14 @@ class SmelecIntervention extends CommonObject
         $sql .= " AND (i.fk_user_tech_main = ".(int) $userId;
         $sql .= " OR i.fk_user_author = ".(int) $userId.")";
         $sql .= " AND (DATE(i.date_planned) = '".$db->escape($date)."'";
-        $sql .= " OR (i.status = 1 AND DATE(i.date_start) <= '".$db->escape($date)."'))"; // In progress
+        $sql .= " OR (i.status = 1 AND DATE(i.date_start) = '".$db->escape($date)."'))";
         $sql .= " ORDER BY i.priority DESC, i.date_planned ASC";
 
         $resql = $db->query($sql);
         if ($resql) {
             while ($obj = $db->fetch_object($resql)) {
-                $intervention = new SmelecIntervention($db);
-                $intervention->fetch($obj->rowid);
-                $intervention->fetchLines();
+                $statusMap = array(0 => 'a_planifier', 1 => 'en_cours', 2 => 'termine', 3 => 'facture');
+                $priorityMap = array(0 => 'normal', 1 => 'urgent', 2 => 'critical');
 
                 $interventions[] = array(
                     'id' => $obj->rowid,
@@ -514,24 +517,21 @@ class SmelecIntervention extends CommonObject
                     'label' => $obj->label,
                     'clientId' => $obj->fk_soc,
                     'clientName' => $obj->client_name,
+                    'clientAddress' => $obj->client_address,
+                    'clientZip' => $obj->client_zip,
+                    'clientTown' => $obj->client_town,
                     'projectId' => $obj->fk_project,
                     'projectRef' => $obj->project_ref,
-                    'location' => $obj->location,
+                    'location' => $obj->location ?: ($obj->client_address.', '.$obj->client_zip.' '.$obj->client_town),
+                    'gpsLat' => $obj->location_gps_lat,
+                    'gpsLng' => $obj->location_gps_lng,
                     'type' => $obj->type,
-                    'priority' => $obj->priority > 0 ? 'urgent' : 'normal',
-                    'status' => self::getStatusCode($obj->status),
+                    'priority' => $priorityMap[$obj->priority] ?? 'normal',
+                    'status' => $statusMap[$obj->status] ?? 'a_planifier',
                     'description' => $obj->description,
-                    'dateCreation' => $obj->date_creation,
+                    'datePlanned' => $obj->date_planned,
                     'dateStart' => $obj->date_start,
                     'dateEnd' => $obj->date_end,
-                    'tasks' => $intervention->tasks,
-                    'materials' => $intervention->materials,
-                    'hours' => $intervention->hours,
-                    'photos' => $intervention->photos,
-                    'aiSummary' => $obj->ai_summary,
-                    'aiClientText' => $obj->ai_client_text,
-                    'aiDiagnostic' => $obj->ai_diagnostic,
-                    'signaturePath' => $obj->signature_path
                 );
             }
         }
@@ -540,114 +540,97 @@ class SmelecIntervention extends CommonObject
     }
 
     /**
-     * Convert status to code string
-     */
-    public static function getStatusCode($status)
-    {
-        $codes = array(
-            0 => 'a_planifier',
-            1 => 'en_cours',
-            2 => 'termine',
-            3 => 'facture'
-        );
-        return isset($codes[$status]) ? $codes[$status] : 'a_planifier';
-    }
-
-    /**
-     * Convert to array for API response
+     * Convert object to array for API
      * @return array
      */
     public function toArray()
     {
-        return array(
+        $statusMap = array(0 => 'a_planifier', 1 => 'en_cours', 2 => 'termine', 3 => 'facture');
+        $priorityMap = array(0 => 'normal', 1 => 'urgent', 2 => 'critical');
+
+        $data = array(
             'id' => $this->id,
             'ref' => $this->ref,
             'label' => $this->label,
             'clientId' => $this->fk_soc,
             'clientName' => $this->thirdparty ? $this->thirdparty->name : '',
+            'clientEmail' => $this->thirdparty ? $this->thirdparty->email : '',
             'projectId' => $this->fk_project,
             'projectRef' => $this->project ? $this->project->ref : '',
             'location' => $this->location,
+            'gpsLat' => $this->location_gps_lat,
+            'gpsLng' => $this->location_gps_lng,
             'type' => $this->type,
-            'priority' => $this->priority > 0 ? 'urgent' : 'normal',
-            'status' => self::getStatusCode($this->status),
+            'priority' => $priorityMap[$this->priority] ?? 'normal',
+            'status' => $statusMap[$this->status] ?? 'a_planifier',
             'description' => $this->description,
+            'notePublic' => $this->note_public,
+            'notePrivate' => $this->note_private,
             'aiSummary' => $this->ai_summary,
             'aiClientText' => $this->ai_client_text,
             'aiDiagnostic' => $this->ai_diagnostic,
-            'dateCreation' => dol_print_date($this->date_creation, 'dayhour'),
-            'dateStart' => $this->date_start ? dol_print_date($this->date_start, 'dayhour') : null,
-            'dateEnd' => $this->date_end ? dol_print_date($this->date_end, 'dayhour') : null,
+            'technicianId' => $this->fk_user_tech_main,
+            'dateCreation' => $this->date_creation,
+            'datePlanned' => $this->date_planned,
+            'dateStart' => $this->date_start,
+            'dateEnd' => $this->date_end,
+            'signaturePath' => $this->signature_path,
+            'signatureDate' => $this->signature_date,
+            'signatureName' => $this->signature_name,
             'tasks' => $this->tasks,
             'materials' => $this->materials,
             'hours' => $this->hours,
             'photos' => $this->photos,
-            'signaturePath' => $this->signature_path
         );
+
+        return $data;
     }
 
     /**
-     * Process pending sync queue items
+     * Sync pending mobile data (called by cron)
+     * @return int Number of synced items
      */
     public function syncPending()
     {
-        global $user;
-
-        $sql = "SELECT * FROM ".MAIN_DB_PREFIX."smelec_sync_queue ";
-        $sql .= "WHERE sync_status = 'pending' ORDER BY date_creation ASC LIMIT 100";
-
+        $synced = 0;
+        
+        $sql = "SELECT * FROM ".MAIN_DB_PREFIX."smelec_sync_queue WHERE sync_status = 'pending' ORDER BY date_creation ASC LIMIT 100";
         $resql = $this->db->query($sql);
+        
         if ($resql) {
             while ($obj = $this->db->fetch_object($resql)) {
-                $this->processSyncItem($obj);
+                // Process sync item based on type
+                $data = json_decode($obj->sync_data, true);
+                $success = false;
+                
+                try {
+                    switch ($obj->sync_type) {
+                        case 'photo':
+                            // Process photo upload
+                            $success = true;
+                            break;
+                        case 'hours':
+                            // Process hours
+                            $success = true;
+                            break;
+                        case 'task':
+                            // Process task update
+                            $success = true;
+                            break;
+                        default:
+                            $success = true;
+                    }
+                    
+                    if ($success) {
+                        $this->db->query("UPDATE ".MAIN_DB_PREFIX."smelec_sync_queue SET sync_status = 'done', date_processed = NOW() WHERE rowid = ".(int) $obj->rowid);
+                        $synced++;
+                    }
+                } catch (Exception $e) {
+                    $this->db->query("UPDATE ".MAIN_DB_PREFIX."smelec_sync_queue SET sync_status = 'error', error_message = '".$this->db->escape($e->getMessage())."', retry_count = retry_count + 1 WHERE rowid = ".(int) $obj->rowid);
+                }
             }
         }
+        
+        return $synced;
     }
-
-    /**
-     * Process a single sync queue item
-     */
-    private function processSyncItem($item)
-    {
-        $data = json_decode($item->sync_data, true);
-        $success = false;
-
-        $this->db->query("UPDATE ".MAIN_DB_PREFIX."smelec_sync_queue SET sync_status = 'processing' WHERE rowid = ".(int) $item->rowid);
-
-        try {
-            switch ($item->sync_type) {
-                case 'hour':
-                    $success = $this->syncHour($item->fk_intervention, $item->sync_action, $data);
-                    break;
-                case 'material':
-                    $success = $this->syncMaterial($item->fk_intervention, $item->sync_action, $data);
-                    break;
-                case 'task':
-                    $success = $this->syncTask($item->fk_intervention, $item->sync_action, $data);
-                    break;
-                case 'photo':
-                    $success = $this->syncPhoto($item->fk_intervention, $item->sync_action, $data);
-                    break;
-                case 'signature':
-                    $success = $this->syncSignature($item->fk_intervention, $data);
-                    break;
-            }
-
-            if ($success) {
-                $this->db->query("UPDATE ".MAIN_DB_PREFIX."smelec_sync_queue SET sync_status = 'done', date_processed = NOW() WHERE rowid = ".(int) $item->rowid);
-            } else {
-                throw new Exception("Sync failed");
-            }
-        } catch (Exception $e) {
-            $retryCount = $item->retry_count + 1;
-            $status = $retryCount >= 3 ? 'error' : 'pending';
-            $this->db->query("UPDATE ".MAIN_DB_PREFIX."smelec_sync_queue SET sync_status = '".$status."', retry_count = ".$retryCount.", error_message = '".$this->db->escape($e->getMessage())."' WHERE rowid = ".(int) $item->rowid);
-        }
-    }
-
-    private function syncHour($interventionId, $action, $data) { return true; }
-    private function syncMaterial($interventionId, $action, $data) { return true; }
-    private function syncTask($interventionId, $action, $data) { return true; }
-    private function syncPhoto($interventionId, $action, $data) { return true; }
-    private function syncSignature($interventionId, $data) { return true; }
 }

@@ -1,5 +1,5 @@
 <?php
-/* Copyright (C) 2024-2025 SmartElectric Suite
+/* Copyright (C) 2024-2025 SmartElectric Suite / MV-3 PRO
  * API REST pour SmartElectric Mobile (PWA)
  */
 
@@ -8,6 +8,7 @@ use Luracast\Restler\RestException;
 require_once DOL_DOCUMENT_ROOT.'/main.inc.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/smartelectric_core/class/smelec_intervention.class.php';
 require_once DOL_DOCUMENT_ROOT.'/custom/smartelectric_core/class/smelec_aiclient.class.php';
+require_once DOL_DOCUMENT_ROOT.'/custom/smartelectric_core/class/smelec_pdf_generator.class.php';
 
 /**
  * API class for SmartElectric Core module
@@ -92,12 +93,122 @@ class SmartelectricApi extends DolibarrApi
     }
 
     /**
+     * Get all interventions with filters
+     *
+     * @param string $status   Filter by status
+     * @param int    $user     Filter by user ID
+     * @param string $date     Filter by date (Y-m-d)
+     * @param int    $limit    Limit results
+     * @return array List of interventions
+     *
+     * @url GET /interventions
+     */
+    public function getInterventions($status = '', $user = 0, $date = '', $limit = 100)
+    {
+        global $conf;
+
+        if (!DolibarrApiAccess::$user->rights->smartelectric_core->intervention->read) {
+            throw new RestException(403, 'Accès refusé');
+        }
+
+        $interventions = array();
+        
+        $sql = "SELECT i.*, s.nom as client_name, p.ref as project_ref ";
+        $sql .= "FROM ".MAIN_DB_PREFIX."smelec_intervention i ";
+        $sql .= "LEFT JOIN ".MAIN_DB_PREFIX."societe s ON s.rowid = i.fk_soc ";
+        $sql .= "LEFT JOIN ".MAIN_DB_PREFIX."projet p ON p.rowid = i.fk_project ";
+        $sql .= "WHERE i.entity = ".(int) $conf->entity;
+        
+        if ($status !== '') {
+            $sql .= " AND i.status = ".(int) $status;
+        }
+        if ($user > 0) {
+            $sql .= " AND (i.fk_user_tech_main = ".(int) $user." OR i.fk_user_author = ".(int) $user.")";
+        }
+        if ($date) {
+            $sql .= " AND DATE(i.date_planned) = '".$this->db->escape($date)."'";
+        }
+        
+        $sql .= " ORDER BY i.date_planned DESC, i.priority DESC";
+        $sql .= " LIMIT ".(int) $limit;
+
+        $resql = $this->db->query($sql);
+        if ($resql) {
+            while ($obj = $this->db->fetch_object($resql)) {
+                $interventions[] = array(
+                    'id' => $obj->rowid,
+                    'ref' => $obj->ref,
+                    'label' => $obj->label,
+                    'clientId' => $obj->fk_soc,
+                    'clientName' => $obj->client_name,
+                    'location' => $obj->location,
+                    'type' => $obj->type,
+                    'priority' => $obj->priority,
+                    'status' => $obj->status,
+                    'datePlanned' => $obj->date_planned,
+                    'projectRef' => $obj->project_ref,
+                );
+            }
+        }
+
+        return $interventions;
+    }
+
+    /**
+     * Create new intervention
+     *
+     * @param array $data Intervention data
+     * @return array Created intervention
+     *
+     * @url POST /interventions
+     */
+    public function createIntervention($data)
+    {
+        if (!DolibarrApiAccess::$user->rights->smartelectric_core->intervention->write) {
+            throw new RestException(403, 'Accès refusé');
+        }
+
+        $intervention = new SmelecIntervention($this->db);
+        
+        $intervention->label = $data['label'] ?? '';
+        $intervention->fk_soc = (int) ($data['clientId'] ?? $data['fk_soc'] ?? 0);
+        $intervention->fk_project = (int) ($data['projectId'] ?? $data['fk_project'] ?? 0);
+        $intervention->location = $data['location'] ?? '';
+        $intervention->location_gps_lat = $data['gpsLat'] ?? null;
+        $intervention->location_gps_lng = $data['gpsLng'] ?? null;
+        $intervention->type = $data['type'] ?? 'depannage';
+        $intervention->priority = (int) ($data['priority'] ?? 0);
+        $intervention->description = $data['description'] ?? '';
+        $intervention->fk_user_tech_main = (int) ($data['technicianId'] ?? DolibarrApiAccess::$user->id);
+        
+        if (!empty($data['datePlanned'])) {
+            $intervention->date_planned = strtotime($data['datePlanned']);
+        }
+
+        if (empty($intervention->label) || empty($intervention->fk_soc)) {
+            throw new RestException(400, 'Libellé et client sont obligatoires');
+        }
+
+        $result = $intervention->create(DolibarrApiAccess::$user);
+        
+        if ($result <= 0) {
+            throw new RestException(500, 'Erreur création intervention: '.implode(', ', $intervention->errors));
+        }
+
+        return array(
+            'id' => $intervention->id,
+            'ref' => $intervention->ref,
+            'status' => 'created'
+        );
+    }
+
+    /**
      * Get intervention details
      *
      * @param int $id Intervention ID
      * @return array Intervention details
      *
-     * @url GET /intervention/{id}
+     * @url GET /interventions/{id}
      */
     public function getIntervention($id)
     {
@@ -128,6 +239,45 @@ class SmartelectricApi extends DolibarrApi
     }
 
     /**
+     * Update intervention
+     *
+     * @param int   $id   Intervention ID
+     * @param array $data Updated data
+     * @return array Result
+     *
+     * @url PUT /interventions/{id}
+     */
+    public function updateIntervention($id, $data)
+    {
+        if (!DolibarrApiAccess::$user->rights->smartelectric_core->intervention->write) {
+            throw new RestException(403, 'Accès refusé');
+        }
+
+        $intervention = new SmelecIntervention($this->db);
+        $result = $intervention->fetch($id);
+
+        if ($result <= 0) {
+            throw new RestException(404, 'Intervention non trouvée');
+        }
+
+        // Update fields if provided
+        if (isset($data['label'])) $intervention->label = $data['label'];
+        if (isset($data['location'])) $intervention->location = $data['location'];
+        if (isset($data['type'])) $intervention->type = $data['type'];
+        if (isset($data['priority'])) $intervention->priority = (int) $data['priority'];
+        if (isset($data['status'])) $intervention->status = (int) $data['status'];
+        if (isset($data['description'])) $intervention->description = $data['description'];
+
+        $result = $intervention->update(DolibarrApiAccess::$user);
+        
+        if ($result < 0) {
+            throw new RestException(500, 'Erreur mise à jour');
+        }
+
+        return array('status' => 'updated');
+    }
+
+    /**
      * Start/Stop/Add hours
      *
      * @param int    $id       Intervention ID
@@ -135,7 +285,7 @@ class SmartelectricApi extends DolibarrApi
      * @param array  $data     Hour data
      * @return array Result
      *
-     * @url POST /intervention/{id}/hours
+     * @url POST /interventions/{id}/hours
      */
     public function manageHours($id, $action, $data = array())
     {
@@ -210,7 +360,7 @@ class SmartelectricApi extends DolibarrApi
      * @param array $data Material data
      * @return array Result
      *
-     * @url POST /intervention/{id}/material
+     * @url POST /interventions/{id}/materials
      */
     public function addMaterial($id, $data)
     {
@@ -242,7 +392,7 @@ class SmartelectricApi extends DolibarrApi
      * @param array $data   Task data
      * @return array Result
      *
-     * @url POST /intervention/{id}/task/{taskId}
+     * @url POST /interventions/{id}/tasks/{taskId}
      */
     public function updateTask($id, $taskId, $data)
     {
@@ -271,7 +421,7 @@ class SmartelectricApi extends DolibarrApi
      * @param string $type Photo type
      * @return array Result
      *
-     * @url POST /intervention/{id}/photo
+     * @url POST /interventions/{id}/photos
      */
     public function uploadPhoto($id, $type = 'pendant')
     {
@@ -285,13 +435,17 @@ class SmartelectricApi extends DolibarrApi
             throw new RestException(400, 'Aucune photo fournie');
         }
 
-        $upload_dir = $conf->smartelectric_core->dir_output.'/photos/'.$id;
+        // Fetch intervention to get ref
+        $intervention = new SmelecIntervention($this->db);
+        $intervention->fetch($id);
+
+        $upload_dir = DOL_DATA_ROOT.'/smartelectric/interventions/'.$intervention->ref.'/photos';
         if (!is_dir($upload_dir)) {
             dol_mkdir($upload_dir);
         }
 
         $file = $_FILES['photo'];
-        $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
         $filename = $type.'_'.date('YmdHis').'_'.uniqid().'.'.$ext;
         $filepath = $upload_dir.'/'.$filename;
 
@@ -327,7 +481,7 @@ class SmartelectricApi extends DolibarrApi
      * @param array $data Signature data
      * @return array Result
      *
-     * @url POST /intervention/{id}/sign
+     * @url POST /interventions/{id}/signature
      */
     public function saveSignature($id, $data)
     {
@@ -337,7 +491,11 @@ class SmartelectricApi extends DolibarrApi
             throw new RestException(403, 'Accès refusé');
         }
 
-        $upload_dir = $conf->smartelectric_core->dir_output.'/signatures';
+        // Fetch intervention to get ref
+        $intervention = new SmelecIntervention($this->db);
+        $intervention->fetch($id);
+
+        $upload_dir = DOL_DATA_ROOT.'/smartelectric/interventions/'.$intervention->ref;
         if (!is_dir($upload_dir)) {
             dol_mkdir($upload_dir);
         }
@@ -348,7 +506,7 @@ class SmartelectricApi extends DolibarrApi
         }
         $signatureImage = base64_decode($signatureData);
 
-        $filename = 'signature_'.$id.'_'.date('YmdHis').'.png';
+        $filename = 'signature_'.date('YmdHis').'.png';
         $filepath = $upload_dir.'/'.$filename;
 
         if (!file_put_contents($filepath, $signatureImage)) {
@@ -359,7 +517,7 @@ class SmartelectricApi extends DolibarrApi
         $sql .= "signature_path = '".$this->db->escape($filepath)."', ";
         $sql .= "signature_date = NOW(), ";
         $sql .= "signature_name = '".$this->db->escape($data['signerName'] ?: '')."', ";
-        $sql .= "status = 2, ";
+        $sql .= "status = 2, "; // Terminé
         $sql .= "date_end = NOW() ";
         $sql .= "WHERE rowid = ".(int) $id;
 
@@ -371,12 +529,181 @@ class SmartelectricApi extends DolibarrApi
     }
 
     /**
+     * Generate PDF report
+     *
+     * @param int $id Intervention ID
+     * @return array PDF info
+     *
+     * @url POST /interventions/{id}/pdf
+     */
+    public function generatePdf($id)
+    {
+        if (!DolibarrApiAccess::$user->rights->smartelectric_core->intervention->read) {
+            throw new RestException(403, 'Accès refusé');
+        }
+
+        $pdfGenerator = new SmelecPdfGenerator($this->db);
+        $filepath = $pdfGenerator->generateInterventionPdf($id);
+
+        if ($filepath === -1 || !$filepath) {
+            throw new RestException(500, 'Erreur lors de la génération du PDF');
+        }
+
+        // Update intervention with PDF path
+        $sql = "UPDATE ".MAIN_DB_PREFIX."smelec_intervention SET note_private = CONCAT(IFNULL(note_private, ''), '\nPDF généré: ".basename($filepath)."') WHERE rowid = ".(int) $id;
+        $this->db->query($sql);
+
+        return array(
+            'status' => 'generated',
+            'filePath' => $filepath,
+            'fileName' => basename($filepath),
+            'downloadUrl' => DOL_URL_ROOT.'/document.php?modulepart=smartelectric&file=interventions/'.basename(dirname($filepath)).'/'.basename($filepath)
+        );
+    }
+
+    /**
+     * Send intervention report by email
+     *
+     * @param int   $id   Intervention ID
+     * @param array $data Email data (optional: recipientEmail, message)
+     * @return array Result
+     *
+     * @url POST /interventions/{id}/send-email
+     */
+    public function sendEmail($id, $data = array())
+    {
+        global $conf, $mysoc;
+
+        if (!DolibarrApiAccess::$user->rights->smartelectric_core->intervention->write) {
+            throw new RestException(403, 'Accès refusé');
+        }
+
+        require_once DOL_DOCUMENT_ROOT.'/core/class/CMailFile.class.php';
+        require_once DOL_DOCUMENT_ROOT.'/societe/class/societe.class.php';
+
+        // Fetch intervention
+        $intervention = new SmelecIntervention($this->db);
+        $result = $intervention->fetch($id);
+        if ($result <= 0) {
+            throw new RestException(404, 'Intervention non trouvée');
+        }
+        $intervention->fetchLines();
+
+        // Fetch client
+        $client = new Societe($this->db);
+        $client->fetch($intervention->fk_soc);
+
+        // Generate PDF first
+        $pdfGenerator = new SmelecPdfGenerator($this->db);
+        $pdfPath = $pdfGenerator->generateInterventionPdf($id);
+
+        if (!$pdfPath || !file_exists($pdfPath)) {
+            throw new RestException(500, 'Erreur lors de la génération du PDF');
+        }
+
+        // Email recipient
+        $recipientEmail = $data['recipientEmail'] ?? $client->email;
+        if (empty($recipientEmail)) {
+            throw new RestException(400, 'Email du destinataire non défini');
+        }
+
+        // Email copy
+        $copyEmail = 'info@mv-3pro.ch';
+
+        // Email subject
+        $subject = 'Rapport d\'intervention '.$intervention->ref.' - '.$mysoc->name;
+
+        // Email message
+        $message = $data['message'] ?? $this->_getDefaultEmailMessage($intervention, $client, $mysoc);
+
+        // Send email
+        $mailfile = new CMailFile(
+            $subject,
+            $recipientEmail,
+            $conf->global->MAIN_MAIL_EMAIL_FROM ?: $mysoc->email,
+            $message,
+            array($pdfPath),        // Attachments
+            array('application/pdf'), // Mime types
+            array(basename($pdfPath)), // Filenames
+            $copyEmail,             // CC
+            '',                     // BCC
+            0,                      // Delivery receipt
+            1                       // HTML
+        );
+
+        $result = $mailfile->sendfile();
+
+        if (!$result) {
+            throw new RestException(500, 'Erreur lors de l\'envoi de l\'email: '.$mailfile->error);
+        }
+
+        // Update intervention status to "sent"
+        $sql = "UPDATE ".MAIN_DB_PREFIX."smelec_intervention SET ";
+        $sql .= "status = 3, "; // Facturé/Envoyé
+        $sql .= "note_private = CONCAT(IFNULL(note_private, ''), '\nEmail envoyé à ".$this->db->escape($recipientEmail)." le ".date('d/m/Y H:i')."') ";
+        $sql .= "WHERE rowid = ".(int) $id;
+        $this->db->query($sql);
+
+        return array(
+            'status' => 'sent',
+            'recipientEmail' => $recipientEmail,
+            'copyEmail' => $copyEmail,
+            'pdfPath' => $pdfPath
+        );
+    }
+
+    /**
+     * Get default email message
+     */
+    private function _getDefaultEmailMessage($intervention, $client, $mysoc)
+    {
+        $html = '<!DOCTYPE html><html><head><meta charset="UTF-8"></head><body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">';
+        $html .= '<div style="max-width: 600px; margin: 0 auto; padding: 20px;">';
+        
+        // Header
+        $html .= '<div style="text-align: center; margin-bottom: 30px;">';
+        $html .= '<h1 style="color: #2563eb; margin: 0;">MV-3 PRO</h1>';
+        $html .= '<p style="color: #666; margin: 5px 0;">Électricien professionnel</p>';
+        $html .= '</div>';
+        
+        // Content
+        $html .= '<p>Bonjour,</p>';
+        $html .= '<p>Veuillez trouver ci-joint le rapport d\'intervention n° <strong>'.$intervention->ref.'</strong>.</p>';
+        
+        $html .= '<div style="background: #f8f9fa; border-radius: 8px; padding: 15px; margin: 20px 0;">';
+        $html .= '<p style="margin: 5px 0;"><strong>Intervention:</strong> '.$intervention->label.'</p>';
+        $html .= '<p style="margin: 5px 0;"><strong>Date:</strong> '.dol_print_date($intervention->date_creation, 'day').'</p>';
+        $html .= '<p style="margin: 5px 0;"><strong>Adresse:</strong> '.$intervention->location.'</p>';
+        $html .= '</div>';
+        
+        if ($intervention->ai_client_text) {
+            $html .= '<p>'.$intervention->ai_client_text.'</p>';
+        } else {
+            $html .= '<p>Nous restons à votre disposition pour toute question concernant cette intervention.</p>';
+        }
+        
+        // Footer
+        $html .= '<hr style="border: none; border-top: 1px solid #ddd; margin: 30px 0;">';
+        $html .= '<p style="color: #666; font-size: 14px;">';
+        $html .= '<strong>'.$mysoc->name.'</strong><br>';
+        if ($mysoc->address) $html .= $mysoc->address.'<br>';
+        if ($mysoc->zip || $mysoc->town) $html .= $mysoc->zip.' '.$mysoc->town.'<br>';
+        if ($mysoc->phone) $html .= 'Tél: '.$mysoc->phone.'<br>';
+        if ($mysoc->email) $html .= 'Email: '.$mysoc->email;
+        $html .= '</p>';
+        
+        $html .= '</div></body></html>';
+        
+        return $html;
+    }
+
+    /**
      * Generate AI summary
      *
      * @param int $id Intervention ID
      * @return array AI content
      *
-     * @url POST /intervention/{id}/ai-summary
+     * @url POST /interventions/{id}/ai-summary
      */
     public function generateAiSummary($id)
     {
@@ -420,7 +747,7 @@ class SmartelectricApi extends DolibarrApi
      * @param array $data Symptoms
      * @return array AI diagnostic
      *
-     * @url POST /intervention/{id}/ai-diagnostic
+     * @url POST /interventions/{id}/ai-diagnostic
      */
     public function generateAiDiagnostic($id, $data)
     {
@@ -487,6 +814,47 @@ class SmartelectricApi extends DolibarrApi
         }
 
         return $products;
+    }
+
+    /**
+     * Get clients list
+     *
+     * @param string $search Search term
+     * @return array Clients
+     *
+     * @url GET /clients
+     */
+    public function getClients($search = '')
+    {
+        if (!DolibarrApiAccess::$user->rights->smartelectric_core->intervention->read) {
+            throw new RestException(403, 'Accès refusé');
+        }
+
+        $clients = array();
+        $sql = "SELECT rowid, nom, name_alias, address, zip, town, phone, email FROM ".MAIN_DB_PREFIX."societe ";
+        $sql .= "WHERE status = 1 AND client IN (1, 3) ";
+        if ($search) {
+            $sql .= "AND (nom LIKE '%".$this->db->escape($search)."%' OR name_alias LIKE '%".$this->db->escape($search)."%') ";
+        }
+        $sql .= "ORDER BY nom LIMIT 100";
+
+        $resql = $this->db->query($sql);
+        if ($resql) {
+            while ($obj = $this->db->fetch_object($resql)) {
+                $clients[] = array(
+                    'id' => $obj->rowid,
+                    'name' => $obj->nom,
+                    'alias' => $obj->name_alias,
+                    'address' => $obj->address,
+                    'zip' => $obj->zip,
+                    'town' => $obj->town,
+                    'phone' => $obj->phone,
+                    'email' => $obj->email
+                );
+            }
+        }
+
+        return $clients;
     }
 
     /**
