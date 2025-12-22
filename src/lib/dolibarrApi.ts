@@ -11,7 +11,7 @@ function getApiUrl(): string {
 }
 
 function getToken(): string {
-  const token = localStorage.getItem('smelec_token');
+  const token = localStorage.getItem('mv3_token');
   if (!token) {
     throw new Error('Non authentifié');
   }
@@ -36,8 +36,8 @@ async function apiRequest<T>(
   
   if (!response.ok) {
     if (response.status === 401) {
-      localStorage.removeItem('smelec_token');
-      localStorage.removeItem('smelec_worker');
+      localStorage.removeItem('mv3_token');
+      localStorage.removeItem('mv3_worker');
       throw new Error('Session expirée - veuillez vous reconnecter');
     }
     
@@ -75,8 +75,8 @@ export async function dolibarrLogin(username: string, password: string): Promise
   const data = await response.json();
   
   // Store credentials
-  localStorage.setItem('smelec_token', data.token);
-  localStorage.setItem('smelec_worker', JSON.stringify(data.worker));
+  localStorage.setItem('mv3_token', data.token);
+  localStorage.setItem('mv3_worker', JSON.stringify(data.worker));
   
   return data;
 }
