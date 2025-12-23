@@ -37,7 +37,12 @@ FROM ".MAIN_DB_PREFIX."smelec_intervention
 WHERE entity = ".(int) $conf->entity;
 
 $resql = $db->query($sql_stats);
-$stats = $db->fetch_object($resql);
+if ($resql) {
+    $stats = $db->fetch_object($resql);
+} else {
+    // Table doesn't exist yet - show zeros
+    $stats = (object) array('total' => 0, 'a_planifier' => 0, 'en_cours' => 0, 'termine' => 0, 'today' => 0);
+}
 
 print '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; margin-bottom: 20px;">';
 
@@ -128,9 +133,9 @@ $sql_today .= " ORDER BY i.date_planned ASC";
 $sql_today .= " LIMIT 10";
 
 $resql_today = $db->query($sql_today);
-$num_today = $db->num_rows($resql_today);
+$num_today = $resql_today ? $db->num_rows($resql_today) : 0;
 
-if ($num_today > 0) {
+if ($resql_today && $num_today > 0) {
     while ($obj = $db->fetch_object($resql_today)) {
         $typeLabels = array('installation' => '🔧', 'depannage' => '⚡', 'renovation' => '🏠', 'tableau' => '📦', 'cuisine' => '🍳', 'oibt' => '📋', 'autre' => '📝');
         $statusLabels = array(0 => '<span class="badge badge-status0">À planifier</span>', 1 => '<span class="badge badge-status1">En cours</span>', 2 => '<span class="badge badge-status4">Terminé</span>', 3 => '<span class="badge badge-status6">Facturé</span>');
