@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import * as React from 'react';
 import { Worker } from '@/types/intervention';
 import { login as apiLogin, logout as apiLogout, isAuthenticated, getCurrentWorker } from '@/lib/api';
 
@@ -10,14 +10,14 @@ interface AuthContextType {
   logout: () => void;
 }
 
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
-  const [worker, setWorker] = useState<Worker | null>(null);
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
+export function AuthProvider({ children }: { children: React.ReactNode }) {
+  const [worker, setWorker] = React.useState<Worker | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  useEffect(() => {
+  React.useEffect(() => {
     // Check existing auth on mount
     const authenticated = isAuthenticated();
     if (authenticated) {
@@ -28,27 +28,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string) => {
+  const login = React.useCallback(async (username: string, password: string) => {
     const result = await apiLogin(username, password);
     setWorker(result.worker);
     setIsLoggedIn(true);
-  };
+  }, []);
 
-  const logout = () => {
+  const logout = React.useCallback(() => {
     apiLogout();
     setWorker(null);
     setIsLoggedIn(false);
-  };
+  }, []);
+
+  const value = React.useMemo(() => ({ 
+    worker, 
+    isLoggedIn, 
+    isLoading, 
+    login, 
+    logout 
+  }), [worker, isLoggedIn, isLoading, login, logout]);
 
   return (
-    <AuthContext.Provider value={{ worker, isLoggedIn, isLoading, login, logout }}>
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );
 }
 
 export function useAuth() {
-  const context = useContext(AuthContext);
+  const context = React.useContext(AuthContext);
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider');
   }
