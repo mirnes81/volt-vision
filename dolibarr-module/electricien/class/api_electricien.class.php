@@ -10,8 +10,9 @@ use Luracast\Restler\RestException;
  */
 class ElectricienApi extends DolibarrApi
 {
-    private $db;
-
+    /**
+     * Constructor
+     */
     public function __construct()
     {
         global $db;
