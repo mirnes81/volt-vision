@@ -114,14 +114,14 @@ class modMv3_electricien extends DolibarrModules
         $this->menu = array();
         $r = 0;
 
-        // Top menu
+        // Top menu - uses existing MV-3 PRO mainmenu
         $this->menu[$r++] = array(
-            'fk_menu' => '',
-            'type' => 'top',
-            'titre' => 'MV3 PRO',
+            'fk_menu' => 'fk_mainmenu=mv3pro',
+            'type' => 'left',
+            'titre' => 'Électricien',
             'prefix' => '',
-            'mainmenu' => 'mv3electricien',
-            'leftmenu' => '',
+            'mainmenu' => 'mv3pro',
+            'leftmenu' => 'mv3electricien',
             'url' => '/mv3_electricien/admin/setup.php',
             'langs' => 'mv3_electricien@mv3_electricien',
             'position' => 1000 + $r,
@@ -133,11 +133,11 @@ class modMv3_electricien extends DolibarrModules
 
         // Left menu - Configuration
         $this->menu[$r++] = array(
-            'fk_menu' => 'fk_mainmenu=mv3electricien',
+            'fk_menu' => 'fk_mainmenu=mv3pro,fk_leftmenu=mv3electricien',
             'type' => 'left',
-            'titre' => 'Configuration',
-            'mainmenu' => 'mv3electricien',
-            'leftmenu' => 'mv3_config',
+            'titre' => 'Configuration PWA',
+            'mainmenu' => 'mv3pro',
+            'leftmenu' => 'mv3electricien_config',
             'url' => '/mv3_electricien/admin/setup.php',
             'langs' => 'mv3_electricien@mv3_electricien',
             'position' => 1000 + $r,
