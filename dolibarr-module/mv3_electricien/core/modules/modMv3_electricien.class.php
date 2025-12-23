@@ -7,17 +7,6 @@
  * (at your option) any later version.
  */
 
-/**
- * \defgroup mv3_electricien Module MV3 Électricien
- * \brief Module for electrical interventions management with PWA support
- */
-
-/**
- * \file    core/modules/modMv3_electricien.class.php
- * \ingroup mv3_electricien
- * \brief   Description and activation file for module MV3 Électricien
- */
-
 include_once DOL_DOCUMENT_ROOT.'/core/modules/DolibarrModules.class.php';
 
 /**
@@ -60,10 +49,10 @@ class modMv3_electricien extends DolibarrModules
         $this->version = '1.0.0';
 
         // Picto (icon)
-        $this->picto = 'fa-bolt';
+        $this->picto = 'technic';
 
-        // Dependencies
-        $this->depends = array('modFicheinter', 'modSociete', 'modProduct', 'modProjet');
+        // NO Dependencies - remove blocking
+        $this->depends = array();
         $this->requiredby = array();
         $this->conflictwith = array();
 
@@ -83,40 +72,17 @@ class modMv3_electricien extends DolibarrModules
         $this->dirs = array(
             "/mv3_electricien/temp",
             "/mv3_electricien/photos",
-            "/mv3_electricien/signatures",
-            "/mv3_electricien/voicenotes",
-            "/mv3_electricien/oibt"
+            "/mv3_electricien/signatures"
         );
 
         // Config page
         $this->config_page_url = array("setup.php@mv3_electricien");
 
-        // Boxes/Widgets
-        $this->boxes = array(
-            0 => array(
-                'file' => 'mv3electricienwidget1.php@mv3_electricien',
-                'note' => 'Interventions du jour',
-                'enabledbydefaulton' => 'Home',
-            ),
-        );
+        // NO Boxes/Widgets for now
+        $this->boxes = array();
 
-        // Cronjobs
-        $this->cronjobs = array(
-            0 => array(
-                'label' => 'Sync pending interventions',
-                'jobtype' => 'method',
-                'class' => '/mv3_electricien/class/mv3el_intervention.class.php',
-                'objectname' => 'Mv3elIntervention',
-                'method' => 'syncPending',
-                'parameters' => '',
-                'comment' => 'Synchronize pending mobile data',
-                'frequency' => 5,
-                'unitfrequency' => 60,
-                'status' => 0,
-                'test' => '$conf->mv3_electricien->enabled',
-                'priority' => 50,
-            ),
-        );
+        // NO Cronjobs for now
+        $this->cronjobs = array();
 
         // Permissions
         $this->rights = array();
@@ -124,169 +90,81 @@ class modMv3_electricien extends DolibarrModules
         $r = 0;
 
         // Read permission
-        $this->rights[$r][0] = $this->numero + $r;
+        $this->rights[$r][0] = $this->numero + $r + 1;
         $this->rights[$r][1] = 'Read electrical interventions';
         $this->rights[$r][4] = 'intervention';
         $this->rights[$r][5] = 'read';
         $r++;
 
         // Create permission
-        $this->rights[$r][0] = $this->numero + $r;
+        $this->rights[$r][0] = $this->numero + $r + 1;
         $this->rights[$r][1] = 'Create/Update electrical interventions';
         $this->rights[$r][4] = 'intervention';
         $this->rights[$r][5] = 'write';
         $r++;
 
         // Delete permission
-        $this->rights[$r][0] = $this->numero + $r;
+        $this->rights[$r][0] = $this->numero + $r + 1;
         $this->rights[$r][1] = 'Delete electrical interventions';
         $this->rights[$r][4] = 'intervention';
         $this->rights[$r][5] = 'delete';
         $r++;
 
-        // Admin permission
-        $this->rights[$r][0] = $this->numero + $r;
-        $this->rights[$r][1] = 'Administrate MV3 Électricien module';
-        $this->rights[$r][4] = 'admin';
-        $this->rights[$r][5] = '';
-        $r++;
-
-        // Menus
+        // Menus - SIMPLIFIED
         $this->menu = array();
         $r = 0;
 
-        // Top menu - use module number as base for unique IDs
+        // Top menu
         $this->menu[$r++] = array(
             'fk_menu' => '',
             'type' => 'top',
-            'titre' => 'MV3 Électricien',
-            'prefix' => img_picto('', $this->picto, 'class="paddingright pictofixedwidth valignmiddle"'),
+            'titre' => 'MV3 PRO',
+            'prefix' => '',
             'mainmenu' => 'mv3electricien',
             'leftmenu' => '',
-            'url' => '/mv3_electricien/index.php',
+            'url' => '/mv3_electricien/admin/setup.php',
             'langs' => 'mv3_electricien@mv3_electricien',
-            'position' => 500100,
+            'position' => 1000 + $r,
             'enabled' => '$conf->mv3_electricien->enabled',
-            'perms' => '$user->rights->mv3_electricien->intervention->read',
+            'perms' => '1',
             'target' => '',
-            'user' => 0,
+            'user' => 2,
         );
 
-        // Left menu - Interventions list
+        // Left menu - Configuration
         $this->menu[$r++] = array(
             'fk_menu' => 'fk_mainmenu=mv3electricien',
             'type' => 'left',
-            'titre' => 'Liste interventions',
+            'titre' => 'Configuration',
             'mainmenu' => 'mv3electricien',
-            'leftmenu' => 'mv3electricien_list',
-            'url' => '/mv3_electricien/intervention_list.php',
+            'leftmenu' => 'mv3_config',
+            'url' => '/mv3_electricien/admin/setup.php',
             'langs' => 'mv3_electricien@mv3_electricien',
-            'position' => 500101,
+            'position' => 1000 + $r,
             'enabled' => '$conf->mv3_electricien->enabled',
-            'perms' => '$user->rights->mv3_electricien->intervention->read',
+            'perms' => '1',
             'target' => '',
-            'user' => 0,
-        );
-
-        // Left menu - New intervention
-        $this->menu[$r++] = array(
-            'fk_menu' => 'fk_mainmenu=mv3electricien',
-            'type' => 'left',
-            'titre' => 'Nouvelle intervention',
-            'mainmenu' => 'mv3electricien',
-            'leftmenu' => 'mv3electricien_new',
-            'url' => '/mv3_electricien/intervention_card.php?action=create',
-            'langs' => 'mv3_electricien@mv3_electricien',
-            'position' => 500102,
-            'enabled' => '$conf->mv3_electricien->enabled',
-            'perms' => '$user->rights->mv3_electricien->intervention->write',
-            'target' => '',
-            'user' => 0,
-        );
-
-        // Left menu - OIBT Controls
-        $this->menu[$r++] = array(
-            'fk_menu' => 'fk_mainmenu=mv3electricien',
-            'type' => 'left',
-            'titre' => 'Contrôles OIBT',
-            'mainmenu' => 'mv3electricien',
-            'leftmenu' => 'mv3electricien_oibt',
-            'url' => '/mv3_electricien/oibt_list.php',
-            'langs' => 'mv3_electricien@mv3_electricien',
-            'position' => 500103,
-            'enabled' => '$conf->mv3_electricien->enabled && $conf->global->MV3EL_OIBT_ENABLED',
-            'perms' => '$user->rights->mv3_electricien->intervention->read',
-            'target' => '',
-            'user' => 0,
-        );
-
-        // Left menu - Statistics
-        $this->menu[$r++] = array(
-            'fk_menu' => 'fk_mainmenu=mv3electricien',
-            'type' => 'left',
-            'titre' => 'Statistiques',
-            'mainmenu' => 'mv3electricien',
-            'leftmenu' => 'mv3electricien_stats',
-            'url' => '/mv3_electricien/stats.php',
-            'langs' => 'mv3_electricien@mv3_electricien',
-            'position' => 500104,
-            'enabled' => '$conf->mv3_electricien->enabled',
-            'perms' => '$user->rights->mv3_electricien->intervention->read',
-            'target' => '',
-            'user' => 0,
+            'user' => 2,
         );
     }
 
     /**
      * Function called when module is enabled
      *
-     * @param string $options Options when enabling module ('', 'noboxes')
+     * @param string $options Options when enabling module
      * @return int 1 if OK, 0 if KO
      */
     public function init($options = '')
     {
-        global $conf, $langs;
-
-        // Load SQL tables from /sql/ directory
-        $result = $this->_load_tables('/mv3_electricien/sql/');
-        if ($result < 0) {
-            // Don't block activation if tables already exist
-            dol_syslog(get_class($this)."::init tables may already exist", LOG_WARNING);
-        }
-
-        // Create extrafields if needed
-        include_once DOL_DOCUMENT_ROOT.'/core/class/extrafields.class.php';
-        $extrafields = new ExtraFields($this->db);
-
-        // Add extrafield to link ficheinter to mv3el_intervention
-        $extrafields->addExtraField(
-            'mv3el_intervention_id',
-            'MV3 Intervention ID',
-            'int',
-            100,
-            11,
-            'fichinter',
-            0,
-            0,
-            '',
-            '',
-            1,
-            '',
-            0,
-            '',
-            '',
-            '',
-            'mv3_electricien@mv3_electricien',
-            '$conf->mv3_electricien->enabled'
-        );
-
+        // Don't load tables automatically - let user do it manually
+        // Just init the module
         return $this->_init(array(), $options);
     }
 
     /**
      * Function called when module is disabled
      *
-     * @param string $options Options when disabling module ('', 'noboxes')
+     * @param string $options Options when disabling module
      * @return int 1 if OK, 0 if KO
      */
     public function remove($options = '')
