@@ -267,9 +267,10 @@ class modSmartelectric_core extends DolibarrModules
     {
         global $conf, $langs;
 
-        $result = $this->_load_tables('/install/mysql/', 'smartelectric_core');
+        // Load SQL tables - don't block if tables exist
+        $result = $this->_load_tables('/smartelectric_core/sql/');
         if ($result < 0) {
-            return -1;
+            dol_syslog(get_class($this)."::init tables may already exist or error", LOG_WARNING);
         }
 
         // Create extrafields if needed

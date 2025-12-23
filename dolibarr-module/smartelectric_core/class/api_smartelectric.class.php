@@ -5,10 +5,9 @@
 
 use Luracast\Restler\RestException;
 
-require_once DOL_DOCUMENT_ROOT.'/main.inc.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/smartelectric_core/class/smelec_intervention.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/smartelectric_core/class/smelec_aiclient.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/smartelectric_core/class/smelec_pdf_generator.class.php';
+dol_include_once('/smartelectric_core/class/smelec_intervention.class.php');
+dol_include_once('/smartelectric_core/class/smelec_aiclient.class.php');
+dol_include_once('/smartelectric_core/class/smelec_pdf_generator.class.php');
 
 /**
  * API class for SmartElectric Core module

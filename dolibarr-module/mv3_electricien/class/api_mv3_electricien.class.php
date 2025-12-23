@@ -5,9 +5,8 @@
 
 use Luracast\Restler\RestException;
 
-require_once DOL_DOCUMENT_ROOT.'/main.inc.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/mv3_electricien/class/mv3el_intervention.class.php';
-require_once DOL_DOCUMENT_ROOT.'/custom/mv3_electricien/class/mv3el_ai.class.php';
+dol_include_once('/mv3_electricien/class/mv3el_intervention.class.php');
+dol_include_once('/mv3_electricien/class/mv3el_ai.class.php');
 
 /**
  * API class for MV3 Électricien module
