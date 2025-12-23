@@ -247,9 +247,11 @@ class modMv3_electricien extends DolibarrModules
     {
         global $conf, $langs;
 
-        $result = $this->_load_tables('/install/mysql/', 'mv3_electricien');
+        // Load SQL tables from /sql/ directory
+        $result = $this->_load_tables('/mv3_electricien/sql/');
         if ($result < 0) {
-            return -1;
+            // Don't block activation if tables already exist
+            dol_syslog(get_class($this)."::init tables may already exist", LOG_WARNING);
         }
 
         // Create extrafields if needed
