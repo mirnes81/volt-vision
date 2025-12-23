@@ -97,20 +97,37 @@ class modElectricien extends DolibarrModules
         $this->menu = array();
         $r = 0;
 
-        // Left menu under existing MV-3 PRO
+        // TOP MENU - Électricien
         $this->menu[$r++] = array(
-            'fk_menu' => 'fk_mainmenu=mv3pro',
-            'type' => 'left',
-            'titre' => 'Électricien PWA',
-            'mainmenu' => 'mv3pro',
-            'leftmenu' => 'electricien',
+            'fk_menu' => '',
+            'type' => 'top',
+            'titre' => 'Électricien',
+            'prefix' => img_picto('', 'technic', 'class="paddingright pictofixedwidth"'),
+            'mainmenu' => 'electricien',
+            'leftmenu' => '',
             'url' => '/electricien/admin/setup.php',
             'langs' => 'electricien@electricien',
             'position' => 100,
             'enabled' => '$conf->electricien->enabled',
             'perms' => '1',
             'target' => '',
-            'user' => 2,
+            'user' => 0,
+        );
+
+        // Left menu - Configuration
+        $this->menu[$r++] = array(
+            'fk_menu' => 'fk_mainmenu=electricien',
+            'type' => 'left',
+            'titre' => 'Configuration PWA',
+            'mainmenu' => 'electricien',
+            'leftmenu' => 'electricien_setup',
+            'url' => '/electricien/admin/setup.php',
+            'langs' => 'electricien@electricien',
+            'position' => 101,
+            'enabled' => '$conf->electricien->enabled',
+            'perms' => '1',
+            'target' => '',
+            'user' => 0,
         );
     }
 
