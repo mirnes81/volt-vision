@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import * as React from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -8,17 +8,20 @@ interface ThemeContextType {
   setTheme: (theme: Theme) => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = React.createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('mv3_theme');
-    return (saved as Theme) || 'system';
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = React.useState<Theme>(() => {
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('mv3_theme');
+      return (saved as Theme) || 'system';
+    }
+    return 'system';
   });
 
-  const [actualTheme, setActualTheme] = useState<'light' | 'dark'>('light');
+  const [actualTheme, setActualTheme] = React.useState<'light' | 'dark'>('light');
 
-  useEffect(() => {
+  React.useEffect(() => {
     const root = document.documentElement;
     
     const updateTheme = () => {
@@ -44,15 +47,17 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mediaQuery.removeEventListener('change', updateTheme);
   }, [theme]);
 
+  const value = React.useMemo(() => ({ theme, actualTheme, setTheme }), [theme, actualTheme]);
+
   return (
-    <ThemeContext.Provider value={{ theme, actualTheme, setTheme }}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext);
+  const context = React.useContext(ThemeContext);
   if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
