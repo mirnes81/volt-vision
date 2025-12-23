@@ -3,7 +3,13 @@
  * Page d'accueil du module SmartElectric
  */
 
-require '../main.inc.php';
+// Dolibarr environment - try multiple paths for compatibility
+$res = 0;
+if (!$res && file_exists("../main.inc.php")) $res = @include "../main.inc.php";
+if (!$res && file_exists("../../main.inc.php")) $res = @include "../../main.inc.php";
+if (!$res && file_exists("../../../main.inc.php")) $res = @include "../../../main.inc.php";
+if (!$res) die("Error: main.inc.php not found");
+
 require_once './class/smelec_intervention.class.php';
 
 $langs->loadLangs(array("smartelectric_core@smartelectric_core"));
