@@ -39,6 +39,7 @@ class modElectricien extends DolibarrModules
             'js' => array(),
             'hooks' => array(),
             'moduleforexternal' => 0,
+            'api' => 1,  // Enable REST API
         );
 
         $this->dirs = array("/electricien/temp", "/electricien/photos", "/electricien/signatures");
