@@ -94,6 +94,78 @@ print '</tr>';
 
 print '</table><br>';
 
+// API Status Check
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre"><td colspan="2">Vérification API</td></tr>';
+
+// Check if API class exists
+$apiClassFile = dol_buildpath('/electricien/class/api_electricien.class.php', 0);
+print '<tr class="oddeven">';
+print '<td>Fichier API</td>';
+if (file_exists($apiClassFile)) {
+    print '<td><span style="color:green;">✓ Trouvé</span> - '.$apiClassFile.'</td>';
+} else {
+    print '<td><span style="color:red;">✗ Non trouvé</span> - '.$apiClassFile.'</td>';
+}
+print '</tr>';
+
+// Check module API registration
+print '<tr class="oddeven">';
+print '<td>Module API activé</td>';
+$moduleFile = dol_buildpath('/electricien/core/modules/modElectricien.class.php', 0);
+$moduleContent = file_get_contents($moduleFile);
+if (strpos($moduleContent, "'api' => 1") !== false || strpos($moduleContent, '"api" => 1') !== false) {
+    print '<td><span style="color:green;">✓ Oui</span></td>';
+} else {
+    print '<td><span style="color:red;">✗ Non - Ajoutez "api" => 1 dans module_parts</span></td>';
+}
+print '</tr>';
+
+// Test API endpoint
+print '<tr class="oddeven">';
+print '<td>Test endpoint /status</td>';
+print '<td><a href="'.DOL_MAIN_URL_ROOT.'/api/index.php/electricien/status" target="_blank" class="button">Tester /status</a></td>';
+print '</tr>';
+
+print '</table><br>';
+
+// Show API endpoints
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre"><td colspan="2">Endpoints API disponibles</td></tr>';
+
+$endpoints = array(
+    'GET /status' => 'Vérifier le statut de l\'API (public)',
+    'POST /login' => 'Authentification (login, password)',
+    'GET /interventions/today' => 'Interventions du jour',
+    'GET /interventions/{id}' => 'Détails d\'une intervention',
+    'PUT /interventions/{id}' => 'Mettre à jour une intervention',
+    'POST /interventions/{id}/lines' => 'Ajouter une ligne/heures',
+    'GET /products' => 'Liste des produits/matériaux',
+);
+
+foreach ($endpoints as $endpoint => $description) {
+    print '<tr class="oddeven">';
+    print '<td><code>'.$endpoint.'</code></td>';
+    print '<td>'.$description.'</td>';
+    print '</tr>';
+}
+
+print '</table><br>';
+
+// Show API code preview
+print '<table class="noborder centpercent">';
+print '<tr class="liste_titre"><td>Aperçu du code API (api_electricien.class.php)</td></tr>';
+print '<tr class="oddeven"><td>';
+if (file_exists($apiClassFile)) {
+    $code = file_get_contents($apiClassFile);
+    $code = htmlspecialchars($code);
+    print '<pre style="max-height:400px;overflow:auto;background:#f5f5f5;padding:10px;font-size:11px;">'.$code.'</pre>';
+} else {
+    print '<span style="color:red;">Fichier non trouvé</span>';
+}
+print '</td></tr>';
+print '</table><br>';
+
 print '<div class="center"><input type="submit" class="button" value="Enregistrer"></div>';
 
 print '</form>';
