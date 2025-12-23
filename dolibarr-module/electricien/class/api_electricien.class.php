@@ -1,14 +1,23 @@
 <?php
 /* Copyright (C) 2024-2025 MV-3 PRO
  * API REST pour l'application mobile Électricien PWA
+ * 
+ * Ce fichier fournit l'API REST pour le module electricien
+ * Chemin: htdocs/custom/electricien/class/api_electricien.class.php
  */
 
 use Luracast\Restler\RestException;
 
 /**
  * API class for Electricien module
+ * 
+ * Le nom de la classe DOIT correspondre au nom du module (sans "mod" prefix)
+ * pour que Dolibarr puisse l'enregistrer automatiquement.
+ * 
+ * @access protected
+ * @class DolibarrApiAccess {@requires user,external}
  */
-class ElectricienApi extends DolibarrApi
+class Electricien extends DolibarrApi
 {
     /**
      * Constructor
