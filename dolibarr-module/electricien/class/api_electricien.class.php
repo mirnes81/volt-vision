@@ -9,7 +9,7 @@
 use Luracast\Restler\RestException;
 
 /**
- * API class for Electricien module
+ * API class for Electricien module - Protected endpoints
  * 
  * @access protected
  * @class DolibarrApiAccess {@requires user,external}
@@ -33,6 +33,7 @@ class Electricien extends DolibarrApi
      * @return array Token and worker info
      *
      * @url POST /login
+     * @access public
      */
     public function login($login, $password)
     {
@@ -45,9 +46,26 @@ class Electricien extends DolibarrApi
             throw new RestException(401, 'Identifiants invalides');
         }
 
-        // Check password
-        if (!password_verify($password, $user->pass_indatabase_crypted) && 
-            dol_hash($password) != $user->pass_indatabase_crypted) {
+        // Check password using Dolibarr's method
+        require_once DOL_DOCUMENT_ROOT.'/core/lib/security2.lib.php';
+        
+        $passok = false;
+        
+        // Try different password verification methods
+        if (function_exists('checkLoginPassEntity')) {
+            $passok = checkLoginPassEntity($login, $password, $user->entity, array('dolibarr'));
+        }
+        
+        if (!$passok && !empty($user->pass_indatabase_crypted)) {
+            // Fallback: direct hash comparison
+            if (function_exists('dol_verifyHash')) {
+                $passok = dol_verifyHash($password, $user->pass_indatabase_crypted);
+            } else {
+                $passok = (dol_hash($password) == $user->pass_indatabase_crypted);
+            }
+        }
+
+        if (!$passok) {
             throw new RestException(401, 'Identifiants invalides');
         }
 
@@ -55,9 +73,12 @@ class Electricien extends DolibarrApi
             throw new RestException(403, 'Compte désactivé');
         }
 
-        // Generate token
-        $token = bin2hex(random_bytes(32));
-        $this->db->query("UPDATE ".MAIN_DB_PREFIX."user SET api_key = '".$this->db->escape($token)."' WHERE rowid = ".$user->id);
+        // Generate token or use existing
+        $token = $user->api_key;
+        if (empty($token)) {
+            $token = bin2hex(random_bytes(32));
+            $this->db->query("UPDATE ".MAIN_DB_PREFIX."user SET api_key = '".$this->db->escape($token)."' WHERE rowid = ".$user->id);
+        }
 
         return array(
             'success' => true,
@@ -83,10 +104,6 @@ class Electricien extends DolibarrApi
     public function getTodayInterventions()
     {
         global $conf;
-
-        if (!DolibarrApiAccess::$user->rights->electricien->intervention->read) {
-            throw new RestException(403, 'Accès refusé');
-        }
 
         $userId = DolibarrApiAccess::$user->id;
         $interventions = array();
@@ -133,10 +150,6 @@ class Electricien extends DolibarrApi
      */
     public function getIntervention($id)
     {
-        if (!DolibarrApiAccess::$user->rights->electricien->intervention->read) {
-            throw new RestException(403, 'Accès refusé');
-        }
-
         require_once DOL_DOCUMENT_ROOT.'/fichinter/class/fichinter.class.php';
         
         $fichinter = new Fichinter($this->db);
@@ -181,10 +194,6 @@ class Electricien extends DolibarrApi
      */
     public function updateIntervention($id, $data)
     {
-        if (!DolibarrApiAccess::$user->rights->electricien->intervention->write) {
-            throw new RestException(403, 'Accès refusé');
-        }
-
         require_once DOL_DOCUMENT_ROOT.'/fichinter/class/fichinter.class.php';
         
         $fichinter = new Fichinter($this->db);
@@ -225,10 +234,6 @@ class Electricien extends DolibarrApi
      */
     public function addLine($id, $data)
     {
-        if (!DolibarrApiAccess::$user->rights->electricien->intervention->write) {
-            throw new RestException(403, 'Accès refusé');
-        }
-
         require_once DOL_DOCUMENT_ROOT.'/fichinter/class/fichinter.class.php';
         
         $fichinter = new Fichinter($this->db);
@@ -263,10 +268,6 @@ class Electricien extends DolibarrApi
      */
     public function getProducts($search = '')
     {
-        if (!DolibarrApiAccess::$user->rights->electricien->intervention->read) {
-            throw new RestException(403, 'Accès refusé');
-        }
-
         $products = array();
         $sql = "SELECT rowid, ref, label, price FROM ".MAIN_DB_PREFIX."product ";
         $sql .= "WHERE tosell = 1 AND fk_product_type = 0";
@@ -291,12 +292,11 @@ class Electricien extends DolibarrApi
     }
 
     /**
-     * Get status/ping - Public endpoint (no auth required)
+     * Get status/ping
      *
      * @return array Status
      *
      * @url GET /status
-     * @noauth
      */
     public function getStatus()
     {
@@ -304,7 +304,8 @@ class Electricien extends DolibarrApi
             'success' => true,
             'module' => 'electricien',
             'version' => '1.0.0',
-            'timestamp' => date('c')
+            'timestamp' => date('c'),
+            'user' => DolibarrApiAccess::$user->login
         );
     }
 }
