@@ -1,6 +1,5 @@
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -18,6 +17,7 @@ import CalendarPage from "./pages/CalendarPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import NotFound from "./pages/NotFound";
+import { Toaster as SonnerToaster } from "sonner";
 
 const queryClient = new QueryClient();
 
@@ -52,19 +52,25 @@ const AppRoutes = () => (
   </Routes>
 );
 
+function AppContent() {
+  return (
+    <TooltipProvider>
+      <Toaster />
+      <SonnerToaster position="top-center" />
+      <BrowserRouter>
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
+      </BrowserRouter>
+    </TooltipProvider>
+  );
+}
+
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <LanguageProvider>
-        <TooltipProvider>
-          <Toaster />
-          <Sonner />
-          <BrowserRouter>
-            <AuthProvider>
-              <AppRoutes />
-            </AuthProvider>
-          </BrowserRouter>
-        </TooltipProvider>
+        <AppContent />
       </LanguageProvider>
     </ThemeProvider>
   </QueryClientProvider>
