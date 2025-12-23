@@ -2,6 +2,7 @@
 
 export interface DolibarrConfig {
   baseUrl: string;
+  apiKey: string;
   isConfigured: boolean;
   lastTest?: string;
   testStatus?: 'success' | 'error';
@@ -20,6 +21,7 @@ export function getDolibarrConfig(): DolibarrConfig {
   }
   return {
     baseUrl: '',
+    apiKey: '',
     isConfigured: false,
   };
 }

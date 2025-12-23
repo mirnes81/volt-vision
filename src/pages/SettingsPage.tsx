@@ -22,6 +22,7 @@ export default function SettingsPage() {
   
   const [config, setConfig] = useState<DolibarrConfig>(getDolibarrConfig());
   const [url, setUrl] = useState(config.baseUrl);
+  const [apiKey, setApiKey] = useState(config.apiKey || '');
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; version?: string } | null>(null);
   
@@ -29,6 +30,7 @@ export default function SettingsPage() {
     const storedConfig = getDolibarrConfig();
     setConfig(storedConfig);
     setUrl(storedConfig.baseUrl);
+    setApiKey(storedConfig.apiKey || '');
   }, []);
 
   const handleTest = async () => {
@@ -73,6 +75,7 @@ export default function SettingsPage() {
   const handleSave = () => {
     const updated = saveDolibarrConfig({
       baseUrl: url.trim(),
+      apiKey: apiKey.trim(),
       lastTest: new Date().toISOString(),
       testStatus: testResult?.success ? 'success' : undefined,
     });
@@ -86,7 +89,8 @@ export default function SettingsPage() {
 
   const handleReset = () => {
     setUrl('');
-    saveDolibarrConfig({ baseUrl: '', testStatus: undefined, lastTest: undefined });
+    setApiKey('');
+    saveDolibarrConfig({ baseUrl: '', apiKey: '', testStatus: undefined, lastTest: undefined });
     setConfig(getDolibarrConfig());
     setTestResult(null);
     
@@ -178,6 +182,21 @@ export default function SettingsPage() {
               />
               <p className="text-xs text-muted-foreground">
                 Exemple: https://erp.monentreprise.ch ou http://192.168.1.100/dolibarr
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="api-key">Clé API (DOLAPIKEY)</Label>
+              <Input
+                id="api-key"
+                type="password"
+                placeholder="Votre clé API Dolibarr"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
+                className="font-mono text-sm"
+              />
+              <p className="text-xs text-muted-foreground">
+                Trouvable dans Dolibarr → Utilisateurs → votre profil → Onglet API
               </p>
             </div>
 
