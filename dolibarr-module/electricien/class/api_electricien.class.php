@@ -285,11 +285,12 @@ class ElectricienApi extends DolibarrApi
     }
 
     /**
-     * Get status/ping
+     * Get status/ping - Public endpoint (no auth required)
      *
      * @return array Status
      *
      * @url GET /status
+     * @noauth
      */
     public function getStatus()
     {
