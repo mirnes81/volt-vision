@@ -1,29 +1,36 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { Zap, Eye, EyeOff, Loader2, Settings, Key, HelpCircle } from 'lucide-react';
+import { Zap, Eye, EyeOff, Loader2, Settings, Key, CheckCircle, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
-import { isDolibarrConfigured } from '@/lib/dolibarrConfig';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { getDolibarrConfig, isDolibarrConfigured } from '@/lib/dolibarrConfig';
 
 export default function LoginPage() {
   const [apiKey, setApiKey] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [dolibarrUrl, setDolibarrUrl] = useState('');
   const { login } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const config = getDolibarrConfig();
+    if (config.baseUrl) {
+      setDolibarrUrl(config.baseUrl);
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!apiKey) {
       toast.error('Veuillez entrer votre clé API Dolibarr');
+      return;
+    }
+
+    if (!isDolibarrConfigured()) {
+      toast.error('Configurez d\'abord l\'URL Dolibarr dans les paramètres');
       return;
     }
 
@@ -41,9 +48,11 @@ export default function LoginPage() {
     }
   };
 
+  const isConfigured = isDolibarrConfigured();
+
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-secondary/30">
-      {/* Logo SmartElectric */}
+      {/* Logo */}
       <div className="mb-8 text-center animate-slide-up">
         <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center mx-auto mb-4 shadow-glow relative overflow-hidden">
           <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent" />
@@ -55,34 +64,43 @@ export default function LoginPage() {
         <p className="text-muted-foreground mt-1">Suite Électricien Suisse</p>
       </div>
 
+      {/* Status Dolibarr */}
+      <div className="w-full max-w-sm mb-4 animate-slide-up" style={{ animationDelay: '0.05s' }}>
+        {isConfigured ? (
+          <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+            <CheckCircle className="w-5 h-5 text-green-600" />
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-green-800 dark:text-green-200">Dolibarr configuré</p>
+              <p className="text-xs text-green-600 dark:text-green-400 truncate">{dolibarrUrl}</p>
+            </div>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <AlertTriangle className="w-5 h-5 text-amber-600" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-amber-800 dark:text-amber-200">Dolibarr non configuré</p>
+              <p className="text-xs text-amber-600 dark:text-amber-400">Configurez l'URL d'abord</p>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Form */}
       <form onSubmit={handleSubmit} className="w-full max-w-sm space-y-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
         <div>
           <div className="flex items-center gap-2 mb-2">
             <Key className="w-4 h-4 text-muted-foreground" />
-            <label className="text-sm font-medium">Clé API Dolibarr</label>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <HelpCircle className="w-4 h-4 text-muted-foreground cursor-help" />
-                </TooltipTrigger>
-                <TooltipContent className="max-w-xs">
-                  <p className="text-sm">
-                    Trouvez votre clé API dans Dolibarr :<br />
-                    <strong>Accueil → Configuration → Utilisateurs → [Votre utilisateur] → Onglet API</strong>
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
+            <label className="text-sm font-medium">Clé API Dolibarr (DOLAPIKEY)</label>
           </div>
           <div className="relative">
             <Input
               type={showApiKey ? 'text' : 'password'}
               value={apiKey}
               onChange={(e) => setApiKey(e.target.value)}
-              placeholder="Votre clé DOLAPIKEY"
+              placeholder="Collez votre clé API ici"
               className="h-14 text-base rounded-xl pr-12 font-mono"
-              autoComplete="current-password"
+              autoComplete="off"
+              disabled={!isConfigured}
             />
             <button
               type="button"
@@ -92,13 +110,16 @@ export default function LoginPage() {
               {showApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
             </button>
           </div>
+          <p className="text-xs text-muted-foreground mt-2">
+            Trouvez votre clé dans Dolibarr : Utilisateurs → Votre profil → Onglet API
+          </p>
         </div>
 
         <Button
           type="submit"
           variant="worker"
           size="full"
-          disabled={isLoading}
+          disabled={isLoading || !isConfigured}
           className="mt-6"
         >
           {isLoading ? (
@@ -107,33 +128,25 @@ export default function LoginPage() {
             'Se connecter'
           )}
         </Button>
+
+        <Link to="/settings" className="block">
+          <Button
+            type="button"
+            variant="outline"
+            size="full"
+            className="w-full"
+          >
+            <Settings className="w-4 h-4 mr-2" />
+            {isConfigured ? 'Modifier configuration' : 'Configurer Dolibarr'}
+          </Button>
+        </Link>
       </form>
 
-      {/* Help section */}
-      <div className="mt-8 text-center animate-fade-in space-y-3" style={{ animationDelay: '0.3s' }}>
-        {!isDolibarrConfigured() ? (
-          <>
-            <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 max-w-sm">
-              <p className="text-xs text-amber-800 dark:text-amber-200">
-                ⚠️ Configurez d'abord l'URL de votre Dolibarr
-              </p>
-            </div>
-            <Link 
-              to="/settings" 
-              className="inline-flex items-center gap-1 text-sm text-primary hover:underline font-medium"
-            >
-              <Settings className="w-4 h-4" />
-              Configurer Dolibarr
-            </Link>
-          </>
-        ) : (
-          <div className="bg-muted/50 rounded-lg p-3 max-w-sm">
-            <p className="text-xs text-muted-foreground">
-              Connectez-vous avec votre clé API Dolibarr.<br />
-              <span className="text-primary">Mode démo :</span> utilisez <code className="bg-muted px-1 rounded">demo</code>
-            </p>
-          </div>
-        )}
+      {/* Demo mode */}
+      <div className="mt-6 text-center animate-fade-in" style={{ animationDelay: '0.3s' }}>
+        <p className="text-xs text-muted-foreground">
+          Mode démo : tapez <code className="bg-muted px-1 rounded font-mono">demo</code> comme clé API
+        </p>
       </div>
 
       {/* Version */}
