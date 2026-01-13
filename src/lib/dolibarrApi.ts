@@ -2,36 +2,57 @@
 import { Intervention, Material, Task, Worker, WorkerHour, Product } from '@/types/intervention';
 import { supabase } from '@/integrations/supabase/client';
 
+// Debug module loading
+console.log('[DolibarrApi Module] Loaded, supabase client exists:', !!supabase);
 // Helper to call the Dolibarr proxy
 async function callDolibarrApi<T>(action: string, params: Record<string, any> = {}): Promise<T> {
-  console.log('Calling dolibarr-api:', action, params);
+  console.log('[DolibarrApi] Starting call:', action, params);
+  console.log('[DolibarrApi] Supabase client:', !!supabase);
   
-  const { data, error } = await supabase.functions.invoke('dolibarr-api', {
-    body: { action, params },
-  });
-  
-  if (error) {
-    console.error('Dolibarr API error:', error);
-    throw new Error(error.message || 'Erreur de communication avec Dolibarr');
+  try {
+    const { data, error } = await supabase.functions.invoke('dolibarr-api', {
+      body: { action, params },
+    });
+    
+    console.log('[DolibarrApi] Response:', { data, error });
+    
+    if (error) {
+      console.error('[DolibarrApi] Error:', error);
+      throw new Error(error.message || 'Erreur de communication avec Dolibarr');
+    }
+    
+    if (data?.error) {
+      throw new Error(data.error);
+    }
+    
+    return data as T;
+  } catch (err) {
+    console.error('[DolibarrApi] Exception caught:', err);
+    throw err;
   }
-  
-  if (data?.error) {
-    throw new Error(data.error);
-  }
-  
-  return data as T;
 }
 
-// Test connection
+// Test connection with timeout
 export async function testDolibarrConnection(): Promise<{ success: boolean; version?: string }> {
+  console.log('[testDolibarrConnection] Starting...');
+  
   try {
-    const data = await callDolibarrApi<any>('status');
+    // Timeout of 10 seconds
+    const timeoutPromise = new Promise<never>((_, reject) => 
+      setTimeout(() => reject(new Error('Timeout après 10 secondes')), 10000)
+    );
+    
+    const dataPromise = callDolibarrApi<any>('status');
+    const data = await Promise.race([dataPromise, timeoutPromise]);
+    
+    console.log('[testDolibarrConnection] Received data:', data);
+    
     return { 
       success: true, 
-      version: data?.success?.dolibarr_version || 'Version inconnue' 
+      version: data?.success?.dolibarr_version || data?.dolibarr_version || 'Version inconnue' 
     };
   } catch (error) {
-    console.error('Connection test failed:', error);
+    console.error('[testDolibarrConnection] Failed:', error);
     return { success: false };
   }
 }
