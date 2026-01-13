@@ -1,51 +1,40 @@
 import * as React from 'react';
 import { Worker } from '@/types/intervention';
-import { isDolibarrConfigured } from '@/lib/dolibarrConfig';
 import { mockWorker, delay } from '@/lib/mockData';
 
 interface AuthContextType {
   worker: Worker | null;
   isLoggedIn: boolean;
   isLoading: boolean;
-  login: (apiKey: string) => Promise<void>;
+  login: (token: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
-// Store API key and create worker from it
-async function performLogin(apiKey: string): Promise<{ token: string; worker: Worker }> {
+async function performLogin(token: string): Promise<{ token: string; worker: Worker }> {
   // Demo mode
-  if (apiKey === 'demo') {
+  if (token === 'demo') {
     await delay(500);
     localStorage.setItem('mv3_token', 'demo_token');
     localStorage.setItem('mv3_worker', JSON.stringify(mockWorker));
     return { token: 'demo_token', worker: mockWorker };
   }
   
-  // Real Dolibarr mode - just store the key, we'll validate on first API call
-  if (!isDolibarrConfigured()) {
-    throw new Error('Configurez d\'abord l\'URL Dolibarr dans les paramètres');
-  }
-  
-  if (!apiKey || apiKey.length < 10) {
-    throw new Error('Clé API invalide - elle doit contenir au moins 10 caractères');
-  }
-  
-  // Create a default worker - will be updated when we fetch real data
+  // Real mode - with Edge Function, we just mark as authenticated
   const worker: Worker = {
     id: 1,
     login: 'user',
-    name: 'Utilisateur',
+    name: 'Technicien',
     firstName: '',
     email: '',
     phone: '',
   };
   
-  localStorage.setItem('mv3_token', apiKey);
+  localStorage.setItem('mv3_token', token);
   localStorage.setItem('mv3_worker', JSON.stringify(worker));
   
-  return { token: apiKey, worker };
+  return { token, worker };
 }
 
 function performLogout(): void {
@@ -77,8 +66,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const login = React.useCallback(async (apiKey: string) => {
-    const result = await performLogin(apiKey);
+  const login = React.useCallback(async (token: string) => {
+    const result = await performLogin(token);
     setWorker(result.worker);
     setIsLoggedIn(true);
   }, []);

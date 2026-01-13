@@ -1,6 +1,5 @@
 import { Intervention, Material, Task, Worker, WorkerHour, Product } from '@/types/intervention';
 import { mockInterventions, mockProducts, mockWorker, delay } from './mockData';
-import { isDolibarrConfigured } from './dolibarrConfig';
 import * as dolibarrApi from './dolibarrApi';
 
 // Store for mock data mutations
@@ -13,12 +12,11 @@ const mockClients = [
   { id: 3, name: 'Résidence Les Alpes', address: 'Chemin des Pins 22', zip: '1950', town: 'Sion', email: 'syndic@alpes.ch' },
 ];
 
-// Helper to check if we should use real API
+// Check if token indicates real mode
 function useRealApi(): boolean {
-  return isDolibarrConfigured();
+  const token = localStorage.getItem('mv3_token');
+  return token !== null && token !== 'demo_token';
 }
-
-// Auth - Now handled directly in AuthContext
 
 export function logout(): void {
   localStorage.removeItem('mv3_token');
