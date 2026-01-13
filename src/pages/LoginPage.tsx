@@ -28,7 +28,9 @@ export default function LoginPage() {
       toast.success('Connexion réussie');
       navigate('/dashboard');
     } catch (error) {
-      toast.error('Identifiants invalides');
+      const message = error instanceof Error ? error.message : 'Erreur de connexion';
+      toast.error(message);
+      console.error('Login error:', error);
     } finally {
       setIsLoading(false);
     }

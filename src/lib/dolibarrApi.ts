@@ -7,7 +7,7 @@ function getApiUrl(): string {
   if (!config.isConfigured || !config.baseUrl) {
     throw new Error('SmartElectric non configuré');
   }
-  return `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/smartelectric`;
+  return `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/electricien`;
 }
 
 function getToken(): string {
@@ -52,33 +52,48 @@ async function apiRequest<T>(
 export async function dolibarrLogin(username: string, password: string): Promise<{ token: string; worker: Worker }> {
   const config = getDolibarrConfig();
   if (!config.isConfigured || !config.baseUrl) {
-    throw new Error('SmartElectric non configuré');
+    throw new Error('SmartElectric non configuré - veuillez configurer l\'URL Dolibarr dans les paramètres');
   }
   
-  const baseUrl = `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/smartelectric`;
+  const baseUrl = `${config.baseUrl.replace(/\/+$/, '')}/api/index.php/electricien`;
   
-  const response = await fetch(`${baseUrl}/login`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ login: username, password }),
-  });
-  
-  if (!response.ok) {
-    if (response.status === 401) {
-      throw new Error('Identifiants invalides');
+  try {
+    const response = await fetch(`${baseUrl}/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json',
+      },
+      body: JSON.stringify({ login: username, password }),
+    });
+    
+    if (!response.ok) {
+      if (response.status === 401) {
+        throw new Error('Identifiants invalides');
+      }
+      if (response.status === 404) {
+        throw new Error('Module Électricien non trouvé sur Dolibarr - vérifiez qu\'il est activé');
+      }
+      if (response.status === 0) {
+        throw new Error('Erreur CORS - configurez les headers dans Dolibarr');
+      }
+      const errorText = await response.text().catch(() => '');
+      throw new Error(`Erreur serveur ${response.status}: ${errorText || response.statusText}`);
     }
-    throw new Error('Erreur de connexion au serveur');
+    
+    const data = await response.json();
+    
+    // Store credentials
+    localStorage.setItem('mv3_token', data.token);
+    localStorage.setItem('mv3_worker', JSON.stringify(data.worker));
+    
+    return data;
+  } catch (error) {
+    if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+      throw new Error('Impossible de contacter le serveur - vérifiez l\'URL et les headers CORS');
+    }
+    throw error;
   }
-  
-  const data = await response.json();
-  
-  // Store credentials
-  localStorage.setItem('mv3_token', data.token);
-  localStorage.setItem('mv3_worker', JSON.stringify(data.worker));
-  
-  return data;
 }
 
 // Clients
