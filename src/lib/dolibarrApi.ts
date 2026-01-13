@@ -49,7 +49,7 @@ async function apiRequest<T>(
   return response.json();
 }
 
-// Auth - Validate API key by fetching user info
+// Auth - Validate API key by testing against status endpoint
 export async function dolibarrLogin(apiKey: string, username?: string): Promise<{ token: string; worker: Worker }> {
   const config = getDolibarrConfig();
   if (!config.isConfigured || !config.baseUrl) {
@@ -59,8 +59,8 @@ export async function dolibarrLogin(apiKey: string, username?: string): Promise<
   const baseUrl = `${config.baseUrl.replace(/\/+$/, '')}/api/index.php`;
   
   try {
-    // Test the API key by fetching user info
-    const response = await fetch(`${baseUrl}/users/info`, {
+    // First test if API is accessible with the key using /status
+    const statusResponse = await fetch(`${baseUrl}/status`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json',
@@ -68,27 +68,56 @@ export async function dolibarrLogin(apiKey: string, username?: string): Promise<
       },
     });
     
-    if (!response.ok) {
-      if (response.status === 401 || response.status === 403) {
+    if (!statusResponse.ok) {
+      if (statusResponse.status === 401 || statusResponse.status === 403) {
         throw new Error('Clé API invalide');
       }
-      if (response.status === 404) {
-        throw new Error('API Dolibarr non accessible - vérifiez que le module API REST est activé');
+      if (statusResponse.status === 404 || statusResponse.status === 501) {
+        throw new Error('API Dolibarr non accessible - activez le module API REST dans Configuration → Modules');
       }
-      const errorText = await response.text().catch(() => '');
-      throw new Error(`Erreur serveur ${response.status}: ${errorText || response.statusText}`);
+      const errorText = await statusResponse.text().catch(() => '');
+      throw new Error(`Erreur serveur ${statusResponse.status}: ${errorText || statusResponse.statusText}`);
     }
     
-    const userData = await response.json();
-    
-    const workerData: Worker = {
-      id: parseInt(userData.id) || 1,
-      login: userData.login || username || 'user',
-      name: userData.lastname || userData.login || 'Utilisateur',
-      firstName: userData.firstname || '',
-      email: userData.email || '',
-      phone: userData.user_mobile || userData.office_phone || '',
+    // Try to get user info if available
+    let workerData: Worker = {
+      id: 1,
+      login: username || 'user',
+      name: 'Utilisateur',
+      firstName: '',
+      email: '',
+      phone: '',
     };
+    
+    try {
+      // Try /users endpoint to get current user info
+      const userResponse = await fetch(`${baseUrl}/users`, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'DOLAPIKEY': apiKey,
+        },
+      });
+      
+      if (userResponse.ok) {
+        const users = await userResponse.json();
+        // Find the user that matches the API key (usually first one or admin)
+        if (Array.isArray(users) && users.length > 0) {
+          const userData = users[0];
+          workerData = {
+            id: parseInt(userData.id) || 1,
+            login: userData.login || 'user',
+            name: userData.lastname || userData.login || 'Utilisateur',
+            firstName: userData.firstname || '',
+            email: userData.email || '',
+            phone: userData.user_mobile || userData.office_phone || '',
+          };
+        }
+      }
+    } catch (e) {
+      // User info not available, continue with default
+      console.log('Could not fetch user info, using defaults');
+    }
     
     // Store credentials
     localStorage.setItem('mv3_token', apiKey);
