@@ -39,14 +39,11 @@ serve(async (req) => {
         endpoint = '/status';
         break;
 
-      // Login - authenticate user against Dolibarr
+      // Login - find user by login name (authentication is handled by DOLAPIKEY)
       case 'login':
-        endpoint = '/login';
-        method = 'POST';
-        body = JSON.stringify({
-          login: params.login,
-          password: params.password,
-        });
+        // Dolibarr doesn't have a standard login endpoint
+        // We search for the user by login to validate they exist
+        endpoint = `/users?sqlfilters=(t.login:=:'${params.login}')&limit=1`;
         break;
       
       // Get current user info

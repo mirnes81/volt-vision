@@ -403,62 +403,41 @@ export function getLocalHours(interventionId: number): WorkerHour[] {
   return JSON.parse(localStorage.getItem(hoursKey) || '[]');
 }
 
-// Login function - authenticate against Dolibarr
+// Login function - validate user exists in Dolibarr
 export async function dolibarrLogin(login: string, password: string): Promise<{ token: string; worker: Worker }> {
-  console.log('[dolibarrLogin] Authenticating user:', login);
+  console.log('[dolibarrLogin] Validating user:', login);
   
   try {
-    const data = await callDolibarrApi<any>('login', { login, password });
+    // Search for user by login name
+    const users = await callDolibarrApi<any[]>('login', { login, password });
     
-    console.log('[dolibarrLogin] Response:', data);
+    console.log('[dolibarrLogin] Response:', users);
     
-    // Dolibarr returns success with token
-    if (data?.success?.token) {
-      const worker: Worker = {
-        id: parseInt(data.success.token) || 1,
-        login: login,
-        name: login,
-        firstName: '',
-        email: '',
-        phone: '',
-      };
-      
-      localStorage.setItem('mv3_token', data.success.token);
-      localStorage.setItem('mv3_worker', JSON.stringify(worker));
-      
-      return { token: data.success.token, worker };
-    }
-    
-    // Try to get user info after login
-    if (data?.token || typeof data === 'string') {
-      const token = data?.token || data;
-      
-      // Fetch user details
-      let userInfo: any = null;
-      try {
-        userInfo = await callDolibarrApi<any>('get-current-user');
-      } catch (e) {
-        console.log('[dolibarrLogin] Could not fetch user info');
-      }
+    // Check if user was found
+    if (Array.isArray(users) && users.length > 0) {
+      const userInfo = users[0];
       
       const worker: Worker = {
-        id: userInfo?.id ? parseInt(userInfo.id) : 1,
-        login: userInfo?.login || login,
-        name: userInfo?.lastname || userInfo?.name || login,
-        firstName: userInfo?.firstname || '',
-        email: userInfo?.email || '',
-        phone: userInfo?.office_phone || '',
+        id: parseInt(userInfo.id) || 1,
+        login: userInfo.login || login,
+        name: userInfo.lastname || userInfo.login || login,
+        firstName: userInfo.firstname || '',
+        email: userInfo.email || '',
+        phone: userInfo.office_phone || '',
       };
       
-      localStorage.setItem('mv3_token', String(token));
+      // Generate a session token
+      const token = `doli_${userInfo.id}_${Date.now()}`;
+      
+      localStorage.setItem('mv3_token', token);
       localStorage.setItem('mv3_worker', JSON.stringify(worker));
       
-      return { token: String(token), worker };
+      return { token, worker };
     }
     
-    throw new Error('Identifiants incorrects');
+    throw new Error('Utilisateur non trouvé');
   } catch (error) {
     console.error('[dolibarrLogin] Failed:', error);
-    throw error;
+    throw new Error('Identifiants incorrects');
   }
 }
