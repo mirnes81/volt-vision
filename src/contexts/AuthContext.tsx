@@ -1,7 +1,6 @@
 import * as React from 'react';
 import { Worker } from '@/types/intervention';
 import { isDolibarrConfigured } from '@/lib/dolibarrConfig';
-import * as dolibarrApi from '@/lib/dolibarrApi';
 import { mockWorker, delay } from '@/lib/mockData';
 
 interface AuthContextType {
@@ -14,22 +13,39 @@ interface AuthContextType {
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
-// Auth functions
+// Store API key and create worker from it
 async function performLogin(apiKey: string): Promise<{ token: string; worker: Worker }> {
-  if (isDolibarrConfigured()) {
-    return dolibarrApi.dolibarrLogin(apiKey);
-  }
-  
   // Demo mode
-  await delay(800);
   if (apiKey === 'demo') {
-    const token = 'demo_token_' + Date.now();
-    localStorage.setItem('mv3_token', token);
+    await delay(500);
+    localStorage.setItem('mv3_token', 'demo_token');
     localStorage.setItem('mv3_worker', JSON.stringify(mockWorker));
-    return { token, worker: mockWorker };
+    return { token: 'demo_token', worker: mockWorker };
   }
   
-  throw new Error('Mode démo: utilisez "demo" comme clé API');
+  // Real Dolibarr mode - just store the key, we'll validate on first API call
+  if (!isDolibarrConfigured()) {
+    throw new Error('Configurez d\'abord l\'URL Dolibarr dans les paramètres');
+  }
+  
+  if (!apiKey || apiKey.length < 10) {
+    throw new Error('Clé API invalide - elle doit contenir au moins 10 caractères');
+  }
+  
+  // Create a default worker - will be updated when we fetch real data
+  const worker: Worker = {
+    id: 1,
+    login: 'user',
+    name: 'Utilisateur',
+    firstName: '',
+    email: '',
+    phone: '',
+  };
+  
+  localStorage.setItem('mv3_token', apiKey);
+  localStorage.setItem('mv3_worker', JSON.stringify(worker));
+  
+  return { token: apiKey, worker };
 }
 
 function performLogout(): void {
