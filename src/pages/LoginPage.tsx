@@ -16,6 +16,7 @@ export default function LoginPage() {
 
   // Test connection on mount
   useEffect(() => {
+    console.log('[LoginPage] useEffect triggered, testing connection...');
     testConnection();
   }, []);
 
