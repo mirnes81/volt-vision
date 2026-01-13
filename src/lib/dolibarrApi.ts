@@ -1,4 +1,4 @@
-// Dolibarr Native API Client
+// Dolibarr Native API Client - Direct API Key Authentication
 import { Intervention, Material, Task, Worker, WorkerHour, Product, Photo } from '@/types/intervention';
 import { getDolibarrConfig } from './dolibarrConfig';
 
@@ -49,8 +49,8 @@ async function apiRequest<T>(
   return response.json();
 }
 
-// Auth - Use Dolibarr native login endpoint
-export async function dolibarrLogin(username: string, password: string): Promise<{ token: string; worker: Worker }> {
+// Auth - Validate API key by fetching user info
+export async function dolibarrLogin(apiKey: string, username?: string): Promise<{ token: string; worker: Worker }> {
   const config = getDolibarrConfig();
   if (!config.isConfigured || !config.baseUrl) {
     throw new Error('Dolibarr non configuré - veuillez configurer l\'URL dans les paramètres');
@@ -59,77 +59,42 @@ export async function dolibarrLogin(username: string, password: string): Promise
   const baseUrl = `${config.baseUrl.replace(/\/+$/, '')}/api/index.php`;
   
   try {
-    // Dolibarr native login endpoint
-    const response = await fetch(`${baseUrl}/login`, {
-      method: 'POST',
+    // Test the API key by fetching user info
+    const response = await fetch(`${baseUrl}/users/info`, {
+      method: 'GET',
       headers: {
-        'Content-Type': 'application/json',
         'Accept': 'application/json',
+        'DOLAPIKEY': apiKey,
       },
-      body: JSON.stringify({ 
-        login: username, 
-        password: password 
-      }),
     });
     
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
-        throw new Error('Identifiants invalides');
+        throw new Error('Clé API invalide');
       }
       if (response.status === 404) {
-        throw new Error('API Dolibarr non accessible - vérifiez l\'URL');
+        throw new Error('API Dolibarr non accessible - vérifiez que le module API REST est activé');
       }
       const errorText = await response.text().catch(() => '');
       throw new Error(`Erreur serveur ${response.status}: ${errorText || response.statusText}`);
     }
     
-    const data = await response.json();
+    const userData = await response.json();
     
-    // Dolibarr returns: { success: { token: "...", ... } }
-    const token = data.success?.token || data.token;
-    
-    if (!token) {
-      throw new Error('Token non reçu du serveur');
-    }
-    
-    // Fetch user info to get worker data
-    const userResponse = await fetch(`${baseUrl}/users/info`, {
-      method: 'GET',
-      headers: {
-        'Accept': 'application/json',
-        'DOLAPIKEY': token,
-      },
-    });
-    
-    let workerData: Worker;
-    
-    if (userResponse.ok) {
-      const userData = await userResponse.json();
-      workerData = {
-        id: parseInt(userData.id) || 1,
-        login: userData.login || username,
-        name: userData.lastname || username,
-        firstName: userData.firstname || '',
-        email: userData.email || '',
-        phone: userData.user_mobile || userData.phone || '',
-      };
-    } else {
-      // Fallback if user info not available
-      workerData = {
-        id: 1,
-        login: username,
-        name: username,
-        firstName: '',
-        email: '',
-        phone: '',
-      };
-    }
+    const workerData: Worker = {
+      id: parseInt(userData.id) || 1,
+      login: userData.login || username || 'user',
+      name: userData.lastname || userData.login || 'Utilisateur',
+      firstName: userData.firstname || '',
+      email: userData.email || '',
+      phone: userData.user_mobile || userData.office_phone || '',
+    };
     
     // Store credentials
-    localStorage.setItem('mv3_token', token);
+    localStorage.setItem('mv3_token', apiKey);
     localStorage.setItem('mv3_worker', JSON.stringify(workerData));
     
-    return { token, worker: workerData };
+    return { token: apiKey, worker: workerData };
   } catch (error) {
     if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
       throw new Error('Impossible de contacter le serveur - vérifiez l\'URL et les headers CORS');
@@ -166,7 +131,6 @@ export async function fetchIntervention(id: number): Promise<Intervention> {
 }
 
 function mapDolibarrIntervention(data: any): Intervention {
-  // Map Dolibarr intervention to our format
   const lines = data.lines || [];
   
   return {
@@ -190,7 +154,7 @@ function mapDolibarrIntervention(data: any): Intervention {
       dateDone: line.rang > 0 ? new Date().toISOString() : undefined,
     })),
     materials: [],
-    hours: [],
+    hours: getLocalHours(parseInt(data.id)),
     photos: [],
   };
 }
@@ -242,11 +206,10 @@ export async function fetchProducts(search?: string): Promise<Product[]> {
     label: product.label,
     price: parseFloat(product.price) || 0,
     unit: product.unit || 'pce',
-    stock: parseInt(product.stock_reel) || 0,
   }));
 }
 
-// Hours - Store locally (Dolibarr doesn't have native time tracking for interventions)
+// Hours - Store locally (Dolibarr interventions don't have native time tracking)
 export async function dolibarrStartHours(interventionId: number, workType: string): Promise<WorkerHour> {
   const worker = JSON.parse(localStorage.getItem('mv3_worker') || '{}');
   
@@ -258,7 +221,6 @@ export async function dolibarrStartHours(interventionId: number, workType: strin
     workType,
   };
   
-  // Store in local storage (could be synced later)
   const hoursKey = `intervention_hours_${interventionId}`;
   const existingHours = JSON.parse(localStorage.getItem(hoursKey) || '[]');
   existingHours.push(newHour);
@@ -317,10 +279,8 @@ export async function dolibarrAddMaterial(
   interventionId: number,
   data: { productId: number; qtyUsed: number; comment?: string }
 ): Promise<Material> {
-  // Fetch product info
   const product = await apiRequest<any>(`/products/${data.productId}`);
   
-  // Add line to intervention
   await apiRequest(`/interventions/${interventionId}/lines`, {
     method: 'POST',
     body: JSON.stringify({
@@ -340,14 +300,13 @@ export async function dolibarrAddMaterial(
   };
 }
 
-// Tasks - Update intervention line status
+// Tasks - Update intervention line
 export async function dolibarrUpdateTask(
   interventionId: number,
   taskId: number,
   status: 'a_faire' | 'fait',
   comment?: string
 ): Promise<Task> {
-  // Update line in intervention
   await apiRequest(`/interventions/${interventionId}/lines/${taskId}`, {
     method: 'PUT',
     body: JSON.stringify({
@@ -373,12 +332,11 @@ export async function dolibarrUploadPhoto(
   const token = getToken();
   const baseUrl = getApiUrl();
   
-  // Convert file to base64
   const base64 = await new Promise<string>((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => {
       const result = reader.result as string;
-      resolve(result.split(',')[1]); // Remove data:image/...;base64, prefix
+      resolve(result.split(',')[1]);
     };
     reader.onerror = reject;
     reader.readAsDataURL(file);
@@ -386,65 +344,66 @@ export async function dolibarrUploadPhoto(
   
   const filename = `${type}_${Date.now()}_${file.name}`;
   
-  const response = await fetch(`${baseUrl}/documents/upload`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'DOLAPIKEY': token,
-    },
-    body: JSON.stringify({
-      filename: filename,
-      modulepart: 'intervention',
-      ref: interventionId.toString(),
-      subdir: '',
-      filecontent: base64,
-      fileencoding: 'base64',
-      overwriteifexists: 0,
-    }),
-  });
-  
-  if (!response.ok) {
-    // Fallback to local storage if upload fails
-    const filePath = URL.createObjectURL(file);
-    return { id: Date.now(), filePath };
+  try {
+    const response = await fetch(`${baseUrl}/documents/upload`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'DOLAPIKEY': token,
+      },
+      body: JSON.stringify({
+        filename: filename,
+        modulepart: 'ficheinter',
+        ref: interventionId.toString(),
+        subdir: '',
+        filecontent: base64,
+        fileencoding: 'base64',
+        overwriteifexists: 0,
+      }),
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return { id: Date.now(), filePath: data.fullname || filename };
+    }
+  } catch (error) {
+    console.log('Upload to Dolibarr failed, storing locally');
   }
   
-  const data = await response.json();
-  return { 
-    id: Date.now(), 
-    filePath: data.fullname || data.filename || filename 
-  };
+  // Fallback to local storage
+  const filePath = URL.createObjectURL(file);
+  return { id: Date.now(), filePath };
 }
 
-// Signature - Store locally and update intervention status
+// Signature
 export async function dolibarrSaveSignature(
   interventionId: number,
   signatureData: string,
   signerName: string
 ): Promise<void> {
-  // Store signature locally
   localStorage.setItem(`signature_${interventionId}`, JSON.stringify({
     data: signatureData,
     signer: signerName,
     date: new Date().toISOString(),
   }));
   
-  // Update intervention status to completed
-  await apiRequest(`/interventions/${interventionId}`, {
-    method: 'PUT',
-    body: JSON.stringify({
-      fk_statut: 2, // Status "terminé"
-    }),
-  });
+  // Update intervention status
+  try {
+    await apiRequest(`/interventions/${interventionId}`, {
+      method: 'PUT',
+      body: JSON.stringify({ fk_statut: 2 }),
+    });
+  } catch (error) {
+    console.log('Could not update intervention status:', error);
+  }
 }
 
-// PDF - Generate locally (Dolibarr PDF generation requires server-side)
+// PDF
 export async function generatePdf(interventionId: number): Promise<{ filePath: string; fileName: string; downloadUrl?: string }> {
   const token = getToken();
   const baseUrl = getApiUrl();
   
   try {
-    // Try to generate PDF via Dolibarr
     const response = await fetch(`${baseUrl}/documents/builddoc`, {
       method: 'PUT',
       headers: {
@@ -452,7 +411,7 @@ export async function generatePdf(interventionId: number): Promise<{ filePath: s
         'DOLAPIKEY': token,
       },
       body: JSON.stringify({
-        modulepart: 'intervention',
+        modulepart: 'ficheinter',
         original_file: interventionId.toString(),
         doctemplate: 'soleil',
         langcode: 'fr_FR',
@@ -468,22 +427,19 @@ export async function generatePdf(interventionId: number): Promise<{ filePath: s
       };
     }
   } catch (error) {
-    console.log('PDF generation via Dolibarr failed, using local generation');
+    console.log('PDF generation via Dolibarr failed');
   }
   
-  // Fallback: return placeholder
   return { 
     filePath: `/documents/intervention_${interventionId}.pdf`, 
     fileName: `intervention_${interventionId}.pdf` 
   };
 }
 
-// Email - Use Dolibarr contact form (limited)
+// Email
 export async function sendInterventionEmail(interventionId: number, recipientEmail?: string): Promise<void> {
-  // Dolibarr doesn't have a direct email API, log for now
-  console.log('Email would be sent for intervention:', interventionId, 'to:', recipientEmail);
+  console.log('Email request for intervention:', interventionId, 'to:', recipientEmail);
   
-  // Store email request locally for manual follow-up
   const emailRequests = JSON.parse(localStorage.getItem('pending_emails') || '[]');
   emailRequests.push({
     interventionId,
@@ -493,28 +449,27 @@ export async function sendInterventionEmail(interventionId: number, recipientEma
   localStorage.setItem('pending_emails', JSON.stringify(emailRequests));
 }
 
-// AI - Not available in native Dolibarr, return placeholder
+// AI - Placeholder
 export async function dolibarrGenerateAiSummary(interventionId: number): Promise<{ summary: string; clientText: string }> {
-  // AI not available in native Dolibarr
   const intervention = await fetchIntervention(interventionId);
   
   const summary = `Intervention ${intervention.ref}
 Client: ${intervention.clientName}
 Description: ${intervention.description || intervention.label}
 
-Cette fonctionnalité IA nécessite une configuration supplémentaire.`;
+Résumé généré automatiquement.`;
 
   return { summary, clientText: summary };
 }
 
 export async function dolibarrGenerateAiDiagnostic(interventionId: number, symptoms?: string): Promise<string> {
-  return `Diagnostic automatique non disponible.
-Symptômes signalés: ${symptoms || 'Aucun'}
+  return `Diagnostic automatique
+Symptômes: ${symptoms || 'Non spécifiés'}
 
 Veuillez effectuer un diagnostic manuel.`;
 }
 
-// Vehicle Stock - Use Dolibarr products with warehouse
+// Vehicle Stock
 export async function fetchVehicleStock(): Promise<Array<{
   productId: number;
   productRef: string;
@@ -524,7 +479,7 @@ export async function fetchVehicleStock(): Promise<Array<{
   isLowStock: boolean;
 }>> {
   try {
-    const data = await apiRequest<any[]>('/products?mode=1&limit=50'); // mode=1 = products with stock
+    const data = await apiRequest<any[]>('/products?mode=1&limit=50');
     
     return data.map(product => ({
       productId: parseInt(product.id),
@@ -539,7 +494,7 @@ export async function fetchVehicleStock(): Promise<Array<{
   }
 }
 
-// Helper to get locally stored hours for an intervention
+// Helper to get locally stored hours
 export function getLocalHours(interventionId: number): WorkerHour[] {
   const hoursKey = `intervention_hours_${interventionId}`;
   return JSON.parse(localStorage.getItem(hoursKey) || '[]');

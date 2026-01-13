@@ -1,16 +1,50 @@
 import * as React from 'react';
 import { Worker } from '@/types/intervention';
-import { login as apiLogin, logout as apiLogout, isAuthenticated, getCurrentWorker } from '@/lib/api';
+import { isDolibarrConfigured } from '@/lib/dolibarrConfig';
+import * as dolibarrApi from '@/lib/dolibarrApi';
+import { mockWorker, delay } from '@/lib/mockData';
 
 interface AuthContextType {
   worker: Worker | null;
   isLoggedIn: boolean;
   isLoading: boolean;
-  login: (username: string, password: string) => Promise<void>;
+  login: (apiKey: string) => Promise<void>;
   logout: () => void;
 }
 
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
+
+// Auth functions
+async function performLogin(apiKey: string): Promise<{ token: string; worker: Worker }> {
+  if (isDolibarrConfigured()) {
+    return dolibarrApi.dolibarrLogin(apiKey);
+  }
+  
+  // Demo mode
+  await delay(800);
+  if (apiKey === 'demo') {
+    const token = 'demo_token_' + Date.now();
+    localStorage.setItem('mv3_token', token);
+    localStorage.setItem('mv3_worker', JSON.stringify(mockWorker));
+    return { token, worker: mockWorker };
+  }
+  
+  throw new Error('Mode démo: utilisez "demo" comme clé API');
+}
+
+function performLogout(): void {
+  localStorage.removeItem('mv3_token');
+  localStorage.removeItem('mv3_worker');
+}
+
+function checkAuthenticated(): boolean {
+  return !!localStorage.getItem('mv3_token');
+}
+
+function getSavedWorker(): Worker | null {
+  const data = localStorage.getItem('mv3_worker');
+  return data ? JSON.parse(data) : null;
+}
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [worker, setWorker] = React.useState<Worker | null>(null);
@@ -18,24 +52,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = React.useState(true);
 
   React.useEffect(() => {
-    // Check existing auth on mount
-    const authenticated = isAuthenticated();
+    const authenticated = checkAuthenticated();
     if (authenticated) {
-      const savedWorker = getCurrentWorker();
+      const savedWorker = getSavedWorker();
       setWorker(savedWorker);
       setIsLoggedIn(true);
     }
     setIsLoading(false);
   }, []);
 
-  const login = React.useCallback(async (username: string, password: string) => {
-    const result = await apiLogin(username, password);
+  const login = React.useCallback(async (apiKey: string) => {
+    const result = await performLogin(apiKey);
     setWorker(result.worker);
     setIsLoggedIn(true);
   }, []);
 
   const logout = React.useCallback(() => {
-    apiLogout();
+    performLogout();
     setWorker(null);
     setIsLoggedIn(false);
   }, []);

@@ -5,7 +5,6 @@ import * as dolibarrApi from './dolibarrApi';
 
 // Store for mock data mutations
 let interventions = [...mockInterventions];
-let currentToken: string | null = localStorage.getItem('mv3_token');
 
 // Mock clients
 const mockClients = [
@@ -19,30 +18,11 @@ function useRealApi(): boolean {
   return isDolibarrConfigured();
 }
 
-// Auth
-export async function login(username: string, password: string): Promise<{ token: string; worker: Worker }> {
-  if (useRealApi()) {
-    const result = await dolibarrApi.dolibarrLogin(username, password);
-    currentToken = result.token;
-    return result;
-  }
-  
-  await delay(800);
-  if (username === 'demo' && password === 'demo') {
-    const token = 'mock_token_' + Date.now();
-    localStorage.setItem('mv3_token', token);
-    localStorage.setItem('mv3_worker', JSON.stringify(mockWorker));
-    currentToken = token;
-    return { token, worker: mockWorker };
-  }
-  
-  throw new Error('Identifiants invalides');
-}
+// Auth - Now handled directly in AuthContext
 
 export function logout(): void {
   localStorage.removeItem('mv3_token');
   localStorage.removeItem('mv3_worker');
-  currentToken = null;
 }
 
 export function isAuthenticated(): boolean {
@@ -104,7 +84,7 @@ export async function createIntervention(data: {
   
   const client = mockClients.find(c => c.id === data.clientId);
   const newId = Date.now();
-  const newRef = `MV3-INT-${new Date().getFullYear()}-${String(interventions.length + 1).padStart(4, '0')}`;
+  const newRef = `INT-${new Date().getFullYear()}-${String(interventions.length + 1).padStart(4, '0')}`;
   
   const newIntervention: Intervention = {
     id: newId,
@@ -276,7 +256,6 @@ export async function updateTaskStatus(
   task.status = status;
   task.dateDone = status === 'fait' ? new Date().toISOString() : undefined;
   
-  // Check if all tasks are done
   const allDone = intervention.tasks.every(t => t.status === 'fait');
   if (allDone && intervention.status === 'en_cours') {
     intervention.status = 'termine';
