@@ -34,9 +34,24 @@ serve(async (req) => {
 
     // Route actions to Dolibarr endpoints
     switch (action) {
-      // Status & Auth
+      // Status
       case 'status':
         endpoint = '/status';
+        break;
+
+      // Login - authenticate user against Dolibarr
+      case 'login':
+        endpoint = '/login';
+        method = 'POST';
+        body = JSON.stringify({
+          login: params.login,
+          password: params.password,
+        });
+        break;
+      
+      // Get current user info
+      case 'get-current-user':
+        endpoint = '/users/info';
         break;
 
       // Thirdparties (Clients)
