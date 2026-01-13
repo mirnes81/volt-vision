@@ -14,9 +14,9 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   const [theme, setTheme] = React.useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mv3_theme');
-      return (saved as Theme) || 'system';
+      return (saved as Theme) || 'light';
     }
-    return 'system';
+    return 'light';
   });
 
   const [actualTheme, setActualTheme] = React.useState<'light' | 'dark'>('light');
