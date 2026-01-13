@@ -41,7 +41,7 @@ export function getApiBaseUrl(): string {
   const config = getDolibarrConfig();
   if (config.isConfigured && config.baseUrl) {
     const baseUrl = config.baseUrl.replace(/\/+$/, '');
-    return `${baseUrl}/api/index.php/electricien`;
+    return `${baseUrl}/api/index.php`;
   }
   return '';
 }
