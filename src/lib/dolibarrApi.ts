@@ -403,21 +403,62 @@ export function getLocalHours(interventionId: number): WorkerHour[] {
   return JSON.parse(localStorage.getItem(hoursKey) || '[]');
 }
 
-// Legacy login function - now just stores the user info
-export async function dolibarrLogin(apiKey: string, username?: string): Promise<{ token: string; worker: Worker }> {
-  // With Edge Function, we don't need the API key client-side
-  // Just create a default worker
-  const worker: Worker = {
-    id: 1,
-    login: username || 'user',
-    name: 'Utilisateur',
-    firstName: '',
-    email: '',
-    phone: '',
-  };
+// Login function - authenticate against Dolibarr
+export async function dolibarrLogin(login: string, password: string): Promise<{ token: string; worker: Worker }> {
+  console.log('[dolibarrLogin] Authenticating user:', login);
   
-  localStorage.setItem('mv3_token', 'authenticated');
-  localStorage.setItem('mv3_worker', JSON.stringify(worker));
-  
-  return { token: 'authenticated', worker };
+  try {
+    const data = await callDolibarrApi<any>('login', { login, password });
+    
+    console.log('[dolibarrLogin] Response:', data);
+    
+    // Dolibarr returns success with token
+    if (data?.success?.token) {
+      const worker: Worker = {
+        id: parseInt(data.success.token) || 1,
+        login: login,
+        name: login,
+        firstName: '',
+        email: '',
+        phone: '',
+      };
+      
+      localStorage.setItem('mv3_token', data.success.token);
+      localStorage.setItem('mv3_worker', JSON.stringify(worker));
+      
+      return { token: data.success.token, worker };
+    }
+    
+    // Try to get user info after login
+    if (data?.token || typeof data === 'string') {
+      const token = data?.token || data;
+      
+      // Fetch user details
+      let userInfo: any = null;
+      try {
+        userInfo = await callDolibarrApi<any>('get-current-user');
+      } catch (e) {
+        console.log('[dolibarrLogin] Could not fetch user info');
+      }
+      
+      const worker: Worker = {
+        id: userInfo?.id ? parseInt(userInfo.id) : 1,
+        login: userInfo?.login || login,
+        name: userInfo?.lastname || userInfo?.name || login,
+        firstName: userInfo?.firstname || '',
+        email: userInfo?.email || '',
+        phone: userInfo?.office_phone || '',
+      };
+      
+      localStorage.setItem('mv3_token', String(token));
+      localStorage.setItem('mv3_worker', JSON.stringify(worker));
+      
+      return { token: String(token), worker };
+    }
+    
+    throw new Error('Identifiants incorrects');
+  } catch (error) {
+    console.error('[dolibarrLogin] Failed:', error);
+    throw error;
+  }
 }
