@@ -64,6 +64,12 @@ export interface Intervention {
   priority: Priority;
   status: InterventionStatus;
   description: string;
+  briefing?: string;
+  assignedTo?: {
+    id: number;
+    name: string;
+    firstName: string;
+  };
   aiSummary?: string;
   aiClientText?: string;
   aiDiagnostic?: string;

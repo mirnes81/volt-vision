@@ -25,6 +25,11 @@ export default function InterventionsPage() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [showOnlyMine, setShowOnlyMine] = useState(false);
+  
+  // Check if user is admin
+  const workerData = localStorage.getItem('worker');
+  const worker = workerData ? JSON.parse(workerData) : null;
+  const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
 
   useEffect(() => {
     loadInterventions();
@@ -99,25 +104,27 @@ export default function InterventionsPage() {
       />
 
       <div className="px-4 space-y-4">
-        {/* Toggle mine/all */}
-        <div className="flex gap-2 mt-4">
-          <Button
-            variant={!showOnlyMine ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowOnlyMine(false)}
-            className="flex-1"
-          >
-            Toutes ({counts.all})
-          </Button>
-          <Button
-            variant={showOnlyMine ? "default" : "outline"}
-            size="sm"
-            onClick={() => setShowOnlyMine(true)}
-            className="flex-1"
-          >
-            Mes interventions
-          </Button>
-        </div>
+        {/* Toggle mine/all - Only show for admins */}
+        {isAdmin && (
+          <div className="flex gap-2 mt-4">
+            <Button
+              variant={!showOnlyMine ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowOnlyMine(false)}
+              className="flex-1"
+            >
+              Toutes ({counts.all})
+            </Button>
+            <Button
+              variant={showOnlyMine ? "default" : "outline"}
+              size="sm"
+              onClick={() => setShowOnlyMine(true)}
+              className="flex-1"
+            >
+              Mes interventions
+            </Button>
+          </div>
+        )}
 
         {/* Search */}
         <div className="relative">
