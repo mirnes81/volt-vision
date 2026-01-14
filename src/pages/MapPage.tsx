@@ -1,29 +1,25 @@
-import { useEffect, useRef, useState, useCallback } from 'react';
-import mapboxgl from 'mapbox-gl';
-import 'mapbox-gl/dist/mapbox-gl.css';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 import { mockInterventions } from '@/lib/mockData';
 import { Intervention } from '@/types/intervention';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { 
-  Map as MapIcon, 
   Navigation, 
   List, 
   Locate,
-  Layers,
   X,
   Clock,
   MapPin,
   AlertTriangle,
   Loader2,
-  Route,
   Car,
   Timer
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { useLanguage } from '@/contexts/LanguageContext';
 import { format, parseISO } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
@@ -43,12 +39,6 @@ const typeColors: Record<string, string> = {
   oibt: '#3B82F6',
 };
 
-const priorityIcons = {
-  normal: null,
-  urgent: <AlertTriangle className="w-3 h-3 text-orange-500" />,
-  critical: <AlertTriangle className="w-3 h-3 text-red-500" />,
-};
-
 const statusConfig: Record<string, { label: string; color: string }> = {
   a_planifier: { label: 'À planifier', color: 'bg-yellow-500' },
   en_cours: { label: 'En cours', color: 'bg-blue-500' },
@@ -58,14 +48,13 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 
 interface RouteInfo {
   interventionId: number;
-  distance: number; // in km
-  duration: number; // in minutes
-  geometry?: GeoJSON.LineString;
+  distance: number;
+  duration: number;
 }
 
-// Haversine formula for distance calculation
+// Haversine formula
 function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const R = 6371; // Earth's radius in km
+  const R = 6371;
   const dLat = (lat2 - lat1) * Math.PI / 180;
   const dLon = (lon2 - lon1) * Math.PI / 180;
   const a = 
@@ -76,35 +65,105 @@ function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: numbe
   return R * c;
 }
 
-// Estimate driving time (avg 40km/h in city)
 function estimateDuration(distanceKm: number): number {
-  return Math.round(distanceKm / 40 * 60);
+  return Math.round(distanceKm / 35 * 60); // ~35km/h avg city speed
+}
+
+// Custom marker icons
+const createMarkerIcon = (color: string, isUrgent: boolean = false) => {
+  return L.divIcon({
+    className: 'custom-marker',
+    html: `
+      <div style="position: relative;">
+        <div style="
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: ${color};
+          border: 3px solid white;
+          box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        ">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+            <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        ${isUrgent ? `
+          <div style="
+            position: absolute;
+            top: -3px;
+            right: -3px;
+            width: 14px;
+            height: 14px;
+            background: #EF4444;
+            border-radius: 50%;
+            border: 2px solid white;
+          "></div>
+        ` : ''}
+      </div>
+    `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36],
+  });
+};
+
+const userIcon = L.divIcon({
+  className: 'user-marker',
+  html: `
+    <div style="
+      width: 20px;
+      height: 20px;
+      background: #3B82F6;
+      border: 4px solid white;
+      border-radius: 50%;
+      box-shadow: 0 0 0 6px rgba(59, 130, 246, 0.3), 0 3px 8px rgba(0,0,0,0.3);
+    "></div>
+  `,
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+});
+
+// Component to handle map center updates
+function MapController({ center, zoom }: { center: [number, number] | null; zoom?: number }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (center) {
+      map.flyTo(center, zoom || map.getZoom(), { duration: 1 });
+    }
+  }, [center, zoom, map]);
+  
+  return null;
+}
+
+// Component to fit bounds
+function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {
+  const map = useMap();
+  
+  useEffect(() => {
+    if (bounds) {
+      map.fitBounds(bounds, { padding: [50, 50] });
+    }
+  }, [bounds, map]);
+  
+  return null;
 }
 
 export default function MapPage() {
-  const { t } = useLanguage();
   const navigate = useNavigate();
-  const mapContainer = useRef<HTMLDivElement>(null);
-  const map = useRef<mapboxgl.Map | null>(null);
-  const markersRef = useRef<mapboxgl.Marker[]>([]);
-  const userMarkerRef = useRef<mapboxgl.Marker | null>(null);
-  const routeSourceRef = useRef<boolean>(false);
-  
-  const [mapboxToken, setMapboxToken] = useState<string>(() => 
-    localStorage.getItem('mapbox_token') || ''
-  );
-  const [showTokenInput, setShowTokenInput] = useState(!localStorage.getItem('mapbox_token'));
   const [interventions] = useState<Intervention[]>(mockInterventions);
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
   const [showList, setShowList] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isLocating, setIsLocating] = useState(false);
-  const [mapStyle, setMapStyle] = useState<'streets' | 'satellite'>('streets');
   const [routeInfos, setRouteInfos] = useState<Map<number, RouteInfo>>(new Map());
-  const [activeRoute, setActiveRoute] = useState<RouteInfo | null>(null);
-  const [isCalculatingRoute, setIsCalculatingRoute] = useState(false);
-  const [watchId, setWatchId] = useState<number | null>(null);
+  const [flyToCenter, setFlyToCenter] = useState<[number, number] | null>(null);
+  const [flyToZoom, setFlyToZoom] = useState<number | undefined>(undefined);
 
   const filteredInterventions = filterStatus
     ? interventions.filter(i => i.status === filterStatus)
@@ -112,23 +171,7 @@ export default function MapPage() {
 
   const geolocatedInterventions = filteredInterventions.filter(i => i.coordinates);
 
-  // Sort by distance if user location available
-  const sortedInterventions = [...geolocatedInterventions].sort((a, b) => {
-    const infoA = routeInfos.get(a.id);
-    const infoB = routeInfos.get(b.id);
-    if (infoA && infoB) return infoA.distance - infoB.distance;
-    if (infoA) return -1;
-    if (infoB) return 1;
-    return 0;
-  });
-
-  const saveToken = () => {
-    localStorage.setItem('mapbox_token', mapboxToken);
-    setShowTokenInput(false);
-    window.location.reload();
-  };
-
-  // Calculate distances for all interventions
+  // Calculate distances
   const calculateDistances = useCallback((userLat: number, userLng: number) => {
     const newRouteInfos = new Map<number, RouteInfo>();
     
@@ -151,364 +194,47 @@ export default function MapPage() {
     setRouteInfos(newRouteInfos);
   }, [geolocatedInterventions]);
 
-  // Fetch route from Mapbox Directions API
-  const fetchRoute = useCallback(async (
-    fromLng: number, fromLat: number,
-    toLng: number, toLat: number,
-    interventionId: number
-  ) => {
-    if (!mapboxToken) return null;
-    
-    try {
-      const response = await fetch(
-        `https://api.mapbox.com/directions/v5/mapbox/driving/${fromLng},${fromLat};${toLng},${toLat}?geometries=geojson&overview=full&access_token=${mapboxToken}`
-      );
-      
-      if (!response.ok) throw new Error('Route fetch failed');
-      
-      const data = await response.json();
-      
-      if (data.routes && data.routes.length > 0) {
-        const route = data.routes[0];
-        return {
-          interventionId,
-          distance: Math.round(route.distance / 100) / 10, // m to km
-          duration: Math.round(route.duration / 60), // s to min
-          geometry: route.geometry as GeoJSON.LineString
-        };
-      }
-    } catch (error) {
-      console.error('Route calculation error:', error);
-    }
-    return null;
-  }, [mapboxToken]);
-
-  // Show route on map
-  const showRouteOnMap = useCallback((routeInfo: RouteInfo) => {
-    if (!map.current || !routeInfo.geometry) return;
-
-    // Remove existing route
-    if (map.current.getSource('route')) {
-      map.current.removeLayer('route-line');
-      map.current.removeSource('route');
-    }
-
-    // Add route source and layer
-    map.current.addSource('route', {
-      type: 'geojson',
-      data: {
-        type: 'Feature',
-        properties: {},
-        geometry: routeInfo.geometry
-      }
+  // Sort by distance
+  const sortedInterventions = useMemo(() => {
+    return [...geolocatedInterventions].sort((a, b) => {
+      const infoA = routeInfos.get(a.id);
+      const infoB = routeInfos.get(b.id);
+      if (infoA && infoB) return infoA.distance - infoB.distance;
+      if (infoA) return -1;
+      if (infoB) return 1;
+      return 0;
     });
+  }, [geolocatedInterventions, routeInfos]);
 
-    map.current.addLayer({
-      id: 'route-line',
-      type: 'line',
-      source: 'route',
-      layout: {
-        'line-join': 'round',
-        'line-cap': 'round'
-      },
-      paint: {
-        'line-color': '#3B82F6',
-        'line-width': 5,
-        'line-opacity': 0.8
-      }
-    });
-
-    routeSourceRef.current = true;
-    setActiveRoute(routeInfo);
-  }, []);
-
-  // Clear route from map
-  const clearRoute = useCallback(() => {
-    if (map.current && routeSourceRef.current) {
-      if (map.current.getLayer('route-line')) {
-        map.current.removeLayer('route-line');
-      }
-      if (map.current.getSource('route')) {
-        map.current.removeSource('route');
-      }
-      routeSourceRef.current = false;
-    }
-    setActiveRoute(null);
-  }, []);
-
-  // Calculate and show route to intervention
-  const calculateAndShowRoute = useCallback(async (intervention: Intervention) => {
-    if (!userLocation || !intervention.coordinates) {
-      toast.error('Position non disponible');
-      return;
-    }
-
-    setIsCalculatingRoute(true);
+  // Calculate bounds
+  const bounds = useMemo(() => {
+    if (geolocatedInterventions.length === 0) return null;
     
-    const routeInfo = await fetchRoute(
-      userLocation.lng, userLocation.lat,
-      intervention.coordinates.lng, intervention.coordinates.lat,
-      intervention.id
-    );
-
-    if (routeInfo) {
-      showRouteOnMap(routeInfo);
-      
-      // Fit map to show entire route
-      if (map.current && routeInfo.geometry) {
-        const bounds = new mapboxgl.LngLatBounds();
-        routeInfo.geometry.coordinates.forEach(coord => {
-          bounds.extend(coord as [number, number]);
-        });
-        map.current.fitBounds(bounds, { padding: 80 });
-      }
-      
-      toast.success(`Itinéraire: ${routeInfo.distance} km • ${routeInfo.duration} min`);
-    } else {
-      toast.error('Impossible de calculer l\'itinéraire');
+    const coords = geolocatedInterventions
+      .filter(i => i.coordinates)
+      .map(i => [i.coordinates!.lat, i.coordinates!.lng] as [number, number]);
+    
+    if (userLocation) {
+      coords.push(userLocation);
     }
     
-    setIsCalculatingRoute(false);
-  }, [userLocation, fetchRoute, showRouteOnMap]);
+    if (coords.length === 0) return null;
+    return L.latLngBounds(coords);
+  }, [geolocatedInterventions, userLocation]);
 
-  // Start continuous location tracking
-  const startLocationTracking = useCallback(() => {
-    if (watchId !== null) return;
-
-    const id = navigator.geolocation.watchPosition(
-      (position) => {
-        const { latitude, longitude } = position.coords;
-        const newLocation = { lat: latitude, lng: longitude };
-        setUserLocation(newLocation);
-        calculateDistances(latitude, longitude);
-
-        // Update user marker
-        if (userMarkerRef.current) {
-          userMarkerRef.current.setLngLat([longitude, latitude]);
-        }
-      },
-      (error) => console.error('Watch position error:', error),
-      { enableHighAccuracy: true, maximumAge: 5000 }
-    );
-
-    setWatchId(id);
-  }, [watchId, calculateDistances]);
-
-  // Stop location tracking
-  const stopLocationTracking = useCallback(() => {
-    if (watchId !== null) {
-      navigator.geolocation.clearWatch(watchId);
-      setWatchId(null);
-    }
-  }, [watchId]);
-
-  useEffect(() => {
-    return () => {
-      if (watchId !== null) {
-        navigator.geolocation.clearWatch(watchId);
-      }
-    };
-  }, [watchId]);
-
-  useEffect(() => {
-    if (!mapContainer.current || showTokenInput || !mapboxToken) return;
-
-    mapboxgl.accessToken = mapboxToken;
-
-    try {
-      map.current = new mapboxgl.Map({
-        container: mapContainer.current,
-        style: mapStyle === 'streets' 
-          ? 'mapbox://styles/mapbox/light-v11'
-          : 'mapbox://styles/mapbox/satellite-streets-v12',
-        center: [6.1432, 46.2044],
-        zoom: 11,
-        pitch: 0,
-      });
-
-      map.current.addControl(
-        new mapboxgl.NavigationControl({ visualizePitch: true }),
-        'top-right'
-      );
-
-      map.current.on('load', () => {
-        addMarkers();
-      });
-
-    } catch (error) {
-      console.error('Map initialization error:', error);
-      setShowTokenInput(true);
-    }
-
-    return () => {
-      markersRef.current.forEach(marker => marker.remove());
-      userMarkerRef.current?.remove();
-      map.current?.remove();
-    };
-  }, [mapboxToken, showTokenInput, mapStyle]);
-
-  useEffect(() => {
-    if (map.current && map.current.isStyleLoaded()) {
-      markersRef.current.forEach(marker => marker.remove());
-      markersRef.current = [];
-      routeSourceRef.current = false;
-      addMarkers();
-    }
-  }, [filteredInterventions, mapStyle]);
-
-  const addMarkers = () => {
-    if (!map.current) return;
-
-    geolocatedInterventions.forEach(intervention => {
-      if (!intervention.coordinates) return;
-
-      const routeInfo = routeInfos.get(intervention.id);
-      
-      const el = document.createElement('div');
-      el.className = 'intervention-marker';
-      el.innerHTML = `
-        <div style="position: relative;">
-          <div style="
-            width: 44px;
-            height: 44px;
-            border-radius: 50%;
-            background: ${typeColors[intervention.type] || '#6366F1'};
-            border: 3px solid white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: transform 0.2s;
-          ">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2">
-              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/>
-              <circle cx="12" cy="10" r="3"/>
-            </svg>
-          </div>
-          ${intervention.priority === 'urgent' ? `
-            <div style="
-              position: absolute;
-              top: -4px;
-              right: -4px;
-              width: 16px;
-              height: 16px;
-              background: #EF4444;
-              border-radius: 50%;
-              border: 2px solid white;
-              animation: pulse 2s infinite;
-            "></div>
-          ` : ''}
-          ${routeInfo ? `
-            <div style="
-              position: absolute;
-              bottom: -8px;
-              left: 50%;
-              transform: translateX(-50%);
-              background: white;
-              padding: 2px 6px;
-              border-radius: 8px;
-              font-size: 10px;
-              font-weight: 600;
-              color: #374151;
-              box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-              white-space: nowrap;
-            ">${routeInfo.distance} km</div>
-          ` : ''}
-        </div>
-      `;
-
-      el.addEventListener('mouseenter', () => {
-        const inner = el.querySelector('div > div') as HTMLElement;
-        if (inner) inner.style.transform = 'scale(1.1)';
-      });
-      el.addEventListener('mouseleave', () => {
-        const inner = el.querySelector('div > div') as HTMLElement;
-        if (inner) inner.style.transform = 'scale(1)';
-      });
-
-      const marker = new mapboxgl.Marker(el)
-        .setLngLat([intervention.coordinates.lng, intervention.coordinates.lat])
-        .addTo(map.current!);
-
-      el.addEventListener('click', () => {
-        setSelectedIntervention(intervention);
-        map.current?.flyTo({
-          center: [intervention.coordinates!.lng, intervention.coordinates!.lat],
-          zoom: 14,
-          duration: 1000,
-        });
-      });
-
-      markersRef.current.push(marker);
-    });
-
-    // Fit bounds
-    if (geolocatedInterventions.length > 1) {
-      const bounds = new mapboxgl.LngLatBounds();
-      geolocatedInterventions.forEach(i => {
-        if (i.coordinates) {
-          bounds.extend([i.coordinates.lng, i.coordinates.lat]);
-        }
-      });
-      if (userLocation) {
-        bounds.extend([userLocation.lng, userLocation.lat]);
-      }
-      map.current?.fitBounds(bounds, { padding: 60 });
-    }
-  };
+  // Default center (Geneva)
+  const defaultCenter: [number, number] = [46.2044, 6.1432];
 
   const locateUser = () => {
     setIsLocating(true);
     navigator.geolocation.getCurrentPosition(
       (position) => {
         const { latitude, longitude } = position.coords;
-        setUserLocation({ lat: latitude, lng: longitude });
+        const loc: [number, number] = [latitude, longitude];
+        setUserLocation(loc);
         calculateDistances(latitude, longitude);
-        
-        if (map.current) {
-          // Remove existing user marker
-          userMarkerRef.current?.remove();
-
-          // Add user marker
-          const userEl = document.createElement('div');
-          userEl.innerHTML = `
-            <div style="position: relative;">
-              <div style="
-                width: 24px;
-                height: 24px;
-                background: #3B82F6;
-                border: 4px solid white;
-                border-radius: 50%;
-                box-shadow: 0 0 0 8px rgba(59, 130, 246, 0.3), 0 4px 8px rgba(0,0,0,0.2);
-              "></div>
-              <div style="
-                position: absolute;
-                top: -2px;
-                left: -2px;
-                width: 28px;
-                height: 28px;
-                border: 2px solid rgba(59, 130, 246, 0.5);
-                border-radius: 50%;
-                animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;
-              "></div>
-            </div>
-          `;
-          
-          userMarkerRef.current = new mapboxgl.Marker(userEl)
-            .setLngLat([longitude, latitude])
-            .addTo(map.current);
-
-          map.current.flyTo({
-            center: [longitude, latitude],
-            zoom: 13,
-            duration: 1500,
-          });
-
-          // Start continuous tracking
-          startLocationTracking();
-        }
-        
+        setFlyToCenter(loc);
+        setFlyToZoom(14);
         setIsLocating(false);
         toast.success('Position obtenue');
       },
@@ -521,21 +247,40 @@ export default function MapPage() {
     );
   };
 
-  const toggleMapStyle = () => {
-    clearRoute();
-    setMapStyle(prev => prev === 'streets' ? 'satellite' : 'streets');
-  };
-
   const flyToIntervention = (intervention: Intervention) => {
-    if (intervention.coordinates && map.current) {
+    if (intervention.coordinates) {
       setSelectedIntervention(intervention);
       setShowList(false);
-      map.current.flyTo({
-        center: [intervention.coordinates.lng, intervention.coordinates.lat],
-        zoom: 15,
-        duration: 1200,
-      });
+      setFlyToCenter([intervention.coordinates.lat, intervention.coordinates.lng]);
+      setFlyToZoom(16);
     }
+  };
+
+  const openInMaps = (intervention: Intervention) => {
+    const addr = encodeURIComponent(intervention.location);
+    
+    // Try to detect platform for appropriate maps app
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const isAndroid = /Android/.test(navigator.userAgent);
+    
+    let url: string;
+    if (userLocation) {
+      // With origin
+      if (isIOS) {
+        url = `http://maps.apple.com/?saddr=${userLocation[0]},${userLocation[1]}&daddr=${addr}`;
+      } else {
+        url = `https://www.google.com/maps/dir/?api=1&origin=${userLocation[0]},${userLocation[1]}&destination=${addr}&travelmode=driving`;
+      }
+    } else {
+      // Without origin
+      if (isIOS) {
+        url = `http://maps.apple.com/?daddr=${addr}`;
+      } else {
+        url = `https://www.google.com/maps/dir/?api=1&destination=${addr}&travelmode=driving`;
+      }
+    }
+    
+    window.open(url, '_blank');
   };
 
   const formatDistance = (km: number) => {
@@ -550,39 +295,92 @@ export default function MapPage() {
     return `${h}h${m > 0 ? m : ''}`;
   };
 
-  if (showTokenInput) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] p-6 space-y-4">
-        <MapIcon className="w-16 h-16 text-muted-foreground" />
-        <h2 className="text-xl font-semibold text-center">Configuration Mapbox</h2>
-        <p className="text-muted-foreground text-center max-w-md">
-          Pour afficher la carte, entrez votre token Mapbox public. 
-          Vous pouvez l'obtenir sur <a href="https://mapbox.com" target="_blank" rel="noopener" className="text-primary underline">mapbox.com</a>
-        </p>
-        <div className="flex gap-2 w-full max-w-md">
-          <Input
-            value={mapboxToken}
-            onChange={(e) => setMapboxToken(e.target.value)}
-            placeholder="pk.eyJ1..."
-            className="flex-1"
-          />
-          <Button onClick={saveToken} disabled={!mapboxToken}>
-            Enregistrer
-          </Button>
-        </div>
-      </div>
-    );
-  }
-
   const selectedRouteInfo = selectedIntervention ? routeInfos.get(selectedIntervention.id) : null;
+
+  // Route line between user and selected intervention
+  const routeLine = useMemo(() => {
+    if (!userLocation || !selectedIntervention?.coordinates) return null;
+    return [
+      userLocation,
+      [selectedIntervention.coordinates.lat, selectedIntervention.coordinates.lng] as [number, number]
+    ];
+  }, [userLocation, selectedIntervention]);
 
   return (
     <div className="relative h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)] -mx-4 -mt-4 lg:mx-0 lg:mt-0 lg:rounded-xl overflow-hidden">
-      {/* Map Container */}
-      <div ref={mapContainer} className="absolute inset-0" />
+      {/* Map */}
+      <MapContainer
+        center={defaultCenter}
+        zoom={11}
+        className="h-full w-full z-0"
+        zoomControl={false}
+      >
+        <TileLayer
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        
+        <MapController center={flyToCenter} zoom={flyToZoom} />
+        {bounds && !flyToCenter && <FitBounds bounds={bounds} />}
+        
+        {/* Route line */}
+        {routeLine && (
+          <Polyline 
+            positions={routeLine} 
+            color="#3B82F6" 
+            weight={4} 
+            opacity={0.7}
+            dashArray="10, 10"
+          />
+        )}
+        
+        {/* User marker */}
+        {userLocation && (
+          <Marker position={userLocation} icon={userIcon}>
+            <Popup>Ma position</Popup>
+          </Marker>
+        )}
+        
+        {/* Intervention markers */}
+        {geolocatedInterventions.map(intervention => {
+          if (!intervention.coordinates) return null;
+          const routeInfo = routeInfos.get(intervention.id);
+          const isSelected = selectedIntervention?.id === intervention.id;
+          
+          return (
+            <Marker
+              key={intervention.id}
+              position={[intervention.coordinates.lat, intervention.coordinates.lng]}
+              icon={createMarkerIcon(
+                typeColors[intervention.type] || '#6366F1',
+                intervention.priority === 'urgent'
+              )}
+              eventHandlers={{
+                click: () => {
+                  setSelectedIntervention(intervention);
+                  setFlyToCenter([intervention.coordinates!.lat, intervention.coordinates!.lng]);
+                  setFlyToZoom(15);
+                }
+              }}
+            >
+              <Popup>
+                <div className="min-w-[200px]">
+                  <p className="font-semibold">{intervention.label}</p>
+                  <p className="text-sm text-gray-600">{intervention.clientName}</p>
+                  {routeInfo && (
+                    <p className="text-sm font-medium text-blue-600 mt-1">
+                      {formatDistance(routeInfo.distance)} • {formatDuration(routeInfo.duration)}
+                    </p>
+                  )}
+                </div>
+              </Popup>
+            </Marker>
+          );
+        })}
+      </MapContainer>
 
       {/* Top Controls */}
-      <div className="absolute top-4 left-4 right-4 z-10 flex gap-2 flex-wrap">
+      <div className="absolute top-4 left-4 right-4 z-[1000] flex gap-2 flex-wrap">
         <Button
           variant="secondary"
           size="sm"
@@ -612,33 +410,8 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* Active Route Info */}
-      {activeRoute && (
-        <div className="absolute top-16 left-4 z-10 bg-primary text-primary-foreground rounded-lg shadow-lg px-4 py-2 flex items-center gap-3">
-          <Route className="w-5 h-5" />
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-1">
-              <Car className="w-4 h-4" />
-              <span className="font-semibold">{formatDistance(activeRoute.distance)}</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Timer className="w-4 h-4" />
-              <span className="font-semibold">{formatDuration(activeRoute.duration)}</span>
-            </div>
-          </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-6 w-6 text-primary-foreground hover:bg-primary-foreground/20"
-            onClick={clearRoute}
-          >
-            <X className="w-4 h-4" />
-          </Button>
-        </div>
-      )}
-
       {/* Map Controls */}
-      <div className="absolute bottom-24 lg:bottom-8 right-4 z-10 flex flex-col gap-2">
+      <div className="absolute bottom-24 lg:bottom-8 right-4 z-[1000] flex flex-col gap-2">
         <Button
           variant="secondary"
           size="icon"
@@ -655,42 +428,27 @@ export default function MapPage() {
             <Locate className={cn("w-5 h-5", userLocation && "text-primary")} />
           )}
         </Button>
-        <Button
-          variant="secondary"
-          size="icon"
-          className="bg-background/95 backdrop-blur shadow-lg h-12 w-12"
-          onClick={toggleMapStyle}
-        >
-          <Layers className="w-5 h-5" />
-        </Button>
       </div>
 
-      {/* Legend with distances */}
-      <div className="absolute bottom-24 lg:bottom-8 left-4 z-10 bg-background/95 backdrop-blur rounded-lg shadow-lg p-3 max-w-[200px]">
+      {/* Legend */}
+      <div className="absolute bottom-24 lg:bottom-8 left-4 z-[1000] bg-background/95 backdrop-blur rounded-lg shadow-lg p-3 max-w-[180px]">
         <p className="text-xs font-medium mb-2">Types</p>
-        <div className="grid grid-cols-2 gap-x-4 gap-y-1 mb-3">
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
           {Object.entries(typeColors).map(([type, color]) => (
-            <div key={type} className="flex items-center gap-2">
+            <div key={type} className="flex items-center gap-1.5">
               <div 
-                className="w-3 h-3 rounded-full shrink-0" 
+                className="w-2.5 h-2.5 rounded-full shrink-0" 
                 style={{ backgroundColor: color }}
               />
-              <span className="text-xs capitalize truncate">{type}</span>
+              <span className="text-[10px] capitalize truncate">{type}</span>
             </div>
           ))}
         </div>
-        {userLocation && (
-          <div className="pt-2 border-t border-border">
-            <p className="text-xs text-muted-foreground">
-              {watchId ? '📍 Suivi actif' : '📍 Position connue'}
-            </p>
-          </div>
-        )}
       </div>
 
       {/* Selected Intervention Card */}
       {selectedIntervention && (
-        <div className="absolute bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-20 w-[calc(100%-2rem)] max-w-md">
+        <div className="absolute bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-2rem)] max-w-md">
           <div className="bg-background rounded-2xl shadow-2xl border p-4">
             <div className="flex items-start justify-between mb-3">
               <div className="flex items-center gap-2">
@@ -701,16 +459,15 @@ export default function MapPage() {
                 <Badge variant="outline" className="text-xs">
                   {selectedIntervention.ref}
                 </Badge>
-                {priorityIcons[selectedIntervention.priority]}
+                {selectedIntervention.priority === 'urgent' && (
+                  <AlertTriangle className="w-3 h-3 text-orange-500" />
+                )}
               </div>
               <Button
                 variant="ghost"
                 size="icon"
                 className="h-8 w-8 -mr-2 -mt-2"
-                onClick={() => {
-                  setSelectedIntervention(null);
-                  clearRoute();
-                }}
+                onClick={() => setSelectedIntervention(null)}
               >
                 <X className="w-4 h-4" />
               </Button>
@@ -721,14 +478,14 @@ export default function MapPage() {
 
             {/* Distance & Duration */}
             {selectedRouteInfo && (
-              <div className="flex items-center gap-4 mb-3 p-2 bg-primary/10 rounded-lg">
+              <div className="flex items-center gap-4 mb-3 p-2.5 bg-primary/10 rounded-xl">
                 <div className="flex items-center gap-1.5">
                   <Car className="w-4 h-4 text-primary" />
-                  <span className="font-semibold text-primary">{formatDistance(selectedRouteInfo.distance)}</span>
+                  <span className="font-bold text-primary">{formatDistance(selectedRouteInfo.distance)}</span>
                 </div>
                 <div className="flex items-center gap-1.5">
                   <Timer className="w-4 h-4 text-primary" />
-                  <span className="font-semibold text-primary">{formatDuration(selectedRouteInfo.duration)}</span>
+                  <span className="font-bold text-primary">~{formatDuration(selectedRouteInfo.duration)}</span>
                 </div>
               </div>
             )}
@@ -742,47 +499,27 @@ export default function MapPage() {
               <div className="flex items-center gap-1 text-sm text-muted-foreground mb-3">
                 <Clock className="w-4 h-4 shrink-0" />
                 <span>
-                  {format(parseISO(selectedIntervention.dateStart), "EEEE d MMMM 'à' HH:mm", { locale: fr })}
+                  {format(parseISO(selectedIntervention.dateStart), "EEE d MMM 'à' HH:mm", { locale: fr })}
                 </span>
               </div>
             )}
 
             <div className="flex gap-2">
-              {userLocation ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => calculateAndShowRoute(selectedIntervention)}
-                  disabled={isCalculatingRoute}
-                >
-                  {isCalculatingRoute ? (
-                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  ) : (
-                    <Route className="w-4 h-4 mr-2" />
-                  )}
-                  Itinéraire
-                </Button>
-              ) : (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => {
-                    const addr = encodeURIComponent(selectedIntervention.location);
-                    window.open(`https://www.google.com/maps/dir/?api=1&destination=${addr}`, '_blank');
-                  }}
-                >
-                  <Navigation className="w-4 h-4 mr-2" />
-                  Maps
-                </Button>
-              )}
               <Button
-                size="sm"
-                className="flex-1"
+                variant="outline"
+                size="lg"
+                className="flex-1 h-12"
+                onClick={() => openInMaps(selectedIntervention)}
+              >
+                <Navigation className="w-5 h-5 mr-2" />
+                Naviguer
+              </Button>
+              <Button
+                size="lg"
+                className="flex-1 h-12"
                 onClick={() => navigate(`/intervention/${selectedIntervention.id}`)}
               >
-                Voir détails
+                Détails
               </Button>
             </div>
           </div>
@@ -796,8 +533,8 @@ export default function MapPage() {
             <SheetTitle className="flex items-center justify-between">
               <span>Interventions ({geolocatedInterventions.length})</span>
               {userLocation && (
-                <Badge variant="secondary" className="font-normal">
-                  Triées par distance
+                <Badge variant="secondary" className="font-normal text-xs">
+                  Par distance
                 </Badge>
               )}
             </SheetTitle>
@@ -808,29 +545,24 @@ export default function MapPage() {
               return (
                 <div
                   key={intervention.id}
-                  className="p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors"
+                  className="p-4 border-b cursor-pointer hover:bg-muted/50 transition-colors active:bg-muted"
                   onClick={() => flyToIntervention(intervention)}
                 >
                   <div className="flex items-start gap-3">
                     <div 
                       className="w-12 h-12 rounded-full flex items-center justify-center shrink-0 relative"
-                      style={{ backgroundColor: `${typeColors[intervention.type]}20` }}
+                      style={{ backgroundColor: `${typeColors[intervention.type]}15` }}
                     >
                       <MapPin 
                         className="w-5 h-5" 
                         style={{ color: typeColors[intervention.type] }}
                       />
-                      {routeInfo && (
-                        <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 bg-background px-1.5 py-0.5 rounded text-[10px] font-semibold shadow border">
-                          {formatDistance(routeInfo.distance)}
-                        </div>
-                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <span className="text-xs text-muted-foreground">{intervention.ref}</span>
                         {intervention.priority === 'urgent' && (
-                          <Badge variant="destructive" className="text-[10px] px-1 py-0">
+                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
                             Urgent
                           </Badge>
                         )}
@@ -839,26 +571,26 @@ export default function MapPage() {
                       <p className="text-sm text-muted-foreground truncate">{intervention.clientName}</p>
                       
                       {routeInfo && (
-                        <div className="flex items-center gap-3 mt-1">
-                          <span className="text-xs text-primary font-medium flex items-center gap-1">
+                        <div className="flex items-center gap-3 mt-1.5 p-1.5 bg-primary/10 rounded-lg w-fit">
+                          <span className="text-xs text-primary font-bold flex items-center gap-1">
                             <Car className="w-3 h-3" />
                             {formatDistance(routeInfo.distance)}
                           </span>
-                          <span className="text-xs text-muted-foreground flex items-center gap-1">
+                          <span className="text-xs text-primary/70 font-medium flex items-center gap-1">
                             <Timer className="w-3 h-3" />
-                            {formatDuration(routeInfo.duration)}
+                            ~{formatDuration(routeInfo.duration)}
                           </span>
                         </div>
                       )}
                       
                       {intervention.dateStart && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {format(parseISO(intervention.dateStart), "d MMM 'à' HH:mm", { locale: fr })}
+                        <p className="text-xs text-muted-foreground mt-1.5">
+                          📅 {format(parseISO(intervention.dateStart), "EEE d MMM 'à' HH:mm", { locale: fr })}
                         </p>
                       )}
                     </div>
                     <div className={cn(
-                      "w-2 h-2 rounded-full mt-2 shrink-0",
+                      "w-2.5 h-2.5 rounded-full mt-2 shrink-0",
                       statusConfig[intervention.status]?.color
                     )} />
                   </div>
@@ -868,20 +600,6 @@ export default function MapPage() {
           </div>
         </SheetContent>
       </Sheet>
-
-      {/* Custom styles */}
-      <style>{`
-        @keyframes pulse {
-          0%, 100% { opacity: 1; transform: scale(1); }
-          50% { opacity: 0.8; transform: scale(1.2); }
-        }
-        @keyframes ping {
-          75%, 100% {
-            transform: scale(2);
-            opacity: 0;
-          }
-        }
-      `}</style>
     </div>
   );
 }
