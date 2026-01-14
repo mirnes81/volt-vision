@@ -1,22 +1,41 @@
-import { useState, useEffect } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, User, AlertTriangle, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { getTodayInterventions } from '@/lib/api';
+import { getAllInterventions } from '@/lib/api';
 import { Intervention } from '@/types/intervention';
 import { cn } from '@/lib/utils';
+import { Skeleton } from '@/components/ui/skeleton';
 
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const DAYS_DE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
 const DAYS_IT = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
 
+const DAYS_FULL_FR = ['Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi', 'Dimanche'];
+
 const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const MONTHS_IT = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
-type ViewMode = 'week' | 'month';
+type ViewMode = 'week' | 'month' | 'day';
+
+const typeColors: Record<string, { bg: string; border: string; text: string }> = {
+  installation: { bg: 'bg-primary/10', border: 'border-l-primary', text: 'text-primary' },
+  depannage: { bg: 'bg-destructive/10', border: 'border-l-destructive', text: 'text-destructive' },
+  renovation: { bg: 'bg-warning/10', border: 'border-l-warning', text: 'text-warning' },
+  tableau: { bg: 'bg-success/10', border: 'border-l-success', text: 'text-success' },
+  cuisine: { bg: 'bg-purple-500/10', border: 'border-l-purple-500', text: 'text-purple-600' },
+  oibt: { bg: 'bg-cyan-500/10', border: 'border-l-cyan-500', text: 'text-cyan-600' },
+};
+
+const statusLabels: Record<string, string> = {
+  a_planifier: 'À planifier',
+  en_cours: 'En cours',
+  termine: 'Terminé',
+  facture: 'Facturé',
+};
 
 export default function CalendarPage() {
   const { t, language } = useLanguage();
@@ -24,6 +43,7 @@ export default function CalendarPage() {
   const [viewMode, setViewMode] = useState<ViewMode>('week');
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [isLoading, setIsLoading] = useState(true);
 
   const days = language === 'de' ? DAYS_DE : language === 'it' ? DAYS_IT : DAYS_FR;
   const months = language === 'de' ? MONTHS_DE : language === 'it' ? MONTHS_IT : MONTHS_FR;
@@ -33,8 +53,15 @@ export default function CalendarPage() {
   }, []);
 
   const loadInterventions = async () => {
-    const data = await getTodayInterventions();
-    setInterventions(data);
+    setIsLoading(true);
+    try {
+      const data = await getAllInterventions();
+      setInterventions(data);
+    } catch (error) {
+      console.error('Error loading interventions:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const goToToday = () => {
@@ -44,12 +71,15 @@ export default function CalendarPage() {
 
   const navigate = (direction: 'prev' | 'next') => {
     const newDate = new Date(currentDate);
-    if (viewMode === 'week') {
+    if (viewMode === 'day') {
+      newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
+    } else if (viewMode === 'week') {
       newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
     } else {
       newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
     }
     setCurrentDate(newDate);
+    if (viewMode === 'day') setSelectedDate(newDate);
   };
 
   const getWeekDates = () => {
@@ -76,18 +106,15 @@ export default function CalendarPage() {
     const dates = [];
     const startDayOfWeek = firstDay.getDay() === 0 ? 6 : firstDay.getDay() - 1;
     
-    // Previous month days
     for (let i = startDayOfWeek - 1; i >= 0; i--) {
       const date = new Date(year, month, -i);
       dates.push({ date, isCurrentMonth: false });
     }
     
-    // Current month days
     for (let i = 1; i <= lastDay.getDate(); i++) {
       dates.push({ date: new Date(year, month, i), isCurrentMonth: true });
     }
     
-    // Next month days
     const remaining = 42 - dates.length;
     for (let i = 1; i <= remaining; i++) {
       dates.push({ date: new Date(year, month + 1, i), isCurrentMonth: false });
@@ -96,11 +123,23 @@ export default function CalendarPage() {
     return dates;
   };
 
+  // Filter interventions by date using dateStart
   const getInterventionsForDate = (date: Date) => {
-    // In real app, filter by actual date
-    // For demo, show some interventions on current day
-    const isToday = date.toDateString() === new Date().toDateString();
-    return isToday ? interventions : [];
+    return interventions.filter(int => {
+      if (!int.dateStart) return false;
+      const intDate = new Date(int.dateStart);
+      return intDate.toDateString() === date.toDateString();
+    });
+  };
+
+  // Get time from dateStart
+  const getInterventionTime = (intervention: Intervention): string | null => {
+    if (!intervention.dateStart) return null;
+    const date = new Date(intervention.dateStart);
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    if (hours === 0 && minutes === 0) return null;
+    return date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' });
   };
 
   const isSameDate = (d1: Date, d2: Date) => d1.toDateString() === d2.toDateString();
@@ -108,32 +147,65 @@ export default function CalendarPage() {
 
   const weekDates = getWeekDates();
   const monthDates = getMonthDates();
-  const selectedInterventions = getInterventionsForDate(selectedDate);
+  const selectedInterventions = useMemo(() => {
+    return getInterventionsForDate(selectedDate).sort((a, b) => {
+      if (!a.dateStart) return 1;
+      if (!b.dateStart) return -1;
+      return new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime();
+    });
+  }, [selectedDate, interventions]);
 
-  const typeColors: Record<string, string> = {
-    installation: 'bg-primary',
-    depannage: 'bg-destructive',
-    renovation: 'bg-warning',
-    tableau: 'bg-success',
-    cuisine: 'bg-purple-500',
-    oibt: 'bg-cyan-500',
+  // Desktop: Hours timeline
+  const hours = Array.from({ length: 12 }, (_, i) => i + 7); // 7h to 18h
+
+  const getInterventionPosition = (int: Intervention) => {
+    if (!int.dateStart) return null;
+    const date = new Date(int.dateStart);
+    const hour = date.getHours();
+    const minute = date.getMinutes();
+    if (hour < 7 || hour > 18) return null;
+    return ((hour - 7) * 60 + minute) / (12 * 60) * 100;
   };
+
+  if (isLoading) {
+    return (
+      <div className="pb-4">
+        <Header title={t('calendar.title')} />
+        <div className="px-4 space-y-4 pt-4">
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-64 w-full rounded-2xl" />
+          <Skeleton className="h-40 w-full rounded-2xl" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="pb-4">
       <Header title={t('calendar.title')} />
 
-      <div className="px-4 space-y-4 pt-4">
+      <div className="px-4 lg:px-6 space-y-4 pt-4">
         {/* Controls */}
-        <div className="flex items-center justify-between">
-          <div className="flex gap-2">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex gap-1">
+            <button
+              onClick={() => setViewMode('day')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hidden lg:block",
+                viewMode === 'day'
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
+              )}
+            >
+              Jour
+            </button>
             <button
               onClick={() => setViewMode('week')}
               className={cn(
                 "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
                 viewMode === 'week'
                   ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-muted-foreground"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
               )}
             >
               {t('calendar.week')}
@@ -144,15 +216,23 @@ export default function CalendarPage() {
                 "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
                 viewMode === 'month'
                   ? "bg-primary text-primary-foreground"
-                  : "bg-secondary text-muted-foreground"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
               )}
             >
               {t('calendar.month')}
             </button>
           </div>
-          <Button variant="outline" size="sm" onClick={goToToday}>
-            {t('calendar.today')}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={goToToday}>
+              {t('calendar.today')}
+            </Button>
+            <Link to="/intervention/new" className="hidden lg:block">
+              <Button size="sm" className="gap-1">
+                <Plus className="w-4 h-4" />
+                Nouvelle
+              </Button>
+            </Link>
+          </div>
         </div>
 
         {/* Navigation */}
@@ -164,7 +244,9 @@ export default function CalendarPage() {
             <ChevronLeft className="w-5 h-5" />
           </button>
           <h2 className="text-lg font-bold">
-            {viewMode === 'week'
+            {viewMode === 'day'
+              ? `${DAYS_FULL_FR[currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1]} ${currentDate.getDate()} ${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+              : viewMode === 'week'
               ? `${weekDates[0].getDate()} - ${weekDates[6].getDate()} ${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`
               : `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`
             }
@@ -177,64 +259,221 @@ export default function CalendarPage() {
           </button>
         </div>
 
-        {/* Calendar Grid */}
-        {viewMode === 'week' ? (
-          <div className="bg-card rounded-2xl shadow-card border border-border/50 overflow-hidden">
-            {/* Week Header */}
-            <div className="grid grid-cols-7 border-b border-border">
-              {days.map((day, i) => (
-                <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
-                  {day}
-                </div>
-              ))}
-            </div>
-            {/* Week Days */}
-            <div className="grid grid-cols-7">
-              {weekDates.map((date, i) => {
-                const dayInterventions = getInterventionsForDate(date);
-                const isSelected = isSameDate(date, selectedDate);
+        {/* Desktop Day View with Timeline */}
+        {viewMode === 'day' && (
+          <div className="hidden lg:block bg-card rounded-2xl shadow-card border border-border/50 overflow-hidden">
+            <div className="grid grid-cols-[80px_1fr] min-h-[600px]">
+              {/* Time column */}
+              <div className="border-r border-border bg-secondary/30">
+                {hours.map((hour) => (
+                  <div
+                    key={hour}
+                    className="h-[50px] border-b border-border/50 px-2 py-1 text-xs text-muted-foreground font-medium"
+                  >
+                    {hour}:00
+                  </div>
+                ))}
+              </div>
+              
+              {/* Events column */}
+              <div className="relative">
+                {hours.map((hour) => (
+                  <div key={hour} className="h-[50px] border-b border-border/30" />
+                ))}
                 
-                return (
-                  <button
-                    key={i}
-                    onClick={() => setSelectedDate(date)}
+                {/* Interventions */}
+                {selectedInterventions.map((int) => {
+                  const position = getInterventionPosition(int);
+                  if (position === null) return null;
+                  const colors = typeColors[int.type] || typeColors.installation;
+                  
+                  return (
+                    <Link
+                      key={int.id}
+                      to={`/intervention/${int.id}`}
+                      className={cn(
+                        "absolute left-2 right-2 min-h-[48px] rounded-lg border-l-4 p-2 transition-all hover:shadow-lg hover:scale-[1.02]",
+                        colors.bg,
+                        colors.border
+                      )}
+                      style={{ top: `${position}%` }}
+                    >
+                      <div className="flex items-start gap-2">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{int.label}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                            <Clock className="w-3 h-3" />
+                            <span>{getInterventionTime(int) || 'Toute la journée'}</span>
+                            <span>•</span>
+                            <span>{int.clientName}</span>
+                          </div>
+                        </div>
+                        {int.priority === 'urgent' && (
+                          <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                        )}
+                      </div>
+                    </Link>
+                  );
+                })}
+                
+                {/* Current time indicator */}
+                {isToday(currentDate) && (
+                  <div
+                    className="absolute left-0 right-0 border-t-2 border-destructive z-10"
+                    style={{
+                      top: `${((new Date().getHours() - 7) * 60 + new Date().getMinutes()) / (12 * 60) * 100}%`
+                    }}
+                  >
+                    <div className="w-3 h-3 rounded-full bg-destructive -mt-1.5 -ml-1.5" />
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Week View */}
+        {viewMode === 'week' && (
+          <div className="bg-card rounded-2xl shadow-card border border-border/50 overflow-hidden">
+            {/* Desktop Week with Timeline */}
+            <div className="hidden lg:block">
+              <div className="grid grid-cols-[80px_repeat(7,1fr)] border-b border-border">
+                <div className="p-2 bg-secondary/30" />
+                {weekDates.map((date, i) => {
+                  const dayInterventions = getInterventionsForDate(date);
+                  return (
+                    <div
+                      key={i}
+                      className={cn(
+                        "p-2 text-center border-l border-border",
+                        isToday(date) && "bg-primary/5"
+                      )}
+                    >
+                      <p className="text-xs text-muted-foreground">{days[i]}</p>
+                      <p className={cn(
+                        "text-lg font-bold mt-0.5",
+                        isToday(date) && "text-primary"
+                      )}>
+                        {date.getDate()}
+                      </p>
+                      {dayInterventions.length > 0 && (
+                        <span className="text-xs text-primary font-medium">
+                          {dayInterventions.length} int.
+                        </span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              
+              <div className="grid grid-cols-[80px_repeat(7,1fr)] max-h-[500px] overflow-y-auto">
+                <div className="border-r border-border bg-secondary/30">
+                  {hours.map((hour) => (
+                    <div
+                      key={hour}
+                      className="h-[40px] border-b border-border/50 px-2 text-xs text-muted-foreground font-medium flex items-center"
+                    >
+                      {hour}:00
+                    </div>
+                  ))}
+                </div>
+                
+                {weekDates.map((date, dayIndex) => (
+                  <div
+                    key={dayIndex}
                     className={cn(
-                      "p-2 min-h-[80px] border-r border-b border-border last:border-r-0 transition-colors text-left",
-                      isSelected && "bg-primary/10",
+                      "relative border-l border-border",
                       isToday(date) && "bg-primary/5"
                     )}
                   >
-                    <span className={cn(
-                      "inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium",
-                      isToday(date) && "bg-primary text-primary-foreground",
-                      isSelected && !isToday(date) && "bg-secondary"
-                    )}>
-                      {date.getDate()}
-                    </span>
-                    <div className="mt-1 space-y-0.5">
-                      {dayInterventions.slice(0, 2).map((int, j) => (
-                        <div
-                          key={j}
+                    {hours.map((hour) => (
+                      <div key={hour} className="h-[40px] border-b border-border/30" />
+                    ))}
+                    
+                    {getInterventionsForDate(date).map((int) => {
+                      const position = getInterventionPosition(int);
+                      if (position === null) return null;
+                      const colors = typeColors[int.type] || typeColors.installation;
+                      
+                      return (
+                        <Link
+                          key={int.id}
+                          to={`/intervention/${int.id}`}
                           className={cn(
-                            "h-1.5 rounded-full",
-                            typeColors[int.type] || 'bg-primary'
+                            "absolute left-0.5 right-0.5 min-h-[32px] rounded border-l-2 px-1 py-0.5 transition-all hover:z-10 hover:shadow-lg text-xs",
+                            colors.bg,
+                            colors.border
                           )}
-                        />
-                      ))}
-                      {dayInterventions.length > 2 && (
-                        <p className="text-[10px] text-muted-foreground">
-                          +{dayInterventions.length - 2}
-                        </p>
+                          style={{ top: `${position}%` }}
+                        >
+                          <p className="font-medium truncate">{int.label}</p>
+                          <p className="text-muted-foreground truncate">{getInterventionTime(int)}</p>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Mobile Week View */}
+            <div className="lg:hidden">
+              <div className="grid grid-cols-7 border-b border-border">
+                {days.map((day, i) => (
+                  <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
+                    {day}
+                  </div>
+                ))}
+              </div>
+              <div className="grid grid-cols-7">
+                {weekDates.map((date, i) => {
+                  const dayInterventions = getInterventionsForDate(date);
+                  const isSelected = isSameDate(date, selectedDate);
+                  
+                  return (
+                    <button
+                      key={i}
+                      onClick={() => setSelectedDate(date)}
+                      className={cn(
+                        "p-2 min-h-[80px] border-r border-b border-border last:border-r-0 transition-colors text-left",
+                        isSelected && "bg-primary/10",
+                        isToday(date) && "bg-primary/5"
                       )}
-                    </div>
-                  </button>
-                );
-              })}
+                    >
+                      <span className={cn(
+                        "inline-flex items-center justify-center w-7 h-7 rounded-full text-sm font-medium",
+                        isToday(date) && "bg-primary text-primary-foreground",
+                        isSelected && !isToday(date) && "bg-secondary"
+                      )}>
+                        {date.getDate()}
+                      </span>
+                      <div className="mt-1 space-y-0.5">
+                        {dayInterventions.slice(0, 2).map((int, j) => {
+                          const colors = typeColors[int.type] || typeColors.installation;
+                          return (
+                            <div
+                              key={j}
+                              className={cn("h-1.5 rounded-full", colors.bg.replace('/10', ''))}
+                            />
+                          );
+                        })}
+                        {dayInterventions.length > 2 && (
+                          <p className="text-[10px] text-muted-foreground">
+                            +{dayInterventions.length - 2}
+                          </p>
+                        )}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
           </div>
-        ) : (
+        )}
+
+        {/* Month View */}
+        {viewMode === 'month' && (
           <div className="bg-card rounded-2xl shadow-card border border-border/50 overflow-hidden">
-            {/* Month Header */}
             <div className="grid grid-cols-7 border-b border-border">
               {days.map(day => (
                 <div key={day} className="p-2 text-center text-xs font-medium text-muted-foreground">
@@ -242,7 +481,6 @@ export default function CalendarPage() {
                 </div>
               ))}
             </div>
-            {/* Month Grid */}
             <div className="grid grid-cols-7">
               {monthDates.map(({ date, isCurrentMonth }, i) => {
                 const dayInterventions = getInterventionsForDate(date);
@@ -253,31 +491,58 @@ export default function CalendarPage() {
                     key={i}
                     onClick={() => setSelectedDate(date)}
                     className={cn(
-                      "p-1.5 min-h-[50px] border-r border-b border-border transition-colors",
+                      "p-1.5 lg:p-2 min-h-[50px] lg:min-h-[80px] border-r border-b border-border transition-colors text-left",
                       i % 7 === 6 && "border-r-0",
                       !isCurrentMonth && "opacity-40",
                       isSelected && "bg-primary/10"
                     )}
                   >
                     <span className={cn(
-                      "inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-medium",
+                      "inline-flex items-center justify-center w-6 h-6 lg:w-7 lg:h-7 rounded-full text-xs lg:text-sm font-medium",
                       isToday(date) && "bg-primary text-primary-foreground"
                     )}>
                       {date.getDate()}
                     </span>
-                    {dayInterventions.length > 0 && (
-                      <div className="flex gap-0.5 mt-0.5 justify-center">
-                        {dayInterventions.slice(0, 3).map((int, j) => (
+                    
+                    {/* Mobile: dots */}
+                    <div className="lg:hidden flex gap-0.5 mt-0.5 justify-center">
+                      {dayInterventions.slice(0, 3).map((int, j) => {
+                        const colors = typeColors[int.type] || typeColors.installation;
+                        return (
                           <div
                             key={j}
-                            className={cn(
-                              "w-1.5 h-1.5 rounded-full",
-                              typeColors[int.type] || 'bg-primary'
-                            )}
+                            className={cn("w-1.5 h-1.5 rounded-full", colors.bg.replace('/10', ''))}
                           />
-                        ))}
-                      </div>
-                    )}
+                        );
+                      })}
+                    </div>
+                    
+                    {/* Desktop: mini cards */}
+                    <div className="hidden lg:block mt-1 space-y-0.5">
+                      {dayInterventions.slice(0, 2).map((int) => {
+                        const colors = typeColors[int.type] || typeColors.installation;
+                        return (
+                          <div
+                            key={int.id}
+                            className={cn(
+                              "text-[10px] px-1 py-0.5 rounded truncate border-l-2",
+                              colors.bg,
+                              colors.border
+                            )}
+                          >
+                            {getInterventionTime(int) && (
+                              <span className="font-medium">{getInterventionTime(int)} </span>
+                            )}
+                            {int.label}
+                          </div>
+                        );
+                      })}
+                      {dayInterventions.length > 2 && (
+                        <p className="text-[10px] text-primary font-medium px-1">
+                          +{dayInterventions.length - 2} autres
+                        </p>
+                      )}
+                    </div>
                   </button>
                 );
               })}
@@ -285,51 +550,163 @@ export default function CalendarPage() {
           </div>
         )}
 
-        {/* Selected Day Interventions */}
-        <div className="space-y-2">
-          <h3 className="font-semibold">
-            {selectedDate.toLocaleDateString(language === 'de' ? 'de-CH' : language === 'it' ? 'it-CH' : 'fr-CH', {
-              weekday: 'long',
-              day: 'numeric',
-              month: 'long',
-            })}
-          </h3>
-          
-          {selectedInterventions.length === 0 ? (
-            <div className="bg-card rounded-xl p-6 text-center text-muted-foreground border border-border/50">
-              <CalendarIcon className="w-10 h-10 mx-auto mb-2 opacity-50" />
-              <p className="text-sm">Aucune intervention ce jour</p>
-            </div>
-          ) : (
-            <div className="space-y-2">
-              {selectedInterventions.map((intervention) => (
-                <Link
-                  key={intervention.id}
-                  to={`/intervention/${intervention.id}`}
-                  className="block bg-card rounded-xl p-4 border border-border/50 hover:border-primary/30 transition-colors"
-                >
-                  <div className="flex items-start gap-3">
-                    <div className={cn(
-                      "w-1 h-full min-h-[40px] rounded-full",
-                      typeColors[intervention.type] || 'bg-primary'
-                    )} />
-                    <div className="flex-1 min-w-0">
-                      <p className="font-semibold truncate">{intervention.label}</p>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <Clock className="w-3.5 h-3.5" />
-                        <span>08:00 - 17:00</span>
+        {/* Selected Day Interventions (Mobile only for week/month view) */}
+        {(viewMode === 'week' || viewMode === 'month') && (
+          <div className="space-y-2 lg:hidden">
+            <h3 className="font-semibold">
+              {selectedDate.toLocaleDateString(language === 'de' ? 'de-CH' : language === 'it' ? 'it-CH' : 'fr-CH', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })}
+            </h3>
+            
+            {selectedInterventions.length === 0 ? (
+              <div className="bg-card rounded-xl p-6 text-center text-muted-foreground border border-border/50">
+                <CalendarIcon className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">Aucune intervention ce jour</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {selectedInterventions.map((intervention) => {
+                  const colors = typeColors[intervention.type] || typeColors.installation;
+                  const time = getInterventionTime(intervention);
+                  
+                  return (
+                    <Link
+                      key={intervention.id}
+                      to={`/intervention/${intervention.id}`}
+                      className={cn(
+                        "block bg-card rounded-xl p-4 border-l-4 border border-border/50 hover:border-primary/30 transition-all",
+                        colors.border
+                      )}
+                    >
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className={cn("text-xs font-semibold px-2 py-0.5 rounded-full", colors.bg, colors.text)}>
+                              {intervention.ref}
+                            </span>
+                            {intervention.priority === 'urgent' && (
+                              <span className="flex items-center gap-1 text-xs font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                                <AlertTriangle className="w-3 h-3" />
+                                Urgent
+                              </span>
+                            )}
+                          </div>
+                          <p className="font-semibold truncate">{intervention.label}</p>
+                          <p className="text-sm text-muted-foreground truncate">{intervention.clientName}</p>
+                          
+                          <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
+                            {time && (
+                              <div className="flex items-center gap-1">
+                                <Clock className="w-3.5 h-3.5" />
+                                <span className="font-medium text-foreground">{time}</span>
+                              </div>
+                            )}
+                            {intervention.location && (
+                              <div className="flex items-center gap-1">
+                                <MapPin className="w-3.5 h-3.5" />
+                                <span className="truncate">{intervention.location}</span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <span className={cn(
+                          "text-xs px-2 py-1 rounded-full shrink-0",
+                          intervention.status === 'termine' && "bg-success/10 text-success",
+                          intervention.status === 'en_cours' && "bg-primary/10 text-primary",
+                          intervention.status === 'a_planifier' && "bg-muted text-muted-foreground"
+                        )}>
+                          {statusLabels[intervention.status]}
+                        </span>
                       </div>
-                      <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                        <MapPin className="w-3.5 h-3.5" />
-                        <span className="truncate">{intervention.location}</span>
-                      </div>
-                    </div>
-                  </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Desktop Selected Day Sidebar */}
+        {viewMode !== 'day' && (
+          <div className="hidden lg:block bg-card rounded-2xl shadow-card border border-border/50 p-4">
+            <h3 className="font-bold text-lg mb-4">
+              {selectedDate.toLocaleDateString('fr-CH', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric',
+              })}
+            </h3>
+            
+            {selectedInterventions.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground">
+                <CalendarIcon className="w-12 h-12 mx-auto mb-3 opacity-30" />
+                <p>Aucune intervention programmée</p>
+                <Link to="/intervention/new" className="mt-4 inline-block">
+                  <Button variant="outline" size="sm" className="gap-1">
+                    <Plus className="w-4 h-4" />
+                    Créer une intervention
+                  </Button>
                 </Link>
-              ))}
-            </div>
-          )}
-        </div>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {selectedInterventions.map((int) => {
+                  const colors = typeColors[int.type] || typeColors.installation;
+                  const time = getInterventionTime(int);
+                  
+                  return (
+                    <Link
+                      key={int.id}
+                      to={`/intervention/${int.id}`}
+                      className={cn(
+                        "block p-3 rounded-xl border-l-4 transition-all hover:shadow-md",
+                        colors.bg,
+                        colors.border
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            {time && (
+                              <span className="text-sm font-bold">{time}</span>
+                            )}
+                            {int.priority === 'urgent' && (
+                              <AlertTriangle className="w-4 h-4 text-destructive" />
+                            )}
+                          </div>
+                          <p className="font-semibold truncate mt-0.5">{int.label}</p>
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                            <User className="w-3 h-3" />
+                            <span>{int.clientName}</span>
+                          </div>
+                          {int.extraAdresse && (
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                              <MapPin className="w-3 h-3" />
+                              <span className="truncate">{int.extraAdresse}</span>
+                            </div>
+                          )}
+                        </div>
+                        <span className={cn(
+                          "text-xs px-2 py-1 rounded-full whitespace-nowrap",
+                          int.status === 'termine' && "bg-success/20 text-success",
+                          int.status === 'en_cours' && "bg-primary/20 text-primary",
+                          int.status === 'a_planifier' && "bg-secondary text-muted-foreground"
+                        )}>
+                          {statusLabels[int.status]}
+                        </span>
+                      </div>
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
