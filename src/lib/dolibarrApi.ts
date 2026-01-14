@@ -199,9 +199,10 @@ function mapDolibarrIntervention(data: any): Intervention {
     description: decodeHtmlEntities(data.note_public || ''),
     briefing: decodeHtmlEntities(data.note_private || data.description || ''),
     assignedTo: data.assignedTo || undefined,
-    dateCreation: data.datec || new Date().toISOString(),
-    dateStart: data.datei,
-    datePlanned: data.datep,
+    dateCreation: data.datec ? (typeof data.datec === 'number' ? new Date(data.datec * 1000).toISOString() : data.datec) : new Date().toISOString(),
+    // dateo = date de début d'intervention, datee = date de fin, datei dans les lignes
+    dateStart: data.dateo ? (typeof data.dateo === 'number' ? new Date(data.dateo * 1000).toISOString() : data.dateo) : undefined,
+    datePlanned: data.datep ? (typeof data.datep === 'number' ? new Date(data.datep * 1000).toISOString() : data.datep) : undefined,
     tasks: tasks.length > 0 ? tasks : [],
     materials: materials,
     hours: getLocalHours(parseInt(data.id)),
