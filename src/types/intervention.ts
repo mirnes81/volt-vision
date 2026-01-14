@@ -74,6 +74,9 @@ export interface Intervention {
   extraContact?: string;
   extraCle?: string;
   extraCode?: string;
+  extraNoImm?: string;           // N° immeuble
+  extraAdresseComplete?: string; // Adresse complète
+  extraNCompt?: string;          // N° compteur
   interventionExtrafields?: Record<string, any>;
   projectId?: number;
   projectRef?: string;

@@ -265,14 +265,20 @@ serve(async (req) => {
           // Get specific intervention extrafields based on actual Dolibarr field names:
           // options_bongerance = Bon de gérance
           // options_propimm = Propriétaire immobilier / Adresse
-          // options_employe = Contact/Employé assigné
+          // options_employe = Contact/Employé assigné (concierge)
           // options_cle = Clé
           // options_code = Code d'accès
+          // options_noimm = N° immeuble
+          // options_adresse = Adresse complète
+          // options_ncompt = N° compteur
           const extraBon = intExtrafields.options_bongerance || intExtrafields.options_bon || '';
           const extraAdresse = intExtrafields.options_propimm || intExtrafields.options_adresse || '';
           const extraContact = intExtrafields.options_employe || intExtrafields.options_contact || '';
           const extraCle = intExtrafields.options_cle || '';
           const extraCode = intExtrafields.options_code || '';
+          const extraNoImm = intExtrafields.options_noimm || '';
+          const extraAdresseComplete = intExtrafields.options_adresse || '';
+          const extraNCompt = intExtrafields.options_ncompt || '';
           
           // Log enriched extrafields for first few interventions
           if (interventions.indexOf(int) < 3) {
@@ -282,6 +288,9 @@ serve(async (req) => {
               contact: extraContact,
               cle: extraCle,
               code: extraCode,
+              noImm: extraNoImm,
+              adresseComplete: extraAdresseComplete ? extraAdresseComplete.substring(0, 50) : null,
+              nCompt: extraNCompt,
             });
           }
           
@@ -307,6 +316,9 @@ serve(async (req) => {
             extra_contact: extraContact,
             extra_cle: extraCle,
             extra_code: extraCode,
+            extra_no_imm: extraNoImm,
+            extra_adresse_complete: extraAdresseComplete,
+            extra_n_compt: extraNCompt,
             intervention_extrafields: intExtrafields,
           };
         });
@@ -472,6 +484,17 @@ serve(async (req) => {
           });
         }
         
+        // Extract intervention extrafields for single intervention
+        const singleIntExtrafields = intData.array_options || intData.extrafields || {};
+        const singleExtraBon = singleIntExtrafields.options_bongerance || singleIntExtrafields.options_bon || '';
+        const singleExtraAdresse = singleIntExtrafields.options_propimm || singleIntExtrafields.options_adresse || '';
+        const singleExtraContact = singleIntExtrafields.options_employe || singleIntExtrafields.options_contact || '';
+        const singleExtraCle = singleIntExtrafields.options_cle || '';
+        const singleExtraCode = singleIntExtrafields.options_code || '';
+        const singleExtraNoImm = singleIntExtrafields.options_noimm || '';
+        const singleExtraAdresseComplete = singleIntExtrafields.options_adresse || '';
+        const singleExtraNCompt = singleIntExtrafields.options_ncompt || '';
+        
         // Build enriched response
         const enrichedIntervention = {
           ...intData,
@@ -485,6 +508,16 @@ serve(async (req) => {
           assignedTo: assignedUser,
           linked_proposal_ref: linkedProposalRef,
           documents: documents,
+          // Intervention extrafields
+          extra_bon: singleExtraBon,
+          extra_adresse: singleExtraAdresse,
+          extra_contact: singleExtraContact,
+          extra_cle: singleExtraCle,
+          extra_code: singleExtraCode,
+          extra_no_imm: singleExtraNoImm,
+          extra_adresse_complete: singleExtraAdresseComplete,
+          extra_n_compt: singleExtraNCompt,
+          intervention_extrafields: singleIntExtrafields,
         };
         
         return new Response(

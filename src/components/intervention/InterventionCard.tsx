@@ -1,4 +1,4 @@
-import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Hash, Calendar, Building2, Key, Lock } from 'lucide-react';
+import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Hash, Calendar, Building2, Key, Lock, Home, Gauge } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention } from '@/types/intervention';
 import { cn } from '@/lib/utils';
@@ -70,6 +70,9 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
   const hasExtraContact = intervention.extraContact && intervention.extraContact.trim();
   const hasExtraCle = intervention.extraCle && intervention.extraCle.trim();
   const hasExtraCode = intervention.extraCode && intervention.extraCode.trim();
+  const hasExtraNoImm = intervention.extraNoImm && intervention.extraNoImm.trim();
+  const hasExtraAdresseComplete = intervention.extraAdresseComplete && intervention.extraAdresseComplete.trim();
+  const hasExtraNCompt = intervention.extraNCompt && intervention.extraNCompt.trim();
 
   return (
     <Link to={`/intervention/${intervention.id}`}>
@@ -147,6 +150,30 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
             <Building2 className="w-4 h-4 shrink-0 text-primary" />
             <span className="truncate font-medium">Concierge: {intervention.extraContact}</span>
+          </div>
+        )}
+
+        {/* N° immeuble / Appartement */}
+        {hasExtraNoImm && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <Home className="w-4 h-4 shrink-0 text-primary" />
+            <span className="truncate font-medium">Immeuble/Appt: {intervention.extraNoImm}</span>
+          </div>
+        )}
+
+        {/* Adresse complète */}
+        {hasExtraAdresseComplete && !hasExtraAdresse && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <MapPin className="w-4 h-4 shrink-0 text-accent" />
+            <span className="truncate">{intervention.extraAdresseComplete}</span>
+          </div>
+        )}
+
+        {/* N° compteur */}
+        {hasExtraNCompt && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <Gauge className="w-4 h-4 shrink-0 text-primary" />
+            <span className="truncate font-medium">Compteur: {intervention.extraNCompt}</span>
           </div>
         )}
 
