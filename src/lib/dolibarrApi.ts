@@ -112,7 +112,44 @@ function mapDolibarrIntervention(data: any): Intervention {
     description: data.description?.substring(0, 50),
     note_public: data.note_public?.substring(0, 50),
     note_private: data.note_private?.substring(0, 50),
+    linesCount: lines.length,
+    documents: data.documents?.length || 0,
   });
+  
+  // Map lines to materials with product info
+  const materials = lines
+    .filter((line: any) => line.fk_product)
+    .map((line: any, index: number) => ({
+      id: parseInt(line.id) || index,
+      productId: parseInt(line.fk_product) || 0,
+      productRef: line.product_ref || '',
+      productName: line.product_label || line.desc || 'Produit',
+      qtyUsed: parseFloat(line.qty) || 1,
+      unit: line.product_unit || 'pce',
+      price: parseFloat(line.product_price) || parseFloat(line.subprice) || 0,
+      comment: line.description || '',
+    }));
+  
+  // Map lines to tasks (lines without product = tasks)
+  const tasks = lines
+    .filter((line: any) => !line.fk_product)
+    .map((line: any, index: number) => ({
+      id: parseInt(line.id) || index,
+      label: line.desc || line.description || `Tâche ${index + 1}`,
+      order: index,
+      status: (line.rang > 0 || line.finished) ? 'fait' as const : 'a_faire' as const,
+      dateDone: (line.rang > 0 || line.finished) ? new Date().toISOString() : undefined,
+    }));
+  
+  // Map documents to photos (filter images)
+  const photos = (data.documents || [])
+    .filter((doc: any) => /\.(jpg|jpeg|png|gif|webp)$/i.test(doc.name || ''))
+    .map((doc: any, index: number) => ({
+      id: index,
+      type: 'pendant' as const,
+      filePath: doc.url || doc.name,
+      datePhoto: new Date().toISOString(),
+    }));
   
   return {
     id: parseInt(data.id),
@@ -120,7 +157,12 @@ function mapDolibarrIntervention(data: any): Intervention {
     label: data.description || data.label || 'Intervention',
     clientId: parseInt(data.socid) || 0,
     clientName: data.thirdparty_name || data.client?.name || 'Client inconnu',
+    clientPhone: data.client_phone || '',
+    clientEmail: data.client_email || '',
+    clientAddress: [data.client_address, data.client_zip, data.client_town].filter(Boolean).join(', '),
     location: location,
+    linkedProposalRef: data.linked_proposal_ref || undefined,
+    projectRef: data.fk_projet ? `PROJ-${data.fk_projet}` : undefined,
     type: 'depannage',
     priority: 'normal',
     status: mapDolibarrStatus(parseInt(data.fk_statut || data.status || 0)),
@@ -129,16 +171,12 @@ function mapDolibarrIntervention(data: any): Intervention {
     assignedTo: data.assignedTo || undefined,
     dateCreation: data.datec || new Date().toISOString(),
     dateStart: data.datei,
-    tasks: lines.map((line: any, index: number) => ({
-      id: parseInt(line.id) || index,
-      label: line.desc || line.description || `Tâche ${index + 1}`,
-      order: index,
-      status: line.rang > 0 ? 'fait' as const : 'a_faire' as const,
-      dateDone: line.rang > 0 ? new Date().toISOString() : undefined,
-    })),
-    materials: [],
+    datePlanned: data.datep,
+    tasks: tasks.length > 0 ? tasks : [],
+    materials: materials,
     hours: getLocalHours(parseInt(data.id)),
-    photos: [],
+    photos: photos,
+    documents: data.documents || [],
   };
 }
 

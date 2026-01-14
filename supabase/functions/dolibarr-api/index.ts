@@ -242,9 +242,182 @@ serve(async (req) => {
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
-      case 'get-intervention':
-        endpoint = `/interventions/${params.id}`;
-        break;
+      case 'get-intervention': {
+        const intId = params.id;
+        console.log('Fetching single intervention:', intId);
+        
+        // Fetch intervention details
+        const intResponse = await fetch(`${baseUrl}/interventions/${intId}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'DOLAPIKEY': DOLIBARR_API_KEY,
+          },
+        });
+        
+        if (!intResponse.ok) {
+          const errText = await intResponse.text();
+          console.error('Error fetching intervention:', errText);
+          return new Response(
+            JSON.stringify({ error: `Erreur Dolibarr ${intResponse.status}` }),
+            { status: intResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const intData = await intResponse.json();
+        console.log('Intervention raw data:', JSON.stringify(intData).substring(0, 1000));
+        
+        // Fetch thirdparty (client) details
+        let clientInfo = null;
+        if (intData.socid) {
+          try {
+            const clientResponse = await fetch(`${baseUrl}/thirdparties/${intData.socid}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'DOLAPIKEY': DOLIBARR_API_KEY,
+              },
+            });
+            if (clientResponse.ok) {
+              clientInfo = await clientResponse.json();
+              console.log('Client info:', clientInfo?.name);
+            }
+          } catch (e) {
+            console.error('Could not fetch client:', e);
+          }
+        }
+        
+        // Fetch user (assigned) details
+        let assignedUser = null;
+        const authorId = intData.fk_user_author || intData.user_author_id;
+        if (authorId) {
+          try {
+            const userResponse = await fetch(`${baseUrl}/users/${authorId}`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'DOLAPIKEY': DOLIBARR_API_KEY,
+              },
+            });
+            if (userResponse.ok) {
+              const userData = await userResponse.json();
+              assignedUser = {
+                id: parseInt(userData.id),
+                name: userData.lastname || userData.login || '',
+                firstName: userData.firstname || '',
+              };
+              console.log('Assigned user:', assignedUser);
+            }
+          } catch (e) {
+            console.error('Could not fetch user:', e);
+          }
+        }
+        
+        // Fetch linked proposal (devis) if exists
+        let linkedProposalRef = null;
+        if (intData.fk_projet) {
+          try {
+            // Try to find proposals linked to this project
+            const propResponse = await fetch(`${baseUrl}/proposals?sqlfilters=(t.fk_projet:=:${intData.fk_projet})&limit=5`, {
+              method: 'GET',
+              headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json',
+                'DOLAPIKEY': DOLIBARR_API_KEY,
+              },
+            });
+            if (propResponse.ok) {
+              const proposals = await propResponse.json();
+              if (Array.isArray(proposals) && proposals.length > 0) {
+                linkedProposalRef = proposals[0].ref;
+                console.log('Linked proposal:', linkedProposalRef);
+              }
+            }
+          } catch (e) {
+            console.error('Could not fetch proposals:', e);
+          }
+        }
+        
+        // Fetch documents attached to intervention
+        let documents: any[] = [];
+        try {
+          const docsResponse = await fetch(`${baseUrl}/documents?modulepart=ficheinter&id=${intId}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'DOLAPIKEY': DOLIBARR_API_KEY,
+            },
+          });
+          if (docsResponse.ok) {
+            const docsData = await docsResponse.json();
+            if (Array.isArray(docsData)) {
+              documents = docsData.map((doc: any) => ({
+                name: doc.name || doc.filename,
+                url: doc.fullname || doc.url || '',
+                type: doc.type || 'file',
+              }));
+              console.log('Documents found:', documents.length);
+            }
+          }
+        } catch (e) {
+          console.error('Could not fetch documents:', e);
+        }
+        
+        // Enrich lines with product details (for materials)
+        const lines = intData.lines || [];
+        const enrichedLines = [];
+        for (const line of lines) {
+          let productInfo = null;
+          if (line.fk_product) {
+            try {
+              const prodResponse = await fetch(`${baseUrl}/products/${line.fk_product}`, {
+                method: 'GET',
+                headers: {
+                  'Content-Type': 'application/json',
+                  'Accept': 'application/json',
+                  'DOLAPIKEY': DOLIBARR_API_KEY,
+                },
+              });
+              if (prodResponse.ok) {
+                productInfo = await prodResponse.json();
+              }
+            } catch (e) {
+              // Ignore product fetch errors
+            }
+          }
+          
+          enrichedLines.push({
+            ...line,
+            product_ref: productInfo?.ref || line.product_ref || '',
+            product_label: productInfo?.label || line.desc || '',
+            product_price: productInfo?.price || line.subprice || 0,
+          });
+        }
+        
+        // Build enriched response
+        const enrichedIntervention = {
+          ...intData,
+          lines: enrichedLines,
+          thirdparty_name: clientInfo?.name || intData.thirdparty_name || '',
+          client_address: clientInfo?.address || '',
+          client_zip: clientInfo?.zip || '',
+          client_town: clientInfo?.town || '',
+          client_phone: clientInfo?.phone || '',
+          client_email: clientInfo?.email || '',
+          assignedTo: assignedUser,
+          linked_proposal_ref: linkedProposalRef,
+          documents: documents,
+        };
+        
+        return new Response(
+          JSON.stringify(enrichedIntervention),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       case 'create-intervention':
         endpoint = '/interventions';
         method = 'POST';

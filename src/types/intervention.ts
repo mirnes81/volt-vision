@@ -26,11 +26,13 @@ export interface Task {
 export interface Material {
   id: number;
   productId: number;
+  productRef?: string;
   productName: string;
   qtyUsed: number;
   unit: string;
   comment?: string;
   photoPath?: string;
+  price?: number;
 }
 
 export interface WorkerHour {
@@ -57,8 +59,13 @@ export interface Intervention {
   label: string;
   clientId: number;
   clientName: string;
+  clientPhone?: string;
+  clientEmail?: string;
+  clientAddress?: string;
   projectId?: number;
   projectRef?: string;
+  linkedProposalRef?: string;
+  linkedOrderRef?: string;
   location: string;
   type: InterventionType;
   priority: Priority;
@@ -76,10 +83,16 @@ export interface Intervention {
   dateCreation: string;
   dateStart?: string;
   dateEnd?: string;
+  datePlanned?: string;
   tasks: Task[];
   materials: Material[];
   hours: WorkerHour[];
   photos: Photo[];
+  documents?: Array<{
+    name: string;
+    url: string;
+    type: string;
+  }>;
   signaturePath?: string;
 }
 
