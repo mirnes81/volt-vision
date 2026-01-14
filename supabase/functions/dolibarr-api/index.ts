@@ -43,8 +43,11 @@ serve(async (req) => {
       case 'login':
         // Dolibarr doesn't have a standard login endpoint
         // We search for the user by login OR email to validate they exist
+        // Dolibarr sqlfilters syntax: use | for OR
         const loginValue = params.login?.replace(/'/g, "''"); // Escape single quotes
-        endpoint = `/users?sqlfilters=(t.login:=:'${loginValue}')or(t.email:=:'${loginValue}')&limit=1`;
+        // Try login first, then email - Dolibarr uses | for OR conditions
+        endpoint = `/users?sqlfilters=(t.login:=:'${loginValue}')|(t.email:=:'${loginValue}')&limit=1`;
+        console.log(`Login attempt for: ${loginValue}`);
         break;
       
       // Get current user info
