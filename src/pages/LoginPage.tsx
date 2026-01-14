@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Loader2, CheckCircle, RefreshCw, User, Lock, Eye, EyeOff, Wrench } from 'lucide-react';
+import { Loader2, CheckCircle, RefreshCw, User, Lock, Eye, EyeOff, Wrench, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import logoEnes from '@/assets/logo-enes.png';
@@ -17,6 +17,7 @@ export default function LoginPage() {
   const [isTestingConnection, setIsTestingConnection] = useState(true);
   const [connectionStatus, setConnectionStatus] = useState<'testing' | 'success' | 'error'>('testing');
   const [dolibarrVersion, setDolibarrVersion] = useState<string>('');
+  const [loginError, setLoginError] = useState<string | null>(null);
   const { login: authLogin } = useAuth();
   const navigate = useNavigate();
 
@@ -52,14 +53,15 @@ export default function LoginPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError(null);
     
     if (!login.trim()) {
-      toast.error('Veuillez entrer votre identifiant');
+      setLoginError('Veuillez entrer votre identifiant');
       return;
     }
     
     if (!password.trim()) {
-      toast.error('Veuillez entrer votre mot de passe');
+      setLoginError('Veuillez entrer votre mot de passe');
       return;
     }
     
@@ -71,7 +73,8 @@ export default function LoginPage() {
       navigate('/dashboard');
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Identifiants incorrects';
-      toast.error(message);
+      setLoginError(message);
+      console.error('[LoginPage] Login error:', message);
     } finally {
       setIsLoading(false);
     }
@@ -134,6 +137,23 @@ export default function LoginPage() {
           )}
         </div>
       </div>
+
+      {/* Login Error Alert */}
+      {loginError && (
+        <div className="w-full max-w-sm mb-4 animate-slide-up">
+          <div className="flex items-start gap-3 p-3 rounded-xl border bg-red-50 dark:bg-red-950/30 border-red-200 dark:border-red-800">
+            <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
+            <div className="flex-1">
+              <p className="text-sm font-medium text-red-800 dark:text-red-200">
+                Échec de connexion
+              </p>
+              <p className="text-sm text-red-700 dark:text-red-300 mt-1">
+                {loginError}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Login Form */}
       <form onSubmit={handleLogin} className="w-full max-w-sm space-y-4 animate-slide-up" style={{ animationDelay: '0.1s' }}>
