@@ -1,7 +1,7 @@
 // Dolibarr API Client via Edge Function Proxy
 import { Intervention, Material, Task, Worker, WorkerHour, Product } from '@/types/intervention';
 import { supabase } from '@/integrations/supabase/client';
-import { decodeHtmlEntities, decodeHtmlLine } from '@/lib/htmlUtils';
+import { decodeHtmlEntities } from '@/lib/htmlUtils';
 
 // Debug module loading
 console.log('[DolibarrApi Module] Loaded, supabase client exists:', !!supabase);
@@ -96,11 +96,11 @@ function mapDolibarrIntervention(data: any): Intervention {
   const lines = data.lines || [];
   
   // Build full address from client info if available
-  let location = data.address || '';
+  let location = decodeHtmlEntities(data.address || '');
   if (data.client_address || data.client_zip || data.client_town) {
     const parts = [
-      data.client_address,
-      [data.client_zip, data.client_town].filter(Boolean).join(' ')
+      decodeHtmlEntities(data.client_address || ''),
+      [data.client_zip, decodeHtmlEntities(data.client_town || '')].filter(Boolean).join(' ')
     ].filter(Boolean);
     location = parts.join(', ') || location;
   }
@@ -117,21 +117,21 @@ function mapDolibarrIntervention(data: any): Intervention {
     documents: data.documents?.length || 0,
   });
   
-  // Map lines to materials with product info
+  // Map lines to materials with product info - DECODE ALL TEXT FIELDS
   const materials = lines
     .filter((line: any) => line.fk_product)
     .map((line: any, index: number) => ({
       id: parseInt(line.id) || index,
       productId: parseInt(line.fk_product) || 0,
-      productRef: line.product_ref || '',
-      productName: decodeHtmlLine(line.product_label || line.desc || 'Produit'),
+      productRef: decodeHtmlEntities(line.product_ref || ''),
+      productName: decodeHtmlEntities(line.product_label || line.desc || 'Produit'),
       qtyUsed: parseFloat(line.qty) || 1,
-      unit: line.product_unit || 'pce',
+      unit: decodeHtmlEntities(line.product_unit || 'pce'),
       price: parseFloat(line.product_price) || parseFloat(line.subprice) || 0,
       comment: decodeHtmlEntities(line.description || ''),
     }));
   
-  // Map lines to tasks (lines without product = tasks)
+  // Map lines to tasks (lines without product = tasks) - DECODE ALL TEXT FIELDS
   const tasks = lines
     .filter((line: any) => !line.fk_product)
     .map((line: any, index: number) => ({
@@ -152,15 +152,16 @@ function mapDolibarrIntervention(data: any): Intervention {
       datePhoto: new Date().toISOString(),
     }));
   
+  // DECODE ALL TEXT FIELDS from Dolibarr
   return {
     id: parseInt(data.id),
     ref: data.ref || `INT-${data.id}`,
-    label: decodeHtmlLine(data.description || data.label || 'Intervention'),
+    label: decodeHtmlEntities(data.description || data.label || 'Intervention'),
     clientId: parseInt(data.socid) || 0,
-    clientName: decodeHtmlLine(data.thirdparty_name || data.client?.name || 'Client inconnu'),
+    clientName: decodeHtmlEntities(data.thirdparty_name || data.client?.name || 'Client inconnu'),
     clientPhone: data.client_phone || '',
     clientEmail: data.client_email || '',
-    clientAddress: [data.client_address, data.client_zip, data.client_town].filter(Boolean).join(', '),
+    clientAddress: decodeHtmlEntities([data.client_address, data.client_zip, data.client_town].filter(Boolean).join(', ')),
     location: location,
     linkedProposalRef: data.linked_proposal_ref || undefined,
     projectRef: data.fk_projet ? `PROJ-${data.fk_projet}` : undefined,
