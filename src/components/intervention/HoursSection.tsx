@@ -1,10 +1,18 @@
 import { useState, useEffect } from 'react';
-import { Play, Square, Clock, Plus } from 'lucide-react';
+import { Clock, Plus, AlertTriangle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Intervention, WorkerHour } from '@/types/intervention';
-import { startHours, stopHours, addManualHours } from '@/lib/api';
+import { addManualHours } from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { 
+  getHoursSettings, 
+  formatMinutesToHM, 
+  parseHMToMinutes,
+  checkDailyLimit 
+} from '@/lib/hoursSettings';
+import { getCurrentWorker } from '@/lib/api';
 
 interface HoursSectionProps {
   intervention: Intervention;
@@ -13,35 +21,25 @@ interface HoursSectionProps {
 
 export function HoursSection({ intervention, onUpdate }: HoursSectionProps) {
   const [isLoading, setIsLoading] = useState(false);
-  const [showManual, setShowManual] = useState(false);
-  const [elapsed, setElapsed] = useState(0);
+  const [hoursInput, setHoursInput] = useState('');
+  const [dailyTotal, setDailyTotal] = useState(0);
+  const settings = getHoursSettings();
   
-  // Find active (running) hour entry
-  const activeHour = intervention.hours.find(h => h.dateStart && !h.dateEnd);
-  
-  // Timer for active hour
+  // Calculate daily total for current user
   useEffect(() => {
-    if (!activeHour) {
-      setElapsed(0);
-      return;
-    }
+    const worker = getCurrentWorker();
+    if (!worker) return;
     
-    const start = new Date(activeHour.dateStart).getTime();
-    const updateElapsed = () => {
-      setElapsed(Math.floor((Date.now() - start) / 1000));
-    };
+    const today = new Date().toISOString().split('T')[0];
+    const todayHours = intervention.hours
+      .filter(h => {
+        const hourDate = h.dateStart.split('T')[0];
+        return hourDate === today && h.userId === worker.id;
+      })
+      .reduce((acc, h) => acc + (h.durationHours || 0), 0);
     
-    updateElapsed();
-    const interval = setInterval(updateElapsed, 1000);
-    return () => clearInterval(interval);
-  }, [activeHour]);
-  
-  const formatElapsed = (seconds: number) => {
-    const h = Math.floor(seconds / 3600);
-    const m = Math.floor((seconds % 3600) / 60);
-    const s = seconds % 60;
-    return `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
-  };
+    setDailyTotal(Math.round(todayHours * 60)); // Convert to minutes
+  }, [intervention.hours]);
   
   const formatDuration = (hours: number) => {
     const h = Math.floor(hours);
@@ -49,93 +47,123 @@ export function HoursSection({ intervention, onUpdate }: HoursSectionProps) {
     return `${h}h${m.toString().padStart(2, '0')}`;
   };
   
-  const handleStart = async () => {
-    setIsLoading(true);
-    try {
-      await startHours(intervention.id, intervention.type);
-      toast.success('Chrono démarré');
-      onUpdate();
-    } catch (error) {
-      toast.error('Erreur au démarrage');
-    } finally {
-      setIsLoading(false);
+  const handleAddHours = async () => {
+    if (!hoursInput.trim()) {
+      toast.error('Veuillez entrer un nombre d\'heures');
+      return;
     }
-  };
-  
-  const handleStop = async () => {
-    if (!activeHour) return;
+    
+    const minutes = parseHMToMinutes(hoursInput);
+    if (minutes === null || minutes <= 0) {
+      toast.error('Format invalide. Ex: 2h30, 2:30 ou 2.5');
+      return;
+    }
+    
+    // Check daily limit
+    const limitCheck = checkDailyLimit(dailyTotal, minutes, settings);
+    
+    if (!limitCheck.allowed) {
+      toast.error(limitCheck.message, {
+        icon: <AlertTriangle className="h-5 w-5 text-destructive" />,
+        duration: 5000,
+      });
+      // Notify admin would happen here via webhook or notification system
+      console.warn('ADMIN ALERT: Hours exceeded for user', {
+        interventionId: intervention.id,
+        exceededBy: limitCheck.exceededBy,
+      });
+      return;
+    }
+    
+    if (limitCheck.warning) {
+      toast.warning(limitCheck.message, {
+        icon: <AlertTriangle className="h-5 w-5 text-yellow-500" />,
+      });
+    }
+    
     setIsLoading(true);
     try {
-      await stopHours(intervention.id, activeHour.id);
-      toast.success('Chrono arrêté');
+      const now = new Date();
+      const hoursDecimal = minutes / 60;
+      const endTime = new Date(now.getTime() + minutes * 60 * 1000);
+      
+      await addManualHours(intervention.id, {
+        dateStart: now.toISOString(),
+        dateEnd: endTime.toISOString(),
+        workType: intervention.type,
+        comment: `Saisie manuelle: ${formatMinutesToHM(minutes)}`,
+      });
+      
+      toast.success(`${formatMinutesToHM(minutes)} ajoutées`);
+      setHoursInput('');
       onUpdate();
     } catch (error) {
-      toast.error('Erreur à l\'arrêt');
+      toast.error('Erreur lors de l\'ajout des heures');
     } finally {
       setIsLoading(false);
     }
   };
   
   const totalHours = intervention.hours.reduce((acc, h) => acc + (h.durationHours || 0), 0);
+  const remainingMinutes = Math.max(0, settings.maxDailyHours - dailyTotal);
+  const isNearLimit = remainingMinutes <= settings.alertThresholdMinutes;
 
   return (
     <div className="space-y-4">
-      {/* Timer Display */}
-      <div className="bg-card rounded-2xl p-6 shadow-card border border-border/50 text-center">
-        {activeHour ? (
-          <>
-            <p className="text-sm text-muted-foreground mb-2">En cours depuis</p>
-            <p className="text-4xl font-bold text-primary font-mono mb-4">
-              {formatElapsed(elapsed)}
-            </p>
-            <Button
-              variant="worker-danger"
-              size="full"
-              onClick={handleStop}
-              disabled={isLoading}
-              className="gap-3"
-            >
-              <Square className="w-6 h-6" />
-              Arrêter le chrono
-            </Button>
-          </>
-        ) : (
-          <>
-            <p className="text-sm text-muted-foreground mb-2">Prêt à commencer</p>
-            <p className="text-4xl font-bold text-muted-foreground font-mono mb-4">
-              00:00:00
-            </p>
-            <Button
-              variant="worker-success"
-              size="full"
-              onClick={handleStart}
-              disabled={isLoading}
-              className="gap-3"
-            >
-              <Play className="w-6 h-6" />
-              Démarrer le chrono
-            </Button>
-          </>
-        )}
-      </div>
-      
-      {/* Total & Manual Entry */}
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex items-center gap-3 bg-secondary/50 rounded-xl px-4 py-3 flex-1">
+      {/* Hours Input */}
+      <div className="bg-card rounded-2xl p-6 shadow-card border border-border/50">
+        <h3 className="font-semibold mb-4 flex items-center gap-2">
           <Clock className="w-5 h-5 text-primary" />
-          <div>
-            <p className="text-xs text-muted-foreground">Total cumulé</p>
-            <p className="text-lg font-bold">{formatDuration(totalHours)}</p>
-          </div>
+          Saisir les heures facturables
+        </h3>
+        
+        <div className="flex gap-3">
+          <Input
+            type="text"
+            placeholder="Ex: 2h30, 2:30 ou 2.5"
+            value={hoursInput}
+            onChange={(e) => setHoursInput(e.target.value)}
+            className="flex-1 text-lg"
+            onKeyDown={(e) => e.key === 'Enter' && handleAddHours()}
+          />
+          <Button
+            variant="worker-success"
+            size="icon-lg"
+            onClick={handleAddHours}
+            disabled={isLoading || !hoursInput.trim()}
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
         </div>
         
-        <Button
-          variant="worker-outline"
-          size="icon-lg"
-          onClick={() => setShowManual(!showManual)}
-        >
-          <Plus className="w-6 h-6" />
-        </Button>
+        {/* Daily limit info */}
+        <div className={cn(
+          "mt-4 p-3 rounded-lg flex items-center gap-3",
+          isNearLimit ? "bg-yellow-500/10 border border-yellow-500/30" : "bg-secondary/50"
+        )}>
+          {isNearLimit ? (
+            <AlertTriangle className="w-5 h-5 text-yellow-500 flex-shrink-0" />
+          ) : (
+            <Check className="w-5 h-5 text-green-500 flex-shrink-0" />
+          )}
+          <div className="text-sm">
+            <p className="font-medium">
+              Aujourd'hui: {formatMinutesToHM(dailyTotal)} / {formatMinutesToHM(settings.maxDailyHours)}
+            </p>
+            <p className="text-muted-foreground">
+              Reste disponible: {formatMinutesToHM(remainingMinutes)}
+            </p>
+          </div>
+        </div>
+      </div>
+      
+      {/* Total & Summary */}
+      <div className="flex items-center gap-3 bg-primary/10 rounded-xl px-4 py-3">
+        <Clock className="w-5 h-5 text-primary" />
+        <div>
+          <p className="text-xs text-muted-foreground">Total intervention</p>
+          <p className="text-lg font-bold">{formatDuration(totalHours)}</p>
+        </div>
       </div>
       
       {/* Hours History */}
@@ -150,10 +178,7 @@ export function HoursSection({ intervention, onUpdate }: HoursSectionProps) {
             {intervention.hours.map((hour) => (
               <div
                 key={hour.id}
-                className={cn(
-                  "bg-card rounded-xl p-3 border border-border/50",
-                  !hour.dateEnd && "border-primary/30 bg-primary/5"
-                )}
+                className="bg-card rounded-xl p-3 border border-border/50"
               >
                 <div className="flex items-center justify-between">
                   <div>
@@ -161,18 +186,12 @@ export function HoursSection({ intervention, onUpdate }: HoursSectionProps) {
                       {new Date(hour.dateStart).toLocaleDateString('fr-CH')}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {new Date(hour.dateStart).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
-                      {hour.dateEnd && ` - ${new Date(hour.dateEnd).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}`}
+                      {hour.comment || hour.workType}
                     </p>
                   </div>
                   <div className="text-right">
-                    {hour.durationHours ? (
-                      <p className="font-bold">{formatDuration(hour.durationHours)}</p>
-                    ) : (
-                      <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-1 rounded-full">
-                        En cours
-                      </span>
-                    )}
+                    <p className="font-bold">{formatDuration(hour.durationHours || 0)}</p>
+                    <p className="text-xs text-muted-foreground">{hour.userName}</p>
                   </div>
                 </div>
               </div>
