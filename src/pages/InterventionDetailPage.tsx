@@ -69,6 +69,13 @@ export default function InterventionDetailPage() {
       const data = await getIntervention(interventionId);
       setIntervention(data);
       console.log('[InterventionDetail] Loaded:', data);
+      console.log('[InterventionDetail] Extrafields:', {
+        extraBon: data.extraBon,
+        extraAdresse: data.extraAdresse,
+        extraContact: data.extraContact,
+        extraCle: data.extraCle,
+        extraCode: data.extraCode,
+      });
     } catch (error) {
       console.error('Error:', error);
     } finally {
@@ -135,16 +142,59 @@ export default function InterventionDetailPage() {
             </span>
           </div>
 
+          {/* Intervention Extrafields */}
+          {(intervention.extraBon || intervention.extraAdresse || intervention.extraContact || intervention.extraCle || intervention.extraCode) && (
+            <div className="space-y-2 border-t border-border/50 pt-3 mt-3">
+              <h3 className="font-semibold text-foreground text-sm mb-2">Informations complémentaires</h3>
+              
+              {intervention.extraBon && (
+                <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
+                  <span className="text-muted-foreground">N° Bon:</span>
+                  <span className="font-semibold text-primary">{intervention.extraBon}</span>
+                </div>
+              )}
+              
+              {intervention.extraAdresse && (
+                <div className="flex items-start gap-2 text-sm">
+                  <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+                  <span className="text-foreground">{intervention.extraAdresse}</span>
+                </div>
+              )}
+              
+              {intervention.extraContact && (
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="w-4 h-4 text-primary shrink-0" />
+                  <span className="text-foreground">{intervention.extraContact}</span>
+                </div>
+              )}
+              
+              {(intervention.extraCle || intervention.extraCode) && (
+                <div className="flex items-center gap-3 flex-wrap">
+                  {intervention.extraCle && (
+                    <div className="flex items-center gap-1.5 text-sm bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded-md">
+                      <span className="font-medium">🔑 Clé: {intervention.extraCle}</span>
+                    </div>
+                  )}
+                  {intervention.extraCode && (
+                    <div className="flex items-center gap-1.5 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-md">
+                      <span className="font-medium">🔢 Code: {intervention.extraCode}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Linked documents */}
           {intervention.linkedProposalRef && (
-            <div className="flex items-center gap-2 mb-3 p-2 bg-secondary/50 rounded-lg">
+            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50 p-2 bg-secondary/50 rounded-lg">
               <ExternalLink className="w-4 h-4 text-primary" />
               <span className="text-sm font-medium">Devis lié : <span className="text-primary">{intervention.linkedProposalRef}</span></span>
             </div>
           )}
 
           {/* Client info */}
-          <div className="space-y-2 text-sm border-t border-border/50 pt-3">
+          <div className="space-y-2 text-sm border-t border-border/50 pt-3 mt-3">
             <h3 className="font-semibold text-foreground flex items-center gap-2">
               <User className="w-4 h-4" />
               Client
