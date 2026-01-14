@@ -1,10 +1,14 @@
-import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Hash, Calendar, Building2, Key, Lock, Home, Gauge } from 'lucide-react';
+import { useState } from 'react';
+import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Hash, Calendar, Building2, Key, Lock, Home, Gauge, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { Intervention } from '@/types/intervention';
+import { Intervention, InterventionStatus } from '@/types/intervention';
 import { cn } from '@/lib/utils';
+import { updateInterventionStatus } from '@/lib/dolibarrApi';
+import { toast } from 'sonner';
 
 interface InterventionCardProps {
   intervention: Intervention;
+  onStatusChange?: (interventionId: number, newStatus: InterventionStatus) => void;
 }
 
 const typeLabels: Record<string, string> = {
@@ -22,6 +26,13 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.E
   termine: { label: 'Terminé', color: 'bg-success/10 text-success', icon: CheckCircle2 },
   facture: { label: 'Facturé', color: 'bg-muted text-muted-foreground', icon: CheckCircle2 },
 };
+
+const statusOptions: { value: InterventionStatus; label: string }[] = [
+  { value: 'a_planifier', label: 'À planifier' },
+  { value: 'en_cours', label: 'En cours' },
+  { value: 'termine', label: 'Terminé' },
+  { value: 'facture', label: 'Facturé' },
+];
 
 const dayNames: Record<number, string> = {
   0: 'Dimanche',
@@ -49,8 +60,25 @@ function formatDateWithDay(dateString?: string): string | null {
   }
 }
 
-export function InterventionCard({ intervention }: InterventionCardProps) {
-  const status = statusConfig[intervention.status] || statusConfig.a_planifier;
+// Check if user is admin
+function isUserAdmin(): boolean {
+  const workerData = localStorage.getItem('mv3_worker');
+  if (!workerData) return false;
+  try {
+    const worker = JSON.parse(workerData);
+    return worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
+  } catch {
+    return false;
+  }
+}
+
+export function InterventionCard({ intervention, onStatusChange }: InterventionCardProps) {
+  const [currentStatus, setCurrentStatus] = useState<InterventionStatus>(intervention.status);
+  const [isUpdating, setIsUpdating] = useState(false);
+  const [showDropdown, setShowDropdown] = useState(false);
+  
+  const isAdmin = isUserAdmin();
+  const status = statusConfig[currentStatus] || statusConfig.a_planifier;
   const StatusIcon = status.icon;
   const completedTasks = intervention.tasks.filter(t => t.status === 'fait').length;
   const totalTasks = intervention.tasks.length;
@@ -74,6 +102,40 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
   const hasExtraAdresseComplete = intervention.extraAdresseComplete && intervention.extraAdresseComplete.trim();
   const hasExtraNCompt = intervention.extraNCompt && intervention.extraNCompt.trim();
 
+  const handleStatusChange = async (e: React.MouseEvent, newStatus: InterventionStatus) => {
+    e.preventDefault();
+    e.stopPropagation();
+    
+    if (newStatus === currentStatus || isUpdating) return;
+    
+    setIsUpdating(true);
+    setShowDropdown(false);
+    
+    try {
+      await updateInterventionStatus(intervention.id, newStatus);
+      setCurrentStatus(newStatus);
+      onStatusChange?.(intervention.id, newStatus);
+      toast.success(`Statut modifié: ${statusConfig[newStatus].label}`);
+    } catch (error) {
+      console.error('Error updating status:', error);
+      toast.error('Erreur lors de la mise à jour du statut');
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
+  const handleDropdownToggle = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowDropdown(!showDropdown);
+  };
+
+  const handleDropdownClose = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setShowDropdown(false);
+  };
+
   return (
     <Link to={`/intervention/${intervention.id}`}>
       <article className="bg-card rounded-2xl p-4 shadow-card card-hover border border-border/50">
@@ -95,15 +157,64 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
             <p className="text-sm font-medium text-foreground/80 truncate">{intervention.label}</p>
           </div>
           
-          {/* Right side: Status + Bon number */}
-          <div className="flex flex-col items-end gap-1.5 shrink-0">
-            <div className={cn(
-              "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold",
-              status.color
-            )}>
-              <StatusIcon className="w-3.5 h-3.5" />
-              {status.label}
-            </div>
+          {/* Right side: Status (editable for admin) + Bon number */}
+          <div className="flex flex-col items-end gap-1.5 shrink-0 relative">
+            {isAdmin ? (
+              <div className="relative">
+                <button
+                  onClick={handleDropdownToggle}
+                  disabled={isUpdating}
+                  className={cn(
+                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all",
+                    status.color,
+                    isUpdating && "opacity-50 cursor-not-allowed",
+                    !isUpdating && "hover:ring-2 hover:ring-primary/30 cursor-pointer"
+                  )}
+                >
+                  <StatusIcon className="w-3.5 h-3.5" />
+                  {isUpdating ? 'Mise à jour...' : status.label}
+                  <ChevronDown className={cn("w-3 h-3 transition-transform", showDropdown && "rotate-180")} />
+                </button>
+                
+                {/* Dropdown menu */}
+                {showDropdown && (
+                  <>
+                    {/* Backdrop to close dropdown */}
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={handleDropdownClose}
+                    />
+                    <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[140px]">
+                      {statusOptions.map((option) => {
+                        const optConfig = statusConfig[option.value];
+                        const OptIcon = optConfig.icon;
+                        return (
+                          <button
+                            key={option.value}
+                            onClick={(e) => handleStatusChange(e, option.value)}
+                            className={cn(
+                              "w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-secondary/80 transition-colors text-left",
+                              option.value === currentStatus && "bg-secondary"
+                            )}
+                          >
+                            <OptIcon className="w-3.5 h-3.5" />
+                            {option.label}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
+              </div>
+            ) : (
+              <div className={cn(
+                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold",
+                status.color
+              )}>
+                <StatusIcon className="w-3.5 h-3.5" />
+                {status.label}
+              </div>
+            )}
             {hasBon && (
               <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded">
                 <Hash className="w-3 h-3" />
