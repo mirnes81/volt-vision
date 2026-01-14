@@ -44,17 +44,29 @@ const dayNames: Record<number, string> = {
   6: 'Samedi',
 };
 
-function formatDateWithDay(dateString?: string): string | null {
+function formatDateWithDay(dateString?: string): { date: string; time: string | null } | null {
   if (!dateString) return null;
   try {
     const date = new Date(dateString);
     if (isNaN(date.getTime())) return null;
     const dayName = dayNames[date.getDay()];
-    const formatted = date.toLocaleDateString('fr-CH', {
+    const formattedDate = date.toLocaleDateString('fr-CH', {
       day: 'numeric',
       month: 'short',
     });
-    return `${dayName} ${formatted}`;
+    
+    // Format time (only if not midnight - which usually means no time was set)
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const hasTime = hours !== 0 || minutes !== 0;
+    const formattedTime = hasTime 
+      ? date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })
+      : null;
+    
+    return { 
+      date: `${dayName} ${formattedDate}`, 
+      time: formattedTime 
+    };
   } catch {
     return null;
   }
@@ -224,11 +236,14 @@ export function InterventionCard({ intervention, onStatusChange }: InterventionC
           </div>
         </div>
 
-        {/* Date with day of week */}
+        {/* Date with day of week and time */}
         {interventionDate && (
           <div className="flex items-center gap-2 text-sm mb-2">
             <Calendar className="w-4 h-4 shrink-0 text-primary" />
-            <span className="font-semibold text-foreground">{interventionDate}</span>
+            <span className="font-semibold text-foreground">{interventionDate.date}</span>
+            {interventionDate.time && (
+              <span className="text-primary font-medium">• {interventionDate.time}</span>
+            )}
           </div>
         )}
 
