@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Loader2, CheckCircle, RefreshCw, User, Lock, Eye, EyeOff, Wrench } from 'lucide-react';
+import { Loader2, CheckCircle, RefreshCw, User, Lock, Eye, EyeOff, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import logoEnes from '@/assets/logo-enes.png';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -93,13 +94,11 @@ export default function LoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
       {/* Logo */}
       <div className="mb-6 text-center animate-slide-up">
-        <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-primary via-primary to-accent flex items-center justify-center mx-auto mb-3 shadow-glow relative overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-tr from-transparent via-white/10 to-transparent" />
-          <Zap className="w-10 h-10 text-primary-foreground drop-shadow-lg" />
-        </div>
-        <h1 className="text-2xl font-bold bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">
-          SmartElectric
-        </h1>
+        <img 
+          src={logoEnes} 
+          alt="ENES Électricité" 
+          className="h-24 mx-auto mb-3"
+        />
         <p className="text-sm text-muted-foreground">Suite Électricien Suisse</p>
       </div>
 
