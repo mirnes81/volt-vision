@@ -235,7 +235,28 @@ export async function createIntervention(data: {
   };
 }
 
-// Products
+// Update intervention status
+export async function updateInterventionStatus(
+  interventionId: number, 
+  status: 'a_planifier' | 'en_cours' | 'termine' | 'facture'
+): Promise<void> {
+  // Map frontend status to Dolibarr fk_statut
+  const statusMap: Record<string, number> = {
+    'a_planifier': 0,
+    'en_cours': 1,
+    'termine': 2,
+    'facture': 3,
+  };
+  
+  const fkStatut = statusMap[status] ?? 0;
+  
+  await callDolibarrApi('update-intervention', {
+    id: interventionId,
+    data: { fk_statut: fkStatut },
+  });
+}
+
+
 export async function fetchProducts(search?: string): Promise<Product[]> {
   const data = await callDolibarrApi<any[]>('get-products', { search });
   
