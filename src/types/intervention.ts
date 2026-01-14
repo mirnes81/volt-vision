@@ -68,6 +68,11 @@ export interface Intervention {
   clientAccessCode?: string;
   clientNotes?: string;
   clientExtrafields?: Record<string, any>;
+  // Intervention extrafields
+  extraBon?: string;
+  extraAdresse?: string;
+  extraContact?: string;
+  interventionExtrafields?: Record<string, any>;
   projectId?: number;
   projectRef?: string;
   linkedProposalRef?: string;
