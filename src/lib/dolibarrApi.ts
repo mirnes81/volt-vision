@@ -1,6 +1,7 @@
 // Dolibarr API Client via Edge Function Proxy
 import { Intervention, Material, Task, Worker, WorkerHour, Product } from '@/types/intervention';
 import { supabase } from '@/integrations/supabase/client';
+import { decodeHtmlEntities, decodeHtmlLine } from '@/lib/htmlUtils';
 
 // Debug module loading
 console.log('[DolibarrApi Module] Loaded, supabase client exists:', !!supabase);
@@ -123,11 +124,11 @@ function mapDolibarrIntervention(data: any): Intervention {
       id: parseInt(line.id) || index,
       productId: parseInt(line.fk_product) || 0,
       productRef: line.product_ref || '',
-      productName: line.product_label || line.desc || 'Produit',
+      productName: decodeHtmlLine(line.product_label || line.desc || 'Produit'),
       qtyUsed: parseFloat(line.qty) || 1,
       unit: line.product_unit || 'pce',
       price: parseFloat(line.product_price) || parseFloat(line.subprice) || 0,
-      comment: line.description || '',
+      comment: decodeHtmlEntities(line.description || ''),
     }));
   
   // Map lines to tasks (lines without product = tasks)
@@ -135,7 +136,7 @@ function mapDolibarrIntervention(data: any): Intervention {
     .filter((line: any) => !line.fk_product)
     .map((line: any, index: number) => ({
       id: parseInt(line.id) || index,
-      label: line.desc || line.description || `Tâche ${index + 1}`,
+      label: decodeHtmlEntities(line.desc || line.description || `Tâche ${index + 1}`),
       order: index,
       status: (line.rang > 0 || line.finished) ? 'fait' as const : 'a_faire' as const,
       dateDone: (line.rang > 0 || line.finished) ? new Date().toISOString() : undefined,
@@ -154,9 +155,9 @@ function mapDolibarrIntervention(data: any): Intervention {
   return {
     id: parseInt(data.id),
     ref: data.ref || `INT-${data.id}`,
-    label: data.description || data.label || 'Intervention',
+    label: decodeHtmlLine(data.description || data.label || 'Intervention'),
     clientId: parseInt(data.socid) || 0,
-    clientName: data.thirdparty_name || data.client?.name || 'Client inconnu',
+    clientName: decodeHtmlLine(data.thirdparty_name || data.client?.name || 'Client inconnu'),
     clientPhone: data.client_phone || '',
     clientEmail: data.client_email || '',
     clientAddress: [data.client_address, data.client_zip, data.client_town].filter(Boolean).join(', '),
@@ -166,8 +167,8 @@ function mapDolibarrIntervention(data: any): Intervention {
     type: 'depannage',
     priority: 'normal',
     status: mapDolibarrStatus(parseInt(data.fk_statut || data.status || 0)),
-    description: data.note_public || '',
-    briefing: data.note_private || data.description || '',
+    description: decodeHtmlEntities(data.note_public || ''),
+    briefing: decodeHtmlEntities(data.note_private || data.description || ''),
     assignedTo: data.assignedTo || undefined,
     dateCreation: data.datec || new Date().toISOString(),
     dateStart: data.datei,
