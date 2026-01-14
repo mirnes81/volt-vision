@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Search, ClipboardList, RefreshCw } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { InterventionCard } from '@/components/intervention/InterventionCard';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { getAllInterventions, getMyInterventions } from '@/lib/api';
-import { Intervention } from '@/types/intervention';
+import { useInterventionsCache } from '@/hooks/useInterventionsCache';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
@@ -18,12 +17,9 @@ const filters = [
   { value: 'urgent', label: 'Urgentes' },
 ];
 
-const PAGE_SIZE = 25; // Only 25 interventions per page
+const PAGE_SIZE = 25;
 
 export default function InterventionsPage() {
-  const [allInterventions, setAllInterventions] = useState<Intervention[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [showOnlyMine, setShowOnlyMine] = useState(false);
@@ -34,76 +30,64 @@ export default function InterventionsPage() {
   const worker = workerData ? JSON.parse(workerData) : null;
   const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
 
-  useEffect(() => {
-    loadInterventions();
-  }, [showOnlyMine]);
-
-  const loadInterventions = async () => {
-    try {
-      setIsLoading(true);
-      const data = showOnlyMine ? await getMyInterventions() : await getAllInterventions();
-      setAllInterventions(data);
-      console.log(`Loaded ${data.length} interventions`);
-    } catch (error) {
-      console.error('Error loading interventions:', error);
-      toast.error('Erreur de chargement des interventions');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  // Use cached interventions
+  const { interventions, isLoading, isRefreshing, refresh } = useInterventionsCache(showOnlyMine);
 
   const handleRefresh = async () => {
-    setIsRefreshing(true);
-    await loadInterventions();
-    setIsRefreshing(false);
+    await refresh();
     toast.success('Liste actualisée');
   };
 
-  // Filter interventions by search and status
-  const filteredInterventions = allInterventions.filter((i) => {
-    // Search filter
-    const searchLower = search.toLowerCase();
-    const matchesSearch = 
-      search === '' ||
-      i.ref.toLowerCase().includes(searchLower) ||
-      i.label.toLowerCase().includes(searchLower) ||
-      i.clientName.toLowerCase().includes(searchLower) ||
-      i.location.toLowerCase().includes(searchLower) ||
-      (i.extraBon && i.extraBon.toLowerCase().includes(searchLower)) ||
-      (i.extraAdresse && i.extraAdresse.toLowerCase().includes(searchLower)) ||
-      (i.extraContact && i.extraContact.toLowerCase().includes(searchLower));
+  // Memoized filtering
+  const filteredInterventions = useMemo(() => {
+    return interventions.filter((i) => {
+      // Search filter
+      const searchLower = search.toLowerCase();
+      const matchesSearch = 
+        search === '' ||
+        i.ref.toLowerCase().includes(searchLower) ||
+        i.label.toLowerCase().includes(searchLower) ||
+        i.clientName.toLowerCase().includes(searchLower) ||
+        i.location.toLowerCase().includes(searchLower) ||
+        (i.extraBon && i.extraBon.toLowerCase().includes(searchLower)) ||
+        (i.extraAdresse && i.extraAdresse.toLowerCase().includes(searchLower)) ||
+        (i.extraContact && i.extraContact.toLowerCase().includes(searchLower));
 
-    // Status filter
-    let matchesFilter = true;
-    if (activeFilter === 'urgent') {
-      matchesFilter = i.priority === 'urgent';
-    } else if (activeFilter === 'termine') {
-      matchesFilter = i.status === 'termine' || i.status === 'facture';
-    } else if (activeFilter !== 'all') {
-      matchesFilter = i.status === activeFilter;
-    }
+      // Status filter
+      let matchesFilter = true;
+      if (activeFilter === 'urgent') {
+        matchesFilter = i.priority === 'urgent';
+      } else if (activeFilter === 'termine') {
+        matchesFilter = i.status === 'termine' || i.status === 'facture';
+      } else if (activeFilter !== 'all') {
+        matchesFilter = i.status === activeFilter;
+      }
 
-    return matchesSearch && matchesFilter;
-  });
+      return matchesSearch && matchesFilter;
+    });
+  }, [interventions, search, activeFilter]);
 
   // Reset to page 1 when filter or search changes
   useEffect(() => {
     setCurrentPage(1);
   }, [search, activeFilter, showOnlyMine]);
 
-  // Apply pagination
-  const totalPages = Math.ceil(filteredInterventions.length / PAGE_SIZE);
-  const startIndex = (currentPage - 1) * PAGE_SIZE;
-  const displayedInterventions = filteredInterventions.slice(startIndex, startIndex + PAGE_SIZE);
+  // Memoized pagination
+  const { displayedInterventions, totalPages } = useMemo(() => {
+    const total = Math.ceil(filteredInterventions.length / PAGE_SIZE);
+    const startIndex = (currentPage - 1) * PAGE_SIZE;
+    const displayed = filteredInterventions.slice(startIndex, startIndex + PAGE_SIZE);
+    return { displayedInterventions: displayed, totalPages: total };
+  }, [filteredInterventions, currentPage]);
 
-  // Count by status for badges
-  const counts = {
-    all: allInterventions.length,
-    en_cours: allInterventions.filter(i => i.status === 'en_cours').length,
-    a_planifier: allInterventions.filter(i => i.status === 'a_planifier').length,
-    termine: allInterventions.filter(i => i.status === 'termine' || i.status === 'facture').length,
-    urgent: allInterventions.filter(i => i.priority === 'urgent').length,
-  };
+  // Memoized counts
+  const counts = useMemo(() => ({
+    all: interventions.length,
+    en_cours: interventions.filter(i => i.status === 'en_cours').length,
+    a_planifier: interventions.filter(i => i.status === 'a_planifier').length,
+    termine: interventions.filter(i => i.status === 'termine' || i.status === 'facture').length,
+    urgent: interventions.filter(i => i.priority === 'urgent').length,
+  }), [interventions]);
 
   return (
     <div className="pb-4">

@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
-import { Eraser, Check, PenTool } from 'lucide-react';
+import { Eraser, Check, PenTool, FileText, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
-import { saveSignature } from '@/lib/api';
+import { saveSignature, generatePdf } from '@/lib/api';
 import { toast } from 'sonner';
 
 interface SignatureSectionProps {
@@ -15,6 +15,7 @@ export function SignatureSection({ intervention, onUpdate }: SignatureSectionPro
   const [isDrawing, setIsDrawing] = useState(false);
   const [hasSignature, setHasSignature] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [pdfStatus, setPdfStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -104,10 +105,30 @@ export function SignatureSection({ intervention, onUpdate }: SignatureSectionPro
     if (!canvas || !hasSignature) return;
 
     setIsLoading(true);
+    setPdfStatus('idle');
+    
     try {
+      // 1. Save signature
       const dataUrl = canvas.toDataURL('image/png');
       await saveSignature(intervention.id, dataUrl);
       toast.success('Signature enregistrée');
+      
+      // 2. Automatically generate PDF report
+      setPdfStatus('generating');
+      toast.info('Génération du rapport PDF...', { duration: 2000 });
+      
+      try {
+        const pdfResult = await generatePdf(intervention.id);
+        setPdfStatus('success');
+        toast.success('Rapport PDF généré !', {
+          description: pdfResult.fileName,
+        });
+      } catch (pdfError) {
+        console.error('PDF generation failed:', pdfError);
+        setPdfStatus('error');
+        toast.warning('Signature enregistrée, mais erreur lors de la génération du PDF');
+      }
+      
       onUpdate();
     } catch (error) {
       toast.error('Erreur lors de l\'enregistrement');
@@ -163,13 +184,28 @@ export function SignatureSection({ intervention, onUpdate }: SignatureSectionPro
         </div>
       </div>
 
+      {/* PDF Status */}
+      {pdfStatus === 'generating' && (
+        <div className="flex items-center gap-2 text-sm text-muted-foreground bg-secondary/50 rounded-lg p-3">
+          <Loader2 className="w-4 h-4 animate-spin" />
+          Génération du rapport PDF en cours...
+        </div>
+      )}
+      
+      {pdfStatus === 'success' && (
+        <div className="flex items-center gap-2 text-sm text-success bg-success/10 rounded-lg p-3">
+          <FileText className="w-4 h-4" />
+          Rapport PDF généré et enregistré dans Dolibarr
+        </div>
+      )}
+
       {/* Actions */}
       <div className="flex gap-3">
         <Button
           variant="worker-ghost"
           className="flex-1 gap-2"
           onClick={clearCanvas}
-          disabled={!hasSignature}
+          disabled={!hasSignature || isLoading}
         >
           <Eraser className="w-5 h-5" />
           Effacer
@@ -180,10 +216,19 @@ export function SignatureSection({ intervention, onUpdate }: SignatureSectionPro
           onClick={handleSave}
           disabled={!hasSignature || isLoading}
         >
-          <Check className="w-5 h-5" />
-          Enregistrer
+          {isLoading ? (
+            <Loader2 className="w-5 h-5 animate-spin" />
+          ) : (
+            <Check className="w-5 h-5" />
+          )}
+          {isLoading ? 'Enregistrement...' : 'Signer & Terminer'}
         </Button>
       </div>
+      
+      {/* Info */}
+      <p className="text-xs text-muted-foreground text-center">
+        La signature valide l'intervention et génère automatiquement le rapport PDF
+      </p>
     </div>
   );
 }
