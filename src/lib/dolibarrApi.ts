@@ -501,6 +501,11 @@ export async function dolibarrLogin(login: string, password: string): Promise<{ 
     if (Array.isArray(users) && users.length > 0) {
       const userInfo = users[0];
       
+      // Check if user is active/enabled
+      if (userInfo.statut === '0' || userInfo.statut === 0) {
+        throw new Error('Votre compte est désactivé. Contactez votre administrateur.');
+      }
+      
       // Check if admin (admin field or superadmin)
       const isAdmin = userInfo.admin === '1' || userInfo.admin === 1 || 
                       userInfo.superadmin === '1' || userInfo.superadmin === 1;
@@ -527,9 +532,34 @@ export async function dolibarrLogin(login: string, password: string): Promise<{ 
       return { token, worker: worker as Worker };
     }
     
-    throw new Error('Utilisateur non trouvé');
+    // No user found
+    throw new Error(`Aucun compte trouvé pour "${login}". Vérifiez votre identifiant ou email.`);
   } catch (error) {
     console.error('[dolibarrLogin] Failed:', error);
-    throw new Error('Identifiants incorrects');
+    
+    // Re-throw specific errors
+    if (error instanceof Error) {
+      if (error.message.includes('désactivé') || 
+          error.message.includes('Aucun compte') ||
+          error.message.includes('Configuration')) {
+        throw error;
+      }
+      
+      // Network/server errors
+      if (error.message.includes('fetch') || error.message.includes('network')) {
+        throw new Error('Impossible de contacter le serveur. Vérifiez votre connexion internet.');
+      }
+      
+      if (error.message.includes('500')) {
+        throw new Error('Erreur serveur Dolibarr. Contactez votre administrateur.');
+      }
+      
+      if (error.message.includes('401') || error.message.includes('403')) {
+        throw new Error('Accès refusé. Vérifiez vos droits d\'accès.');
+      }
+    }
+    
+    // Generic error
+    throw new Error('Identifiants incorrects. Vérifiez votre login et mot de passe.');
   }
 }
