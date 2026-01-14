@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, AlertTriangle, Wifi, WifiOff } from 'lucide-react';
+import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, AlertTriangle, Wifi, WifiOff, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,13 @@ import {
   testDolibarrConnection,
   DolibarrConfig 
 } from '@/lib/dolibarrConfig';
+import { 
+  getHoursSettings, 
+  saveHoursSettings, 
+  formatMinutesToHM,
+  HoursSettings 
+} from '@/lib/hoursSettings';
+import { getCurrentWorker } from '@/lib/api';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -26,11 +33,25 @@ export default function SettingsPage() {
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message: string; version?: string } | null>(null);
   
+  // Hours settings
+  const [hoursSettings, setHoursSettings] = useState<HoursSettings>(getHoursSettings());
+  const [maxHoursInput, setMaxHoursInput] = useState('');
+  const [alertMinutesInput, setAlertMinutesInput] = useState('');
+  const worker = getCurrentWorker() as any;
+  const isAdmin = worker?.isAdmin || worker?.admin;
+  
   useEffect(() => {
     const storedConfig = getDolibarrConfig();
     setConfig(storedConfig);
     setUrl(storedConfig.baseUrl);
     setApiKey(storedConfig.apiKey || '');
+    
+    const storedHours = getHoursSettings();
+    setHoursSettings(storedHours);
+    const hours = Math.floor(storedHours.maxDailyHours / 60);
+    const mins = storedHours.maxDailyHours % 60;
+    setMaxHoursInput(`${hours}h${mins.toString().padStart(2, '0')}`);
+    setAlertMinutesInput(storedHours.alertThresholdMinutes.toString());
   }, []);
 
   const handleTest = async () => {
@@ -113,6 +134,84 @@ export default function SettingsPage() {
       </header>
 
       <div className="p-4 space-y-4 pb-24">
+        {/* Hours Settings (Admin only) */}
+        {isAdmin && (
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clock className="h-5 w-5" />
+                Paramètres des heures
+              </CardTitle>
+              <CardDescription>
+                Configurez les limites d'heures journalières pour les ouvriers
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="max-hours">Heures maximum par jour</Label>
+                <Input
+                  id="max-hours"
+                  type="text"
+                  placeholder="Ex: 8h30"
+                  value={maxHoursInput}
+                  onChange={(e) => setMaxHoursInput(e.target.value)}
+                  className="font-mono"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Format: 8h30 ou 8:30 (actuellement: {formatMinutesToHM(hoursSettings.maxDailyHours)})
+                </p>
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="alert-minutes">Alerte avant dépassement (minutes)</Label>
+                <Input
+                  id="alert-minutes"
+                  type="number"
+                  min="0"
+                  max="120"
+                  value={alertMinutesInput}
+                  onChange={(e) => setAlertMinutesInput(e.target.value)}
+                />
+                <p className="text-xs text-muted-foreground">
+                  L'utilisateur sera averti X minutes avant d'atteindre la limite
+                </p>
+              </div>
+              
+              <Button 
+                onClick={() => {
+                  // Parse max hours
+                  let maxMinutes = hoursSettings.maxDailyHours;
+                  const match = maxHoursInput.match(/^(\d+)[h:](\d+)$/i);
+                  if (match) {
+                    maxMinutes = parseInt(match[1]) * 60 + parseInt(match[2]);
+                  } else {
+                    const decimal = parseFloat(maxHoursInput);
+                    if (!isNaN(decimal)) {
+                      maxMinutes = Math.round(decimal * 60);
+                    }
+                  }
+                  
+                  const alertMins = parseInt(alertMinutesInput) || 30;
+                  
+                  const updated = saveHoursSettings({
+                    maxDailyHours: maxMinutes,
+                    alertThresholdMinutes: alertMins,
+                  });
+                  setHoursSettings(updated);
+                  
+                  toast({
+                    title: 'Paramètres sauvegardés',
+                    description: `Limite: ${formatMinutesToHM(maxMinutes)}/jour, Alerte: ${alertMins} min avant`,
+                  });
+                }}
+                className="w-full"
+              >
+                Sauvegarder les paramètres d'heures
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Notifications */}
         <NotificationSettings />
 
