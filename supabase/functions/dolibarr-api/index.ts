@@ -39,11 +39,12 @@ serve(async (req) => {
         endpoint = '/status';
         break;
 
-      // Login - find user by login name (authentication is handled by DOLAPIKEY)
+      // Login - find user by login OR email (authentication is handled by DOLAPIKEY)
       case 'login':
         // Dolibarr doesn't have a standard login endpoint
-        // We search for the user by login to validate they exist
-        endpoint = `/users?sqlfilters=(t.login:=:'${params.login}')&limit=1`;
+        // We search for the user by login OR email to validate they exist
+        const loginValue = params.login?.replace(/'/g, "''"); // Escape single quotes
+        endpoint = `/users?sqlfilters=(t.login:=:'${loginValue}')or(t.email:=:'${loginValue}')&limit=1`;
         break;
       
       // Get current user info
