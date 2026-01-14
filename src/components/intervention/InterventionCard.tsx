@@ -1,4 +1,4 @@
-import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Phone, Hash } from 'lucide-react';
+import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Hash, Calendar, Building2, Key, Lock } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention } from '@/types/intervention';
 import { cn } from '@/lib/utils';
@@ -23,6 +23,32 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.E
   facture: { label: 'Facturé', color: 'bg-muted text-muted-foreground', icon: CheckCircle2 },
 };
 
+const dayNames: Record<number, string> = {
+  0: 'Dimanche',
+  1: 'Lundi',
+  2: 'Mardi',
+  3: 'Mercredi',
+  4: 'Jeudi',
+  5: 'Vendredi',
+  6: 'Samedi',
+};
+
+function formatDateWithDay(dateString?: string): string | null {
+  if (!dateString) return null;
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return null;
+    const dayName = dayNames[date.getDay()];
+    const formatted = date.toLocaleDateString('fr-CH', {
+      day: 'numeric',
+      month: 'short',
+    });
+    return `${dayName} ${formatted}`;
+  } catch {
+    return null;
+  }
+}
+
 export function InterventionCard({ intervention }: InterventionCardProps) {
   const status = statusConfig[intervention.status] || statusConfig.a_planifier;
   const StatusIcon = status.icon;
@@ -30,14 +56,10 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
   const totalTasks = intervention.tasks.length;
   const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-  // Truncate description for display
-  const shortDescription = intervention.description 
-    ? intervention.description.length > 80 
-      ? intervention.description.substring(0, 80) + '...'
-      : intervention.description
-    : '';
+  // Use dateStart or datePlanned for the intervention date
+  const interventionDate = formatDateWithDay(intervention.dateStart || intervention.datePlanned);
 
-  const briefing = intervention.briefing || shortDescription;
+  const briefing = intervention.briefing || intervention.description;
   const assigneeName = intervention.assignedTo 
     ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
     : null;
@@ -88,11 +110,19 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
           </div>
         </div>
 
-        {/* Briefing / Description */}
+        {/* Date with day of week */}
+        {interventionDate && (
+          <div className="flex items-center gap-2 text-sm mb-2">
+            <Calendar className="w-4 h-4 shrink-0 text-primary" />
+            <span className="font-semibold text-foreground">{interventionDate}</span>
+          </div>
+        )}
+
+        {/* Briefing / Description - show more text */}
         {briefing && (
           <div className="flex items-start gap-2 text-sm text-muted-foreground mb-2">
             <FileText className="w-4 h-4 shrink-0 mt-0.5" />
-            <p className="line-clamp-2">{briefing}</p>
+            <p className="line-clamp-3">{briefing}</p>
           </div>
         )}
 
@@ -112,11 +142,11 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
           </div>
         )}
 
-        {/* Extra Contact (from intervention extrafield) */}
+        {/* Extra Contact / Concierge (from intervention extrafield) */}
         {hasExtraContact && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <User className="w-4 h-4 shrink-0 text-primary" />
-            <span className="truncate font-medium">{intervention.extraContact}</span>
+            <Building2 className="w-4 h-4 shrink-0 text-primary" />
+            <span className="truncate font-medium">Concierge: {intervention.extraContact}</span>
           </div>
         )}
 
@@ -124,13 +154,15 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
         {(hasExtraCle || hasExtraCode) && (
           <div className="flex items-center gap-3 text-sm mb-2 flex-wrap">
             {hasExtraCle && (
-              <div className="flex items-center gap-1.5 text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
-                <span className="text-xs font-medium">Clé: <span className="text-foreground">{intervention.extraCle}</span></span>
+              <div className="flex items-center gap-1.5 text-muted-foreground bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded-md">
+                <Key className="w-3 h-3" />
+                <span className="text-xs font-medium">Clé: {intervention.extraCle}</span>
               </div>
             )}
             {hasExtraCode && (
-              <div className="flex items-center gap-1.5 text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
-                <span className="text-xs font-medium">Code: <span className="text-foreground">{intervention.extraCode}</span></span>
+              <div className="flex items-center gap-1.5 text-muted-foreground bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-md">
+                <Lock className="w-3 h-3" />
+                <span className="text-xs font-medium">Code: {intervention.extraCode}</span>
               </div>
             )}
           </div>
