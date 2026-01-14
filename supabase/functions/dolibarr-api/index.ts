@@ -39,16 +39,18 @@ serve(async (req) => {
         endpoint = '/status';
         break;
 
-      // Login - find user by login OR email (authentication is handled by DOLAPIKEY)
+      // Login - find user by login OR email (all Dolibarr users can connect)
       case 'login': {
-        // Dolibarr doesn't have a standard login endpoint
-        // We search for the user by login first, then by email if not found
-        const loginValue = (params.login || '').replace(/'/g, "''").trim();
-        console.log(`Login attempt for: ${loginValue}`);
+        // Dolibarr REST API uses a master API key for authentication
+        // All active users in Dolibarr can connect to this app
+        const loginValue = (params.login || '').replace(/'/g, "''").trim().toLowerCase();
+        console.log(`[LOGIN] Attempting login for: "${loginValue}"`);
         
-        // Try to find user by login first
-        let userEndpoint = `/users?sqlfilters=(t.login:=:'${loginValue}')&limit=1`;
-        let userResponse = await fetch(`${baseUrl}${userEndpoint}`, {
+        // First, fetch ALL active users to find a match
+        const allUsersEndpoint = `/users?limit=100`;
+        console.log(`[LOGIN] Fetching all users from: ${allUsersEndpoint}`);
+        
+        const allUsersResponse = await fetch(`${baseUrl}${allUsersEndpoint}`, {
           method: 'GET',
           headers: {
             'Content-Type': 'application/json',
@@ -57,39 +59,52 @@ serve(async (req) => {
           },
         });
         
-        let users = [];
-        if (userResponse.ok) {
-          try {
-            users = await userResponse.json();
-          } catch { users = []; }
+        if (!allUsersResponse.ok) {
+          const errText = await allUsersResponse.text();
+          console.error(`[LOGIN] Failed to fetch users: ${allUsersResponse.status}`, errText);
+          return new Response(
+            JSON.stringify({ error: `Erreur serveur: ${allUsersResponse.status}` }),
+            { status: allUsersResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
         }
         
-        // If not found by login, try by email
-        if (!Array.isArray(users) || users.length === 0) {
-          console.log('User not found by login, trying email...');
-          userEndpoint = `/users?sqlfilters=(t.email:=:'${loginValue}')&limit=1`;
-          userResponse = await fetch(`${baseUrl}${userEndpoint}`, {
-            method: 'GET',
-            headers: {
-              'Content-Type': 'application/json',
-              'Accept': 'application/json',
-              'DOLAPIKEY': DOLIBARR_API_KEY,
-            },
+        let allUsers = [];
+        try {
+          allUsers = await allUsersResponse.json();
+        } catch { allUsers = []; }
+        
+        console.log(`[LOGIN] Found ${Array.isArray(allUsers) ? allUsers.length : 0} total users in Dolibarr`);
+        
+        // Log all available users for debugging
+        if (Array.isArray(allUsers)) {
+          allUsers.forEach((u: any) => {
+            console.log(`[LOGIN] User available: login="${u.login}", email="${u.email}", id=${u.id}, statut=${u.statut}`);
           });
-          
-          if (userResponse.ok) {
-            try {
-              users = await userResponse.json();
-            } catch { users = []; }
-          }
         }
         
-        console.log(`Found ${Array.isArray(users) ? users.length : 0} user(s)`);
+        // Find matching user by login OR email (case-insensitive)
+        let matchedUser = null;
+        if (Array.isArray(allUsers)) {
+          matchedUser = allUsers.find((u: any) => {
+            const userLogin = (u.login || '').toLowerCase();
+            const userEmail = (u.email || '').toLowerCase();
+            return userLogin === loginValue || userEmail === loginValue;
+          });
+        }
         
-        return new Response(
-          JSON.stringify(Array.isArray(users) ? users : []),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
+        if (matchedUser) {
+          console.log(`[LOGIN] SUCCESS - Found user: id=${matchedUser.id}, login="${matchedUser.login}", name="${matchedUser.firstname} ${matchedUser.lastname}"`);
+          return new Response(
+            JSON.stringify([matchedUser]),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } else {
+          console.log(`[LOGIN] FAILED - No user found matching "${loginValue}"`);
+          return new Response(
+            JSON.stringify([]),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
       }
       
       // Get current user info
