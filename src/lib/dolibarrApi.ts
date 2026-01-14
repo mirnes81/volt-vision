@@ -168,6 +168,11 @@ function mapDolibarrIntervention(data: any): Intervention {
     clientAccessCode: data.client_access_code || '',
     clientNotes: decodeHtmlEntities(data.client_notes || ''),
     clientExtrafields: data.client_extrafields || {},
+    // Intervention extrafields
+    extraBon: decodeHtmlEntities(data.extra_bon || ''),
+    extraAdresse: decodeHtmlEntities(data.extra_adresse || ''),
+    extraContact: decodeHtmlEntities(data.extra_contact || ''),
+    interventionExtrafields: data.intervention_extrafields || {},
     location: location,
     linkedProposalRef: data.linked_proposal_ref || undefined,
     projectRef: data.fk_projet ? `PROJ-${data.fk_projet}` : undefined,

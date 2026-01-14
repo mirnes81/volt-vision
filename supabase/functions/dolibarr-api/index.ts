@@ -152,7 +152,10 @@ serve(async (req) => {
         
         console.log(`Found ${interventions.length} interventions`);
         if (interventions.length > 0) {
-          console.log('Sample intervention data:', JSON.stringify(interventions[0]).substring(0, 500));
+          // Log intervention structure to see extrafields
+          const sample = interventions[0];
+          console.log('Sample intervention data:', JSON.stringify(sample).substring(0, 500));
+          console.log('Sample intervention extrafields:', JSON.stringify(sample.array_options || sample.extrafields || {}).substring(0, 500));
         }
         
         // Fetch all users once to enrich with assignedTo info
@@ -231,7 +234,7 @@ serve(async (req) => {
           console.error('Could not fetch thirdparties for enrichment:', e);
         }
         
-        // Enrich each intervention with assignedTo and client info including extrafields
+        // Enrich each intervention with assignedTo, client info and intervention extrafields
         const enrichedInterventions = interventions.map((int: any) => {
           // fk_user_author is the author, fk_user_valid is the validator
           const authorId = String(int.fk_user_author || int.user_author_id || '');
@@ -240,6 +243,14 @@ serve(async (req) => {
           // Get client info from socid
           const clientId = String(int.socid || int.fk_soc || '');
           const clientInfo = clientsMap.get(clientId);
+          
+          // Extract intervention extrafields - Dolibarr stores them in array_options with 'options_' prefix
+          const intExtrafields = int.array_options || int.extrafields || {};
+          
+          // Get specific intervention extrafields: Bon, Adresse, Contact
+          const extraBon = intExtrafields.options_bon || intExtrafields.options_Bon || intExtrafields.bon || '';
+          const extraAdresse = intExtrafields.options_adresse || intExtrafields.options_Adresse || intExtrafields.adresse || '';
+          const extraContact = intExtrafields.options_contact || intExtrafields.options_Contact || intExtrafields.contact || '';
           
           return {
             ...int,
@@ -257,6 +268,11 @@ serve(async (req) => {
             client_access_code: clientInfo?.access_code || '',
             client_notes: clientInfo?.notes || '',
             client_extrafields: clientInfo?.extrafields || {},
+            // Add intervention extrafields
+            extra_bon: extraBon,
+            extra_adresse: extraAdresse,
+            extra_contact: extraContact,
+            intervention_extrafields: intExtrafields,
           };
         });
         

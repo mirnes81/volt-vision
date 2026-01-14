@@ -1,4 +1,4 @@
-import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Key, Phone } from 'lucide-react';
+import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Phone, Hash } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention } from '@/types/intervention';
 import { cn } from '@/lib/utils';
@@ -42,10 +42,10 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
     ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
     : null;
 
-  // Check for client extrafields to display
-  const hasIntercom = intervention.clientIntercom && intervention.clientIntercom.trim();
-  const hasAccessCode = intervention.clientAccessCode && intervention.clientAccessCode.trim();
-  const hasClientRef = intervention.clientRef && intervention.clientRef.trim();
+  // Intervention extrafields
+  const hasBon = intervention.extraBon && intervention.extraBon.trim();
+  const hasExtraAdresse = intervention.extraAdresse && intervention.extraAdresse.trim();
+  const hasExtraContact = intervention.extraContact && intervention.extraContact.trim();
 
   return (
     <Link to={`/intervention/${intervention.id}`}>
@@ -57,11 +57,6 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
               <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                 {intervention.ref}
               </span>
-              {hasClientRef && (
-                <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
-                  Réf: {intervention.clientRef}
-                </span>
-              )}
               {intervention.priority === 'urgent' && (
                 <span className="flex items-center gap-1 text-xs font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
                   <AlertTriangle className="w-3 h-3" />
@@ -73,12 +68,21 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
             <p className="text-sm font-medium text-foreground/80 truncate">{intervention.label}</p>
           </div>
           
-          <div className={cn(
-            "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold shrink-0",
-            status.color
-          )}>
-            <StatusIcon className="w-3.5 h-3.5" />
-            {status.label}
+          {/* Right side: Status + Bon number */}
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            <div className={cn(
+              "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold",
+              status.color
+            )}>
+              <StatusIcon className="w-3.5 h-3.5" />
+              {status.label}
+            </div>
+            {hasBon && (
+              <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded">
+                <Hash className="w-3 h-3" />
+                <span>Bon: {intervention.extraBon}</span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -90,27 +94,27 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
           </div>
         )}
 
-        {/* Location */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-          <MapPin className="w-4 h-4 shrink-0" />
-          <span className="truncate">{intervention.location}</span>
-        </div>
+        {/* Extra Adresse (from intervention extrafield) */}
+        {hasExtraAdresse && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <MapPin className="w-4 h-4 shrink-0 text-primary" />
+            <span className="truncate font-medium">{intervention.extraAdresse}</span>
+          </div>
+        )}
 
-        {/* Client Access Info (Intercom / Access Code) */}
-        {(hasIntercom || hasAccessCode) && (
-          <div className="flex items-center gap-3 text-sm mb-2 flex-wrap">
-            {hasIntercom && (
-              <div className="flex items-center gap-1.5 text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
-                <Phone className="w-3.5 h-3.5" />
-                <span className="text-xs font-medium">Intercom: <span className="text-foreground">{intervention.clientIntercom}</span></span>
-              </div>
-            )}
-            {hasAccessCode && (
-              <div className="flex items-center gap-1.5 text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
-                <Key className="w-3.5 h-3.5" />
-                <span className="text-xs font-medium">Code: <span className="text-foreground">{intervention.clientAccessCode}</span></span>
-              </div>
-            )}
+        {/* Fallback to client address if no extra adresse */}
+        {!hasExtraAdresse && intervention.location && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <MapPin className="w-4 h-4 shrink-0" />
+            <span className="truncate">{intervention.location}</span>
+          </div>
+        )}
+
+        {/* Extra Contact (from intervention extrafield) */}
+        {hasExtraContact && (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+            <Phone className="w-4 h-4 shrink-0 text-primary" />
+            <span className="truncate font-medium">{intervention.extraContact}</span>
           </div>
         )}
 
