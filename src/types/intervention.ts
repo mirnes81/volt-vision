@@ -119,6 +119,8 @@ export interface Worker {
   firstName: string;
   email: string;
   phone?: string;
+  isAdmin?: boolean;
+  admin?: string;
 }
 
 export interface Product {
