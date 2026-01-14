@@ -77,18 +77,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleDemoLogin = async () => {
-    setIsLoading(true);
-    try {
-      await authLogin('demo');
-      toast.success('Mode démonstration activé');
-      navigate('/dashboard');
-    } catch (error) {
-      toast.error('Erreur de connexion');
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-background">
@@ -209,25 +197,6 @@ export default function LoginPage() {
           )}
         </Button>
 
-        <div className="relative">
-          <div className="absolute inset-0 flex items-center">
-            <span className="w-full border-t" />
-          </div>
-          <div className="relative flex justify-center text-xs uppercase">
-            <span className="bg-background px-2 text-muted-foreground">ou</span>
-          </div>
-        </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          size="full"
-          onClick={handleDemoLogin}
-          disabled={isLoading}
-          className="h-12"
-        >
-          Mode Démonstration
-        </Button>
       </form>
 
       {/* Diagnostic Link */}

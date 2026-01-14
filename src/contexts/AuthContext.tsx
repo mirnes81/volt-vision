@@ -1,6 +1,5 @@
 import * as React from 'react';
 import { Worker } from '@/types/intervention';
-import { mockWorker, delay } from '@/lib/mockData';
 
 interface AuthContextType {
   worker: Worker | null;
@@ -13,13 +12,6 @@ interface AuthContextType {
 const AuthContext = React.createContext<AuthContextType | undefined>(undefined);
 
 async function performLogin(token: string): Promise<{ token: string; worker: Worker }> {
-  // Demo mode
-  if (token === 'demo') {
-    await delay(500);
-    localStorage.setItem('mv3_token', 'demo_token');
-    localStorage.setItem('mv3_worker', JSON.stringify(mockWorker));
-    return { token: 'demo_token', worker: mockWorker };
-  }
   
   // Real mode - worker data is already set by dolibarrLogin
   // Just retrieve what was already stored
