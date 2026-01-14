@@ -94,18 +94,38 @@ export async function fetchIntervention(id: number): Promise<Intervention> {
 function mapDolibarrIntervention(data: any): Intervention {
   const lines = data.lines || [];
   
+  // Build full address from client info if available
+  let location = data.address || '';
+  if (data.client_address || data.client_zip || data.client_town) {
+    const parts = [
+      data.client_address,
+      [data.client_zip, data.client_town].filter(Boolean).join(' ')
+    ].filter(Boolean);
+    location = parts.join(', ') || location;
+  }
+  
+  console.log('[mapDolibarrIntervention]', {
+    id: data.id,
+    ref: data.ref,
+    thirdparty_name: data.thirdparty_name,
+    assignedTo: data.assignedTo,
+    description: data.description?.substring(0, 50),
+    note_public: data.note_public?.substring(0, 50),
+    note_private: data.note_private?.substring(0, 50),
+  });
+  
   return {
     id: parseInt(data.id),
     ref: data.ref || `INT-${data.id}`,
     label: data.description || data.label || 'Intervention',
     clientId: parseInt(data.socid) || 0,
-    clientName: data.thirdparty_name || data.client?.name || 'Client',
-    location: data.address || '',
+    clientName: data.thirdparty_name || data.client?.name || 'Client inconnu',
+    location: location,
     type: 'depannage',
     priority: 'normal',
     status: mapDolibarrStatus(parseInt(data.fk_statut || data.status || 0)),
-    description: data.note_public || data.description || '',
-    briefing: data.note_private || '',
+    description: data.note_public || '',
+    briefing: data.note_private || data.description || '',
     assignedTo: data.assignedTo || undefined,
     dateCreation: data.datec || new Date().toISOString(),
     dateStart: data.datei,
