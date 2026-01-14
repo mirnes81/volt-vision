@@ -5,9 +5,29 @@
 export function decodeHtmlEntities(text: string): string {
   if (!text) return '';
   
-  let decoded = text;
+  // Convert to string if not already
+  let decoded = String(text);
   
-  // Decode named HTML entities
+  // First, replace HTML tags with appropriate text BEFORE decoding entities
+  decoded = decoded
+    .replace(/<br\s*\/?>/gi, ' ')
+    .replace(/<\/p>/gi, ' ')
+    .replace(/<p[^>]*>/gi, '')
+    .replace(/<\/div>/gi, ' ')
+    .replace(/<div[^>]*>/gi, '')
+    .replace(/<\/span>/gi, '')
+    .replace(/<span[^>]*>/gi, '')
+    .replace(/<\/strong>/gi, '')
+    .replace(/<strong>/gi, '')
+    .replace(/<\/em>/gi, '')
+    .replace(/<em>/gi, '')
+    .replace(/<\/b>/gi, '')
+    .replace(/<b>/gi, '')
+    .replace(/<\/i>/gi, '')
+    .replace(/<i>/gi, '')
+    .replace(/<[^>]+>/g, ''); // Remove any remaining HTML tags
+  
+  // Decode named HTML entities (comprehensive list)
   const namedEntities: Record<string, string> = {
     '&amp;': '&',
     '&lt;': '<',
@@ -15,6 +35,7 @@ export function decodeHtmlEntities(text: string): string {
     '&quot;': '"',
     '&apos;': "'",
     '&nbsp;': ' ',
+    // French accents lowercase
     '&eacute;': 'é',
     '&egrave;': 'è',
     '&agrave;': 'à',
@@ -30,10 +51,28 @@ export function decodeHtmlEntities(text: string): string {
     '&uuml;': 'ü',
     '&ouml;': 'ö',
     '&auml;': 'ä',
+    '&oacute;': 'ó',
+    '&iacute;': 'í',
+    '&uacute;': 'ú',
+    '&ntilde;': 'ñ',
+    '&oelig;': 'œ',
+    '&aelig;': 'æ',
+    // French accents uppercase
     '&Eacute;': 'É',
     '&Egrave;': 'È',
     '&Agrave;': 'À',
     '&Ccedil;': 'Ç',
+    '&Ecirc;': 'Ê',
+    '&Acirc;': 'Â',
+    '&Icirc;': 'Î',
+    '&Ocirc;': 'Ô',
+    '&Ucirc;': 'Û',
+    '&Euml;': 'Ë',
+    '&Iuml;': 'Ï',
+    '&Uuml;': 'Ü',
+    '&Ouml;': 'Ö',
+    '&Auml;': 'Ä',
+    // Symbols
     '&deg;': '°',
     '&euro;': '€',
     '&laquo;': '«',
@@ -45,11 +84,24 @@ export function decodeHtmlEntities(text: string): string {
     '&lsquo;': "'",
     '&rdquo;': '"',
     '&ldquo;': '"',
+    '&copy;': '©',
+    '&reg;': '®',
+    '&trade;': '™',
+    '&times;': '×',
+    '&divide;': '÷',
+    '&plusmn;': '±',
+    '&frac12;': '½',
+    '&frac14;': '¼',
+    '&frac34;': '¾',
+    '&sup2;': '²',
+    '&sup3;': '³',
   };
   
-  // Replace named entities
+  // Replace named entities (case sensitive)
   for (const [entity, char] of Object.entries(namedEntities)) {
-    decoded = decoded.split(entity).join(char);
+    // Use global replace
+    const regex = new RegExp(entity.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+    decoded = decoded.replace(regex, char);
   }
   
   // Decode numeric entities (&#39; &#160; etc.)
@@ -61,13 +113,6 @@ export function decodeHtmlEntities(text: string): string {
   decoded = decoded.replace(/&#x([0-9a-fA-F]+);/g, (_, code) => {
     return String.fromCharCode(parseInt(code, 16));
   });
-  
-  // Replace HTML tags with appropriate text
-  decoded = decoded
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n\n')
-    .replace(/<p[^>]*>/gi, '')
-    .replace(/<[^>]+>/g, ''); // Remove any remaining HTML tags
   
   // Clean up extra whitespace
   decoded = decoded
