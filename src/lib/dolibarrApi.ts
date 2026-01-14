@@ -72,9 +72,18 @@ export async function fetchClients(search?: string): Promise<Array<{ id: number;
 }
 
 // Interventions
-export async function fetchInterventions(): Promise<Intervention[]> {
-  const data = await callDolibarrApi<any[]>('get-interventions');
+export async function fetchInterventions(filters?: { userId?: number; status?: number }): Promise<Intervention[]> {
+  const data = await callDolibarrApi<any[]>('get-interventions', filters || {});
   return data.map(mapDolibarrIntervention);
+}
+
+// Fetch only my interventions (assigned to current user)
+export async function fetchMyInterventions(): Promise<Intervention[]> {
+  const worker = JSON.parse(localStorage.getItem('mv3_worker') || '{}');
+  if (worker.id) {
+    return fetchInterventions({ userId: worker.id });
+  }
+  return fetchInterventions();
 }
 
 export async function fetchIntervention(id: number): Promise<Intervention> {

@@ -55,6 +55,26 @@ export async function getTodayInterventions(): Promise<Intervention[]> {
   return interventions.filter(i => i.status !== 'facture');
 }
 
+// Get interventions assigned to current user
+export async function getMyInterventions(): Promise<Intervention[]> {
+  if (useRealApi()) {
+    return dolibarrApi.fetchMyInterventions();
+  }
+  
+  await delay(500);
+  return interventions.filter(i => i.status !== 'facture');
+}
+
+// Get all interventions (no filter)
+export async function getAllInterventions(): Promise<Intervention[]> {
+  if (useRealApi()) {
+    return dolibarrApi.fetchInterventions();
+  }
+  
+  await delay(500);
+  return interventions;
+}
+
 export async function getIntervention(id: number): Promise<Intervention> {
   if (useRealApi()) {
     return dolibarrApi.fetchIntervention(id);

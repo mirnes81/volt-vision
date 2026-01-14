@@ -106,9 +106,27 @@ serve(async (req) => {
         break;
 
       // Interventions
-      case 'get-interventions':
-        endpoint = '/interventions?sortfield=t.datec&sortorder=DESC&limit=50';
+      case 'get-interventions': {
+        // Build query with optional filters
+        let query = '?sortfield=t.datec&sortorder=DESC&limit=200';
+        
+        // Filter by status if provided (0=draft, 1=validated, 2=done, 3=billed)
+        if (params?.status !== undefined) {
+          query += `&sqlfilters=(t.fk_statut:=:${params.status})`;
+        }
+        
+        // Filter by user if provided
+        if (params?.userId) {
+          // Note: Dolibarr uses fk_user_author or fk_user_assign depending on version
+          query += params.status !== undefined 
+            ? `and(t.fk_user_author:=:${params.userId})`
+            : `&sqlfilters=(t.fk_user_author:=:${params.userId})`;
+        }
+        
+        endpoint = '/interventions' + query;
+        console.log('Fetching interventions with endpoint:', endpoint);
         break;
+      }
       case 'get-intervention':
         endpoint = `/interventions/${params.id}`;
         break;
