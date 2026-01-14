@@ -26,18 +26,23 @@ export default function LoginPage() {
   }, []);
 
   const testConnection = async () => {
+    console.log('[LoginPage] Testing connection...');
     setIsTestingConnection(true);
     setConnectionStatus('testing');
     
     try {
       const result = await testDolibarrConnection();
+      console.log('[LoginPage] Connection result:', result);
       if (result.success) {
         setConnectionStatus('success');
         setDolibarrVersion(result.version || '');
+        console.log('[LoginPage] Connection successful, version:', result.version);
       } else {
         setConnectionStatus('error');
+        console.log('[LoginPage] Connection failed');
       }
     } catch (error) {
+      console.error('[LoginPage] Connection error:', error);
       setConnectionStatus('error');
     } finally {
       setIsTestingConnection(false);
