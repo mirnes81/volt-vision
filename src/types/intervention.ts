@@ -72,6 +72,8 @@ export interface Intervention {
   extraBon?: string;
   extraAdresse?: string;
   extraContact?: string;
+  extraCle?: string;
+  extraCode?: string;
   interventionExtrafields?: Record<string, any>;
   projectId?: number;
   projectRef?: string;

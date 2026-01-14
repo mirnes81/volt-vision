@@ -247,10 +247,17 @@ serve(async (req) => {
           // Extract intervention extrafields - Dolibarr stores them in array_options with 'options_' prefix
           const intExtrafields = int.array_options || int.extrafields || {};
           
-          // Get specific intervention extrafields: Bon, Adresse, Contact
-          const extraBon = intExtrafields.options_bon || intExtrafields.options_Bon || intExtrafields.bon || '';
-          const extraAdresse = intExtrafields.options_adresse || intExtrafields.options_Adresse || intExtrafields.adresse || '';
-          const extraContact = intExtrafields.options_contact || intExtrafields.options_Contact || intExtrafields.contact || '';
+          // Get specific intervention extrafields based on actual Dolibarr field names:
+          // options_bongerance = Bon de gérance
+          // options_propimm = Propriétaire immobilier / Adresse
+          // options_employe = Contact/Employé assigné
+          // options_cle = Clé
+          // options_code = Code d'accès
+          const extraBon = intExtrafields.options_bongerance || intExtrafields.options_bon || '';
+          const extraAdresse = intExtrafields.options_propimm || intExtrafields.options_adresse || '';
+          const extraContact = intExtrafields.options_employe || intExtrafields.options_contact || '';
+          const extraCle = intExtrafields.options_cle || '';
+          const extraCode = intExtrafields.options_code || '';
           
           return {
             ...int,
@@ -268,10 +275,12 @@ serve(async (req) => {
             client_access_code: clientInfo?.access_code || '',
             client_notes: clientInfo?.notes || '',
             client_extrafields: clientInfo?.extrafields || {},
-            // Add intervention extrafields
+            // Add intervention extrafields with correct field names
             extra_bon: extraBon,
             extra_adresse: extraAdresse,
             extra_contact: extraContact,
+            extra_cle: extraCle,
+            extra_code: extraCode,
             intervention_extrafields: intExtrafields,
           };
         });

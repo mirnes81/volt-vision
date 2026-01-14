@@ -46,6 +46,8 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
   const hasBon = intervention.extraBon && intervention.extraBon.trim();
   const hasExtraAdresse = intervention.extraAdresse && intervention.extraAdresse.trim();
   const hasExtraContact = intervention.extraContact && intervention.extraContact.trim();
+  const hasExtraCle = intervention.extraCle && intervention.extraCle.trim();
+  const hasExtraCode = intervention.extraCode && intervention.extraCode.trim();
 
   return (
     <Link to={`/intervention/${intervention.id}`}>
@@ -113,8 +115,24 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
         {/* Extra Contact (from intervention extrafield) */}
         {hasExtraContact && (
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Phone className="w-4 h-4 shrink-0 text-primary" />
+            <User className="w-4 h-4 shrink-0 text-primary" />
             <span className="truncate font-medium">{intervention.extraContact}</span>
+          </div>
+        )}
+
+        {/* Access codes (clé, code) */}
+        {(hasExtraCle || hasExtraCode) && (
+          <div className="flex items-center gap-3 text-sm mb-2 flex-wrap">
+            {hasExtraCle && (
+              <div className="flex items-center gap-1.5 text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
+                <span className="text-xs font-medium">Clé: <span className="text-foreground">{intervention.extraCle}</span></span>
+              </div>
+            )}
+            {hasExtraCode && (
+              <div className="flex items-center gap-1.5 text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
+                <span className="text-xs font-medium">Code: <span className="text-foreground">{intervention.extraCode}</span></span>
+              </div>
+            )}
           </div>
         )}
 
