@@ -18,6 +18,7 @@ import { VoiceNotesSection } from '@/components/intervention/VoiceNotesSection';
 import { HistorySection } from '@/components/intervention/HistorySection';
 import { StockSection } from '@/components/intervention/StockSection';
 import { ReleaseButton } from '@/components/intervention/ReleaseButton';
+import { AdminEditSection } from '@/components/intervention/AdminEditSection';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { getIntervention } from '@/lib/api';
@@ -312,14 +313,18 @@ export default function InterventionDetailPage() {
             )}
           </div>
 
-          {/* Assigned worker */}
-          {assigneeName && (
-            <div className="flex items-center gap-2 text-sm mt-3 pt-3 border-t border-border/50">
+          {/* Assigned worker + Admin Edit */}
+          <div className="flex items-center justify-between gap-2 text-sm mt-3 pt-3 border-t border-border/50">
+            <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-muted-foreground" />
               <span className="text-muted-foreground">Assigné à :</span>
-              <span className="font-semibold text-foreground">{assigneeName}</span>
+              <span className="font-semibold text-foreground">
+                {assigneeName || 'Non assigné'}
+              </span>
             </div>
-          )}
+            {/* Admin edit button */}
+            <AdminEditSection intervention={intervention} onUpdate={handleUpdate} />
+          </div>
 
         {/* Date with day of week, time and reminder button */}
         {intervention.dateStart && (
