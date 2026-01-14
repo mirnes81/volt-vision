@@ -238,41 +238,55 @@ export default function InterventionDetailPage() {
             </div>
           )}
 
-          {/* Date */}
-          {intervention.dateStart && (
-            <div className="flex items-center gap-2 text-sm mt-2 text-muted-foreground">
-              <Calendar className="w-4 h-4" />
-              <span>Date : {new Date(intervention.dateStart).toLocaleDateString('fr-CH')}</span>
+        {/* Date with day of week */}
+        {intervention.dateStart && (
+          <div className="flex items-center gap-2 text-sm mt-2">
+            <Calendar className="w-4 h-4 text-primary" />
+            <span className="font-semibold text-foreground">
+              {(() => {
+                const date = new Date(intervention.dateStart);
+                const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+                return `${dayNames[date.getDay()]} ${date.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+              })()}
+            </span>
+          </div>
+        )}
+      </div>
+
+      {/* Description / Briefing - FULL readable */}
+      {(intervention.description || intervention.briefing) && (
+        <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
+          <h3 className="font-semibold text-foreground flex items-center gap-2 mb-2">
+            <FileText className="w-4 h-4" />
+            Description / Briefing
+          </h3>
+          
+          {/* Show briefing if available */}
+          {intervention.briefing && (
+            <div className="text-sm text-foreground mb-3 whitespace-pre-wrap">
+              {intervention.briefing}
+            </div>
+          )}
+          
+          {/* Show full description - always expandable */}
+          {intervention.description && (
+            <div className="border-t border-border/50 pt-3 mt-2">
+              <button 
+                onClick={() => setShowFullDescription(!showFullDescription)}
+                className="flex items-center gap-2 text-sm font-medium text-primary mb-2"
+              >
+                <span>Description complète</span>
+                {showFullDescription ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              {showFullDescription && (
+                <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-secondary/30 p-3 rounded-lg">
+                  {intervention.description}
+                </div>
+              )}
             </div>
           )}
         </div>
-
-        {/* Description / Briefing */}
-        {(intervention.description || intervention.briefing) && (
-          <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
-            <h3 className="font-semibold text-foreground flex items-center gap-2 mb-2">
-              <FileText className="w-4 h-4" />
-              Description / Briefing
-            </h3>
-            <div className={cn("text-sm text-muted-foreground", !showFullDescription && "line-clamp-4")}>
-              {intervention.briefing || intervention.description}
-            </div>
-            {(intervention.briefing?.length || 0) > 200 && (
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={() => setShowFullDescription(!showFullDescription)}
-                className="mt-2 text-primary"
-              >
-                {showFullDescription ? (
-                  <>Voir moins <ChevronUp className="w-4 h-4 ml-1" /></>
-                ) : (
-                  <>Voir plus <ChevronDown className="w-4 h-4 ml-1" /></>
-                )}
-              </Button>
-            )}
-          </div>
-        )}
+      )}
 
         {/* Quick summary cards */}
         <div className="grid grid-cols-3 gap-2">

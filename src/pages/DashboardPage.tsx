@@ -48,11 +48,12 @@ export default function DashboardPage() {
     acc + i.hours.reduce((h, hour) => h + (hour.durationHours || 0), 0), 0
   );
 
-  const currentDate = new Date().toLocaleDateString('fr-CH', {
-    weekday: 'long',
+  const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+  const today = new Date();
+  const currentDate = `${dayNames[today.getDay()]} ${today.toLocaleDateString('fr-CH', {
     day: 'numeric',
     month: 'long',
-  });
+  })}`;
 
   return (
     <div className="pb-4">
