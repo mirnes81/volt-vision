@@ -150,6 +150,11 @@ serve(async (req) => {
           interventions = [];
         }
         
+        console.log(`Found ${interventions.length} interventions`);
+        if (interventions.length > 0) {
+          console.log('Sample intervention data:', JSON.stringify(interventions[0]).substring(0, 500));
+        }
+        
         // Fetch all users once to enrich with assignedTo info
         let usersMap = new Map();
         try {
@@ -163,6 +168,7 @@ serve(async (req) => {
           });
           if (usersResponse.ok) {
             const usersData = await usersResponse.json();
+            console.log(`Found ${Array.isArray(usersData) ? usersData.length : 0} users`);
             if (Array.isArray(usersData)) {
               usersData.forEach((u: any) => {
                 usersMap.set(String(u.id), {
@@ -177,16 +183,57 @@ serve(async (req) => {
           console.error('Could not fetch users for enrichment:', e);
         }
         
-        // Enrich each intervention with assignedTo
+        // Fetch all thirdparties (clients) to enrich with client info
+        let clientsMap = new Map();
+        try {
+          const clientsResponse = await fetch(`${baseUrl}/thirdparties?limit=500`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'DOLAPIKEY': DOLIBARR_API_KEY,
+            },
+          });
+          if (clientsResponse.ok) {
+            const clientsData = await clientsResponse.json();
+            console.log(`Found ${Array.isArray(clientsData) ? clientsData.length : 0} thirdparties`);
+            if (Array.isArray(clientsData)) {
+              clientsData.forEach((c: any) => {
+                clientsMap.set(String(c.id), {
+                  id: parseInt(c.id),
+                  name: c.name || c.nom || '',
+                  address: c.address || '',
+                  zip: c.zip || '',
+                  town: c.town || '',
+                  phone: c.phone || '',
+                  email: c.email || '',
+                });
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Could not fetch thirdparties for enrichment:', e);
+        }
+        
+        // Enrich each intervention with assignedTo and client info
         const enrichedInterventions = interventions.map((int: any) => {
           // fk_user_author is the author, fk_user_valid is the validator
-          // For assigned user, we'll use fk_user_author as Dolibarr standard
           const authorId = String(int.fk_user_author || int.user_author_id || '');
           const assignedUser = usersMap.get(authorId);
+          
+          // Get client info from socid
+          const clientId = String(int.socid || int.fk_soc || '');
+          const clientInfo = clientsMap.get(clientId);
           
           return {
             ...int,
             assignedTo: assignedUser || null,
+            thirdparty_name: clientInfo?.name || int.thirdparty_name || '',
+            client_address: clientInfo?.address || '',
+            client_zip: clientInfo?.zip || '',
+            client_town: clientInfo?.town || '',
+            client_phone: clientInfo?.phone || '',
+            client_email: clientInfo?.email || '',
           };
         });
         
