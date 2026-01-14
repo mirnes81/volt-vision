@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Zap, Loader2, CheckCircle, RefreshCw, User, Lock, Eye, EyeOff } from 'lucide-react';
+import { Zap, Loader2, CheckCircle, RefreshCw, User, Lock, Eye, EyeOff, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -231,8 +231,17 @@ export default function LoginPage() {
         </Button>
       </form>
 
+      {/* Diagnostic Link */}
+      <a 
+        href="/diagnostic" 
+        className="mt-6 flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+      >
+        <Wrench className="w-4 h-4" />
+        Diagnostic de connexion
+      </a>
+
       {/* Version */}
-      <p className="mt-8 text-xs text-muted-foreground/50">
+      <p className="mt-4 text-xs text-muted-foreground/50">
         SmartElectric Suite v1.0.0
       </p>
     </div>

@@ -16,6 +16,7 @@ import NewInterventionPage from "./pages/NewInterventionPage";
 import CalendarPage from "./pages/CalendarPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
+import DiagnosticPage from "./pages/DiagnosticPage";
 import NotFound from "./pages/NotFound";
 import { Toaster as SonnerToaster } from "sonner";
 
@@ -39,6 +40,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<Index />} />
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+    <Route path="/diagnostic" element={<DiagnosticPage />} />
     <Route path="/settings" element={<SettingsPage />} />
     <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
       <Route path="/dashboard" element={<DashboardPage />} />
