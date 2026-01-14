@@ -46,6 +46,20 @@ export async function getClients(search?: string): Promise<Array<{ id: number; n
 }
 
 // Interventions
+// Get recent interventions (for dashboard - limit 10)
+export async function getRecentInterventions(limit: number = 10): Promise<Intervention[]> {
+  if (useRealApi()) {
+    const all = await dolibarrApi.fetchInterventions();
+    // Sort by creation date descending and take first 'limit'
+    return all
+      .sort((a, b) => new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime())
+      .slice(0, limit);
+  }
+  
+  await delay(500);
+  return interventions.filter(i => i.status !== 'facture').slice(0, limit);
+}
+
 export async function getTodayInterventions(): Promise<Intervention[]> {
   if (useRealApi()) {
     return dolibarrApi.fetchInterventions();
