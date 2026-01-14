@@ -1,21 +1,21 @@
 {
-  "name": "SmartElectric Mobile",
-  "short_name": "SmartElectric",
+  "name": "ENES Électricité",
+  "short_name": "ENES",
   "description": "Application mobile pour électriciens - Gestion des interventions, heures, matériaux et contrôles OIBT",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0a0a0a",
-  "theme_color": "#f97316",
+  "background_color": "#ffffff",
+  "theme_color": "#6B8E23",
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icon-192.png",
+      "src": "/logo-enes.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icon-512.png",
+      "src": "/logo-enes.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
@@ -30,14 +30,14 @@
       "short_name": "Interventions",
       "description": "Voir mes interventions",
       "url": "/interventions",
-      "icons": [{"src": "/icon-192.png", "sizes": "192x192"}]
+      "icons": [{"src": "/logo-enes.png", "sizes": "192x192"}]
     },
     {
       "name": "Calendrier",
       "short_name": "Calendrier",
       "description": "Voir le calendrier",
       "url": "/calendar",
-      "icons": [{"src": "/icon-192.png", "sizes": "192x192"}]
+      "icons": [{"src": "/logo-enes.png", "sizes": "192x192"}]
     }
   ]
 }
