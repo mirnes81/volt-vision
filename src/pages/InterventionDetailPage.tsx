@@ -259,7 +259,7 @@ export default function InterventionDetailPage() {
             </div>
           )}
 
-        {/* Date with day of week */}
+        {/* Date with day of week and time */}
         {intervention.dateStart && (
           <div className="flex items-center gap-2 text-sm mt-2">
             <Calendar className="w-4 h-4 text-primary" />
@@ -270,6 +270,18 @@ export default function InterventionDetailPage() {
                 return `${dayNames[date.getDay()]} ${date.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' })}`;
               })()}
             </span>
+            {(() => {
+              const date = new Date(intervention.dateStart);
+              const hours = date.getHours();
+              const minutes = date.getMinutes();
+              const hasTime = hours !== 0 || minutes !== 0;
+              if (!hasTime) return null;
+              return (
+                <span className="text-primary font-medium">
+                  • {date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
+                </span>
+              );
+            })()}
           </div>
         )}
       </div>
