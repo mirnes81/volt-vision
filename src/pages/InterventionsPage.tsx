@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Search, ClipboardList, RefreshCw, ChevronDown } from 'lucide-react';
+import { Search, ClipboardList, RefreshCw } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { InterventionCard } from '@/components/intervention/InterventionCard';
 import { Input } from '@/components/ui/input';
@@ -9,13 +9,6 @@ import { Intervention } from '@/types/intervention';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 
 const filters = [
   { value: 'all', label: 'Toutes' },
@@ -25,14 +18,7 @@ const filters = [
   { value: 'urgent', label: 'Urgentes' },
 ];
 
-const pageSizes = [
-  { value: '50', label: '50 interventions' },
-  { value: '100', label: '100 interventions' },
-  { value: '200', label: '200 interventions' },
-  { value: '300', label: '300 interventions' },
-  { value: '500', label: '500 interventions' },
-  { value: 'all', label: 'Toutes' },
-];
+const PAGE_SIZE = 25; // Only 25 interventions per page
 
 export default function InterventionsPage() {
   const [allInterventions, setAllInterventions] = useState<Intervention[]>([]);
@@ -41,7 +27,7 @@ export default function InterventionsPage() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
   const [showOnlyMine, setShowOnlyMine] = useState(false);
-  const [pageSize, setPageSize] = useState('100');
+  const [currentPage, setCurrentPage] = useState(1);
   
   // Check if user is admin
   const workerData = localStorage.getItem('worker');
@@ -100,10 +86,15 @@ export default function InterventionsPage() {
     return matchesSearch && matchesFilter;
   });
 
+  // Reset to page 1 when filter or search changes
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [search, activeFilter, showOnlyMine]);
+
   // Apply pagination
-  const displayLimit = pageSize === 'all' ? filteredInterventions.length : parseInt(pageSize);
-  const displayedInterventions = filteredInterventions.slice(0, displayLimit);
-  const hasMore = filteredInterventions.length > displayLimit;
+  const totalPages = Math.ceil(filteredInterventions.length / PAGE_SIZE);
+  const startIndex = (currentPage - 1) * PAGE_SIZE;
+  const displayedInterventions = filteredInterventions.slice(startIndex, startIndex + PAGE_SIZE);
 
   // Count by status for badges
   const counts = {
@@ -153,30 +144,16 @@ export default function InterventionsPage() {
           </div>
         )}
 
-        {/* Search + Page size */}
-        <div className="flex gap-2 mt-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
-            <Input
-              type="search"
-              placeholder="Rechercher..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="pl-12 h-12 rounded-xl"
-            />
-          </div>
-          <Select value={pageSize} onValueChange={setPageSize}>
-            <SelectTrigger className="w-[140px] h-12 rounded-xl">
-              <SelectValue placeholder="Afficher" />
-            </SelectTrigger>
-            <SelectContent>
-              {pageSizes.map((size) => (
-                <SelectItem key={size.value} value={size.value}>
-                  {size.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        {/* Search */}
+        <div className="relative mt-4">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+          <Input
+            type="search"
+            placeholder="Rechercher..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-12 h-12 rounded-xl"
+          />
         </div>
 
         {/* Filters */}
@@ -207,16 +184,29 @@ export default function InterventionsPage() {
           ))}
         </div>
 
-        {/* Info bar */}
+        {/* Info bar with pagination */}
         <div className="flex items-center justify-between text-sm text-muted-foreground">
           <span>
-            Affichage de {displayedInterventions.length} sur {filteredInterventions.length} interventions
+            Page {currentPage}/{totalPages || 1} ({filteredInterventions.length} interventions)
           </span>
-          {hasMore && (
-            <span className="text-primary font-medium">
-              +{filteredInterventions.length - displayLimit} masquées
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={currentPage === 1}
+            >
+              ← Préc
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={currentPage >= totalPages}
+            >
+              Suiv →
+            </Button>
+          </div>
         </div>
 
         {/* List */}
@@ -239,21 +229,27 @@ export default function InterventionsPage() {
               ))}
             </div>
             
-            {/* Load more button */}
-            {hasMore && (
-              <div className="pt-4">
+            {/* Bottom pagination */}
+            {totalPages > 1 && (
+              <div className="flex items-center justify-center gap-2 pt-4 pb-20">
                 <Button
                   variant="outline"
-                  className="w-full"
-                  onClick={() => {
-                    const currentIndex = pageSizes.findIndex(s => s.value === pageSize);
-                    if (currentIndex < pageSizes.length - 1) {
-                      setPageSize(pageSizes[currentIndex + 1].value);
-                    }
-                  }}
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
                 >
-                  <ChevronDown className="w-4 h-4 mr-2" />
-                  Afficher plus ({filteredInterventions.length - displayLimit} restantes)
+                  ← Précédent
+                </Button>
+                <span className="px-4 py-2 text-sm text-muted-foreground">
+                  {currentPage} / {totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage >= totalPages}
+                >
+                  Suivant →
                 </Button>
               </div>
             )}
