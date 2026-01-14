@@ -19,8 +19,12 @@ import SettingsPage from "./pages/SettingsPage";
 import DiagnosticPage from "./pages/DiagnosticPage";
 import NotFound from "./pages/NotFound";
 import { Toaster as SonnerToaster } from "sonner";
+import { rescheduleRemindersOnStart } from "@/lib/interventionReminders";
 
 const queryClient = new QueryClient();
+
+// Reschedule reminders when app starts
+rescheduleRemindersOnStart();
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading } = useAuth();

@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { 
   MapPin, User, AlertTriangle, Clock, Package, CheckSquare, Camera, 
   PenTool, Sparkles, FileCheck, Navigation, Mic, History, Boxes,
-  Phone, Mail, FileText, Calendar, ExternalLink, ChevronDown, ChevronUp
+  Phone, Mail, FileText, Calendar, ExternalLink, ChevronDown, ChevronUp, Bell, BellRing
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { HoursSection } from '@/components/intervention/HoursSection';
@@ -23,6 +23,14 @@ import { getIntervention } from '@/lib/api';
 import { Intervention } from '@/types/intervention';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
+import { 
+  scheduleInterventionReminder, 
+  cancelInterventionReminder,
+  hasReminderScheduled,
+  formatTimeRemaining,
+  getReminderSettings
+} from '@/lib/interventionReminders';
 
 const typeLabels: Record<string, string> = {
   installation: 'Installation', depannage: 'Dépannage', renovation: 'Rénovation',
@@ -43,6 +51,7 @@ export default function InterventionDetailPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [showFullDescription, setShowFullDescription] = useState(false);
+  const [hasReminder, setHasReminder] = useState(false);
 
   const tabs = [
     { id: 'overview', label: 'Détails', icon: FileText },
@@ -63,6 +72,13 @@ export default function InterventionDetailPage() {
     if (id) loadIntervention(parseInt(id));
   }, [id]);
 
+  // Check reminder status when intervention changes
+  useEffect(() => {
+    if (id) {
+      setHasReminder(hasReminderScheduled(parseInt(id)));
+    }
+  }, [id, intervention]);
+
   const loadIntervention = async (interventionId: number) => {
     setIsLoading(true);
     try {
@@ -76,10 +92,55 @@ export default function InterventionDetailPage() {
         extraCle: data.extraCle,
         extraCode: data.extraCode,
       });
+      // Check reminder status
+      setHasReminder(hasReminderScheduled(interventionId));
     } catch (error) {
       console.error('Error:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const handleToggleReminder = () => {
+    if (!intervention || !id) return;
+    
+    const interventionId = parseInt(id);
+    
+    if (hasReminder) {
+      cancelInterventionReminder(interventionId);
+      setHasReminder(false);
+      toast.success('Rappel supprimé');
+    } else {
+      if (!intervention.dateStart) {
+        toast.error('Pas de date d\'intervention définie');
+        return;
+      }
+      
+      const settings = getReminderSettings();
+      if (!settings.enabled) {
+        toast.error('Activez les rappels dans les paramètres');
+        return;
+      }
+
+      const success = scheduleInterventionReminder(
+        interventionId,
+        intervention.ref,
+        intervention.clientName,
+        intervention.dateStart,
+        intervention.extraAdresse || intervention.clientAddress
+      );
+      
+      if (success) {
+        setHasReminder(true);
+        const timeRemaining = formatTimeRemaining(intervention.dateStart);
+        toast.success(`Rappel programmé (${settings.timeBefore} min avant)`, {
+          description: `Intervention ${timeRemaining}`,
+        });
+      } else {
+        toast.error('Impossible de programmer le rappel', {
+          description: 'La date est peut-être déjà passée',
+        });
+      }
     }
   };
 
@@ -259,29 +320,53 @@ export default function InterventionDetailPage() {
             </div>
           )}
 
-        {/* Date with day of week and time */}
+        {/* Date with day of week, time and reminder button */}
         {intervention.dateStart && (
-          <div className="flex items-center gap-2 text-sm mt-2">
-            <Calendar className="w-4 h-4 text-primary" />
-            <span className="font-semibold text-foreground">
+          <div className="flex items-center justify-between gap-2 text-sm mt-2">
+            <div className="flex items-center gap-2">
+              <Calendar className="w-4 h-4 text-primary" />
+              <span className="font-semibold text-foreground">
+                {(() => {
+                  const date = new Date(intervention.dateStart);
+                  const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
+                  return `${dayNames[date.getDay()]} ${date.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+                })()}
+              </span>
               {(() => {
                 const date = new Date(intervention.dateStart);
-                const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-                return `${dayNames[date.getDay()]} ${date.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+                const hours = date.getHours();
+                const minutes = date.getMinutes();
+                const hasTime = hours !== 0 || minutes !== 0;
+                if (!hasTime) return null;
+                return (
+                  <span className="text-primary font-medium">
+                    • {date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                );
               })()}
-            </span>
-            {(() => {
-              const date = new Date(intervention.dateStart);
-              const hours = date.getHours();
-              const minutes = date.getMinutes();
-              const hasTime = hours !== 0 || minutes !== 0;
-              if (!hasTime) return null;
-              return (
-                <span className="text-primary font-medium">
-                  • {date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              );
-            })()}
+            </div>
+            {/* Reminder button */}
+            <Button
+              variant={hasReminder ? "default" : "outline"}
+              size="sm"
+              onClick={handleToggleReminder}
+              className={cn(
+                "h-8 px-3 gap-1.5",
+                hasReminder && "bg-primary text-primary-foreground"
+              )}
+            >
+              {hasReminder ? (
+                <>
+                  <BellRing className="w-4 h-4" />
+                  <span className="text-xs">Rappel actif</span>
+                </>
+              ) : (
+                <>
+                  <Bell className="w-4 h-4" />
+                  <span className="text-xs">Rappel</span>
+                </>
+              )}
+            </Button>
           </div>
         )}
       </div>
