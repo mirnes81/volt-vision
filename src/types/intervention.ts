@@ -53,6 +53,11 @@ export interface Photo {
   datePhoto: string;
 }
 
+export interface Coordinates {
+  lat: number;
+  lng: number;
+}
+
 export interface Intervention {
   id: number;
   ref: string;
@@ -83,6 +88,7 @@ export interface Intervention {
   linkedProposalRef?: string;
   linkedOrderRef?: string;
   location: string;
+  coordinates?: Coordinates;
   type: InterventionType;
   priority: Priority;
   status: InterventionStatus;
