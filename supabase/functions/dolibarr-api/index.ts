@@ -107,8 +107,8 @@ serve(async (req) => {
 
       // Interventions
       case 'get-interventions': {
-        // Build query with optional filters
-        let query = '?sortfield=t.datec&sortorder=DESC&limit=200';
+        // Build query with optional filters - increased limit to 1000
+        let query = '?sortfield=t.datec&sortorder=DESC&limit=1000';
         
         // Filter by status if provided (0=draft, 1=validated, 2=done, 3=billed)
         if (params?.status !== undefined) {
@@ -183,10 +183,11 @@ serve(async (req) => {
           console.error('Could not fetch users for enrichment:', e);
         }
         
-        // Fetch all thirdparties (clients) to enrich with client info
+        // Fetch all thirdparties (clients) with extrafields
         let clientsMap = new Map();
         try {
-          const clientsResponse = await fetch(`${baseUrl}/thirdparties?limit=500`, {
+          // Fetch thirdparties with all available data including extrafields
+          const clientsResponse = await fetch(`${baseUrl}/thirdparties?limit=1000`, {
             method: 'GET',
             headers: {
               'Content-Type': 'application/json',
@@ -198,7 +199,14 @@ serve(async (req) => {
             const clientsData = await clientsResponse.json();
             console.log(`Found ${Array.isArray(clientsData) ? clientsData.length : 0} thirdparties`);
             if (Array.isArray(clientsData)) {
+              // Log sample client to see extrafields structure
+              if (clientsData.length > 0) {
+                console.log('Sample client extrafields:', JSON.stringify(clientsData[0].array_options || clientsData[0].extrafields || {}).substring(0, 500));
+              }
               clientsData.forEach((c: any) => {
+                // Extract extrafields - Dolibarr stores them in array_options with 'options_' prefix
+                const extrafields = c.array_options || c.extrafields || {};
+                
                 clientsMap.set(String(c.id), {
                   id: parseInt(c.id),
                   name: c.name || c.nom || '',
@@ -207,6 +215,14 @@ serve(async (req) => {
                   town: c.town || '',
                   phone: c.phone || '',
                   email: c.email || '',
+                  // Include common extrafields - adjust names based on your Dolibarr config
+                  extrafields: extrafields,
+                  // Common extrafield examples
+                  ref_client: c.ref_client || c.code_client || extrafields.options_ref_client || '',
+                  contact_name: extrafields.options_contact_name || extrafields.options_contact || c.fk_prospectlevel || '',
+                  intercom: extrafields.options_intercom || extrafields.options_code_intercom || '',
+                  access_code: extrafields.options_code_acces || extrafields.options_access_code || '',
+                  notes: c.note_public || c.note_private || '',
                 });
               });
             }
@@ -215,7 +231,7 @@ serve(async (req) => {
           console.error('Could not fetch thirdparties for enrichment:', e);
         }
         
-        // Enrich each intervention with assignedTo and client info
+        // Enrich each intervention with assignedTo and client info including extrafields
         const enrichedInterventions = interventions.map((int: any) => {
           // fk_user_author is the author, fk_user_valid is the validator
           const authorId = String(int.fk_user_author || int.user_author_id || '');
@@ -234,6 +250,13 @@ serve(async (req) => {
             client_town: clientInfo?.town || '',
             client_phone: clientInfo?.phone || '',
             client_email: clientInfo?.email || '',
+            // Add client extrafields
+            client_ref: clientInfo?.ref_client || '',
+            client_contact_name: clientInfo?.contact_name || '',
+            client_intercom: clientInfo?.intercom || '',
+            client_access_code: clientInfo?.access_code || '',
+            client_notes: clientInfo?.notes || '',
+            client_extrafields: clientInfo?.extrafields || {},
           };
         });
         
