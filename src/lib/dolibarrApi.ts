@@ -105,6 +105,18 @@ function mapDolibarrIntervention(data: any): Intervention {
     location = parts.join(', ') || location;
   }
   
+  // Debug: Log extrafields data received from backend
+  console.log('[mapDolibarrIntervention] Extrafields:', {
+    id: data.id,
+    ref: data.ref,
+    extra_bon: data.extra_bon,
+    extra_adresse: data.extra_adresse,
+    extra_contact: data.extra_contact,
+    extra_cle: data.extra_cle,
+    extra_code: data.extra_code,
+    intervention_extrafields: data.intervention_extrafields,
+  });
+  
   console.log('[mapDolibarrIntervention]', {
     id: data.id,
     ref: data.ref,

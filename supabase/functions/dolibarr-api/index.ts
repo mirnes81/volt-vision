@@ -259,6 +259,17 @@ serve(async (req) => {
           const extraCle = intExtrafields.options_cle || '';
           const extraCode = intExtrafields.options_code || '';
           
+          // Log enriched extrafields for first few interventions
+          if (interventions.indexOf(int) < 3) {
+            console.log(`[Intervention ${int.ref}] Extrafields mapped:`, {
+              bon: extraBon,
+              adresse: extraAdresse ? extraAdresse.substring(0, 50) : null,
+              contact: extraContact,
+              cle: extraCle,
+              code: extraCode,
+            });
+          }
+          
           return {
             ...int,
             assignedTo: assignedUser || null,
