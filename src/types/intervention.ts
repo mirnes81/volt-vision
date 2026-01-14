@@ -62,6 +62,12 @@ export interface Intervention {
   clientPhone?: string;
   clientEmail?: string;
   clientAddress?: string;
+  clientRef?: string;
+  clientContactName?: string;
+  clientIntercom?: string;
+  clientAccessCode?: string;
+  clientNotes?: string;
+  clientExtrafields?: Record<string, any>;
   projectId?: number;
   projectRef?: string;
   linkedProposalRef?: string;

@@ -1,4 +1,4 @@
-import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText } from 'lucide-react';
+import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Key, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention } from '@/types/intervention';
 import { cn } from '@/lib/utils';
@@ -42,6 +42,11 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
     ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
     : null;
 
+  // Check for client extrafields to display
+  const hasIntercom = intervention.clientIntercom && intervention.clientIntercom.trim();
+  const hasAccessCode = intervention.clientAccessCode && intervention.clientAccessCode.trim();
+  const hasClientRef = intervention.clientRef && intervention.clientRef.trim();
+
   return (
     <Link to={`/intervention/${intervention.id}`}>
       <article className="bg-card rounded-2xl p-4 shadow-card card-hover border border-border/50">
@@ -52,6 +57,11 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
               <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
                 {intervention.ref}
               </span>
+              {hasClientRef && (
+                <span className="text-xs font-medium text-muted-foreground bg-muted px-2 py-0.5 rounded-full">
+                  Réf: {intervention.clientRef}
+                </span>
+              )}
               {intervention.priority === 'urgent' && (
                 <span className="flex items-center gap-1 text-xs font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
                   <AlertTriangle className="w-3 h-3" />
@@ -85,6 +95,24 @@ export function InterventionCard({ intervention }: InterventionCardProps) {
           <MapPin className="w-4 h-4 shrink-0" />
           <span className="truncate">{intervention.location}</span>
         </div>
+
+        {/* Client Access Info (Intercom / Access Code) */}
+        {(hasIntercom || hasAccessCode) && (
+          <div className="flex items-center gap-3 text-sm mb-2 flex-wrap">
+            {hasIntercom && (
+              <div className="flex items-center gap-1.5 text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
+                <Phone className="w-3.5 h-3.5" />
+                <span className="text-xs font-medium">Intercom: <span className="text-foreground">{intervention.clientIntercom}</span></span>
+              </div>
+            )}
+            {hasAccessCode && (
+              <div className="flex items-center gap-1.5 text-muted-foreground bg-secondary/50 px-2 py-1 rounded-md">
+                <Key className="w-3.5 h-3.5" />
+                <span className="text-xs font-medium">Code: <span className="text-foreground">{intervention.clientAccessCode}</span></span>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Assigned to */}
         {assigneeName && (
