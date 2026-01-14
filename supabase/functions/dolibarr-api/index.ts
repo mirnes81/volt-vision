@@ -40,15 +40,57 @@ serve(async (req) => {
         break;
 
       // Login - find user by login OR email (authentication is handled by DOLAPIKEY)
-      case 'login':
+      case 'login': {
         // Dolibarr doesn't have a standard login endpoint
-        // We search for the user by login OR email to validate they exist
-        // Dolibarr sqlfilters syntax: use | for OR
-        const loginValue = params.login?.replace(/'/g, "''"); // Escape single quotes
-        // Try login first, then email - Dolibarr uses | for OR conditions
-        endpoint = `/users?sqlfilters=(t.login:=:'${loginValue}')|(t.email:=:'${loginValue}')&limit=1`;
+        // We search for the user by login first, then by email if not found
+        const loginValue = (params.login || '').replace(/'/g, "''").trim();
         console.log(`Login attempt for: ${loginValue}`);
-        break;
+        
+        // Try to find user by login first
+        let userEndpoint = `/users?sqlfilters=(t.login:=:'${loginValue}')&limit=1`;
+        let userResponse = await fetch(`${baseUrl}${userEndpoint}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'DOLAPIKEY': DOLIBARR_API_KEY,
+          },
+        });
+        
+        let users = [];
+        if (userResponse.ok) {
+          try {
+            users = await userResponse.json();
+          } catch { users = []; }
+        }
+        
+        // If not found by login, try by email
+        if (!Array.isArray(users) || users.length === 0) {
+          console.log('User not found by login, trying email...');
+          userEndpoint = `/users?sqlfilters=(t.email:=:'${loginValue}')&limit=1`;
+          userResponse = await fetch(`${baseUrl}${userEndpoint}`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'DOLAPIKEY': DOLIBARR_API_KEY,
+            },
+          });
+          
+          if (userResponse.ok) {
+            try {
+              users = await userResponse.json();
+            } catch { users = []; }
+          }
+        }
+        
+        console.log(`Found ${Array.isArray(users) ? users.length : 0} user(s)`);
+        
+        return new Response(
+          JSON.stringify(Array.isArray(users) ? users : []),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       
       // Get current user info
       case 'get-current-user':
