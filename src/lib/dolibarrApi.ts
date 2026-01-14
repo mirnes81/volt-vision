@@ -105,6 +105,8 @@ function mapDolibarrIntervention(data: any): Intervention {
     priority: 'normal',
     status: mapDolibarrStatus(parseInt(data.fk_statut || data.status || 0)),
     description: data.note_public || data.description || '',
+    briefing: data.note_private || '',
+    assignedTo: data.assignedTo || undefined,
     dateCreation: data.datec || new Date().toISOString(),
     dateStart: data.datei,
     tasks: lines.map((line: any, index: number) => ({
@@ -426,13 +428,19 @@ export async function dolibarrLogin(login: string, password: string): Promise<{ 
     if (Array.isArray(users) && users.length > 0) {
       const userInfo = users[0];
       
-      const worker: Worker = {
+      // Check if admin (admin field or superadmin)
+      const isAdmin = userInfo.admin === '1' || userInfo.admin === 1 || 
+                      userInfo.superadmin === '1' || userInfo.superadmin === 1;
+      
+      const worker = {
         id: parseInt(userInfo.id) || 1,
         login: userInfo.login || login,
         name: userInfo.lastname || userInfo.login || login,
         firstName: userInfo.firstname || '',
         email: userInfo.email || '',
         phone: userInfo.office_phone || '',
+        admin: isAdmin ? '1' : '0',
+        isAdmin: isAdmin,
       };
       
       // Generate a session token
@@ -440,8 +448,10 @@ export async function dolibarrLogin(login: string, password: string): Promise<{ 
       
       localStorage.setItem('mv3_token', token);
       localStorage.setItem('mv3_worker', JSON.stringify(worker));
+      // Also store as 'worker' for compatibility
+      localStorage.setItem('worker', JSON.stringify(worker));
       
-      return { token, worker };
+      return { token, worker: worker as Worker };
     }
     
     throw new Error('Utilisateur non trouvé');

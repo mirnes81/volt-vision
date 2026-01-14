@@ -125,7 +125,75 @@ serve(async (req) => {
         
         endpoint = '/interventions' + query;
         console.log('Fetching interventions with endpoint:', endpoint);
-        break;
+        
+        // Fetch interventions
+        const intResponse = await fetch(`${baseUrl}${endpoint}`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'DOLAPIKEY': DOLIBARR_API_KEY,
+          },
+        });
+        
+        if (!intResponse.ok) {
+          const errText = await intResponse.text();
+          console.error('Error fetching interventions:', errText);
+          return new Response(
+            JSON.stringify({ error: `Erreur Dolibarr ${intResponse.status}`, details: errText }),
+            { status: intResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        let interventions = await intResponse.json();
+        if (!Array.isArray(interventions)) {
+          interventions = [];
+        }
+        
+        // Fetch all users once to enrich with assignedTo info
+        let usersMap = new Map();
+        try {
+          const usersResponse = await fetch(`${baseUrl}/users?limit=100`, {
+            method: 'GET',
+            headers: {
+              'Content-Type': 'application/json',
+              'Accept': 'application/json',
+              'DOLAPIKEY': DOLIBARR_API_KEY,
+            },
+          });
+          if (usersResponse.ok) {
+            const usersData = await usersResponse.json();
+            if (Array.isArray(usersData)) {
+              usersData.forEach((u: any) => {
+                usersMap.set(String(u.id), {
+                  id: parseInt(u.id),
+                  name: u.lastname || u.login || '',
+                  firstName: u.firstname || '',
+                });
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Could not fetch users for enrichment:', e);
+        }
+        
+        // Enrich each intervention with assignedTo
+        const enrichedInterventions = interventions.map((int: any) => {
+          // fk_user_author is the author, fk_user_valid is the validator
+          // For assigned user, we'll use fk_user_author as Dolibarr standard
+          const authorId = String(int.fk_user_author || int.user_author_id || '');
+          const assignedUser = usersMap.get(authorId);
+          
+          return {
+            ...int,
+            assignedTo: assignedUser || null,
+          };
+        });
+        
+        return new Response(
+          JSON.stringify(enrichedInterventions),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
       case 'get-intervention':
         endpoint = `/interventions/${params.id}`;
