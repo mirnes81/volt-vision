@@ -21,19 +21,24 @@ async function performLogin(token: string): Promise<{ token: string; worker: Wor
     return { token: 'demo_token', worker: mockWorker };
   }
   
-  // Real mode - with Edge Function, we just mark as authenticated
+  // Real mode - worker data is already set by dolibarrLogin
+  // Just retrieve what was already stored
+  const savedWorker = getSavedWorker();
+  if (savedWorker) {
+    return { token, worker: savedWorker };
+  }
+  
+  // Fallback if no worker data (shouldn't happen)
   const worker: Worker = {
     id: 1,
     login: 'user',
-    name: 'Technicien',
+    name: 'Utilisateur',
     firstName: '',
     email: '',
     phone: '',
   };
   
-  localStorage.setItem('mv3_token', token);
   localStorage.setItem('mv3_worker', JSON.stringify(worker));
-  
   return { token, worker };
 }
 
