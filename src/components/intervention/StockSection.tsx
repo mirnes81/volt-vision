@@ -1,39 +1,90 @@
 import { useState, useEffect } from 'react';
-import { Package, AlertTriangle, CheckCircle, XCircle, RefreshCw } from 'lucide-react';
+import { Package, AlertTriangle, CheckCircle, XCircle, RefreshCw, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { getVehicleStock, initVehicleStock } from '@/lib/offlineStorage';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { isOnline } from '@/lib/offlineStorage';
+import { decodeHtmlEntities } from '@/lib/htmlUtils';
 
 interface StockItem {
   productId: number;
+  productRef: string;
   productName: string;
   quantity: number;
   minQuantity: number;
   unit: string;
+  price?: number;
+  barcode?: string;
+  category?: string;
 }
 
 export function StockSection() {
   const { t } = useLanguage();
   const [stock, setStock] = useState<StockItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [online, setOnline] = useState(isOnline());
 
   useEffect(() => {
     loadStock();
+    
+    const handleOnline = () => setOnline(true);
+    const handleOffline = () => setOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
   }, []);
 
   const loadStock = async () => {
     setIsLoading(true);
-    await initVehicleStock();
-    const data = await getVehicleStock();
-    setStock(data);
-    setIsLoading(false);
+    setError(null);
+    
+    if (!isOnline()) {
+      setError('Mode hors-ligne - Impossible de récupérer le stock');
+      setIsLoading(false);
+      return;
+    }
+    
+    try {
+      const { data, error: fnError } = await supabase.functions.invoke('dolibarr-api', {
+        body: { action: 'get-stock' }
+      });
+      
+      if (fnError) {
+        console.error('Error fetching stock:', fnError);
+        setError('Erreur lors de la récupération du stock');
+        setStock([]);
+      } else if (data && Array.isArray(data)) {
+        // Decode HTML entities in product names
+        const decodedStock = data.map((item: StockItem) => ({
+          ...item,
+          productName: decodeHtmlEntities(item.productName),
+          productRef: decodeHtmlEntities(item.productRef),
+          unit: decodeHtmlEntities(item.unit),
+        }));
+        setStock(decodedStock);
+        console.log(`Loaded ${decodedStock.length} stock items from Dolibarr`);
+      } else {
+        setStock([]);
+      }
+    } catch (err) {
+      console.error('Error loading stock:', err);
+      setError('Erreur de connexion');
+      setStock([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const getStockStatus = (item: StockItem) => {
     if (item.quantity === 0) return 'outOfStock';
-    if (item.quantity <= item.minQuantity) return 'low';
+    if (item.minQuantity > 0 && item.quantity <= item.minQuantity) return 'low';
     return 'available';
   };
 
@@ -74,18 +125,25 @@ export function StockSection() {
             <div>
               <h3 className="font-bold">{t('stock.title')}</h3>
               <p className="text-sm text-muted-foreground">
-                {stock.length} produits
+                {stock.length} produits en stock
               </p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={loadStock}
-            disabled={isLoading}
-          >
-            <RefreshCw className={cn("w-5 h-5", isLoading && "animate-spin")} />
-          </Button>
+          <div className="flex items-center gap-2">
+            {!online && (
+              <div className="flex items-center gap-1 text-warning">
+                <WifiOff className="w-4 h-4" />
+              </div>
+            )}
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={loadStock}
+              disabled={isLoading || !online}
+            >
+              <RefreshCw className={cn("w-5 h-5", isLoading && "animate-spin")} />
+            </Button>
+          </div>
         </div>
 
         {lowStockCount > 0 && (
@@ -96,15 +154,27 @@ export function StockSection() {
             </span>
           </div>
         )}
+        
+        {error && (
+          <div className="flex items-center gap-2 p-3 bg-destructive/10 rounded-xl text-destructive mt-2">
+            <XCircle className="w-5 h-5 shrink-0" />
+            <span className="text-sm font-medium">{error}</span>
+          </div>
+        )}
       </div>
 
       {/* Stock List */}
       <div className="space-y-2">
         {isLoading ? (
           <div className="space-y-2">
-            {[1, 2, 3, 4].map(i => (
+            {[1, 2, 3, 4, 5, 6].map(i => (
               <Skeleton key={i} className="h-20 rounded-xl" />
             ))}
+          </div>
+        ) : stock.length === 0 && !error ? (
+          <div className="text-center py-8 text-muted-foreground">
+            <Package className="w-12 h-12 mx-auto mb-3 opacity-50" />
+            <p>Aucun produit en stock</p>
           </div>
         ) : (
           sortedStock.map((item) => {
@@ -119,10 +189,19 @@ export function StockSection() {
               >
                 <div className="flex items-center justify-between">
                   <div className="min-w-0 flex-1">
-                    <p className="font-medium truncate">{item.productName}</p>
-                    <p className="text-sm text-muted-foreground">
-                      Min: {item.minQuantity} {item.unit}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      {item.productRef && (
+                        <span className="text-xs font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                          {item.productRef}
+                        </span>
+                      )}
+                    </div>
+                    <p className="font-medium truncate mt-1">{item.productName}</p>
+                    {item.minQuantity > 0 && (
+                      <p className="text-sm text-muted-foreground">
+                        Seuil min: {item.minQuantity} {item.unit}
+                      </p>
+                    )}
                   </div>
                   <div className="text-right shrink-0 ml-3">
                     <p className={cn(

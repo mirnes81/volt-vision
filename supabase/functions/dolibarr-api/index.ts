@@ -457,6 +457,53 @@ serve(async (req) => {
       case 'get-product':
         endpoint = `/products/${params.id}`;
         break;
+      
+      // Stock (products with stock info)
+      case 'get-stock': {
+        console.log('Fetching stock from Dolibarr...');
+        
+        // Fetch all products with stock info
+        const stockResponse = await fetch(`${baseUrl}/products?limit=500&includestockdata=1`, {
+          method: 'GET',
+          headers: {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'DOLAPIKEY': DOLIBARR_API_KEY,
+          },
+        });
+        
+        if (!stockResponse.ok) {
+          const errText = await stockResponse.text();
+          console.error('Error fetching stock:', errText);
+          return new Response(
+            JSON.stringify({ error: `Erreur Dolibarr ${stockResponse.status}`, details: errText }),
+            { status: stockResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const products = await stockResponse.json();
+        console.log(`Found ${Array.isArray(products) ? products.length : 0} products`);
+        
+        // Map products to stock items format
+        const stockItems = Array.isArray(products) ? products.map((p: any) => ({
+          productId: parseInt(p.id),
+          productRef: p.ref || '',
+          productName: p.label || p.description || '',
+          quantity: parseFloat(p.stock_reel || p.stock || '0'),
+          minQuantity: parseFloat(p.seuil_stock_alerte || p.desiredstock || '0'),
+          unit: p.fk_unit_label || p.unit || 'unité',
+          price: parseFloat(p.price || p.price_ttc || '0'),
+          barcode: p.barcode || '',
+          category: p.category_label || '',
+        })).filter((item: any) => item.quantity !== 0 || item.minQuantity > 0) : [];
+        
+        console.log(`Returning ${stockItems.length} stock items`);
+        
+        return new Response(
+          JSON.stringify(stockItems),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       // Users
       case 'get-users':
