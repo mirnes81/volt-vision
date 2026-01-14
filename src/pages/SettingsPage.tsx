@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
+import { ReminderSettings } from '@/components/settings/ReminderSettings';
 import { 
   getDolibarrConfig, 
   saveDolibarrConfig, 
@@ -214,6 +215,9 @@ export default function SettingsPage() {
 
         {/* Notifications */}
         <NotificationSettings />
+
+        {/* Rappels d'interventions */}
+        <ReminderSettings />
 
         {/* Connection Status */}
         <Card>
