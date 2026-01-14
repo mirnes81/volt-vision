@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { InterventionCard } from '@/components/intervention/InterventionCard';
 import { useAuth } from '@/contexts/AuthContext';
-import { getTodayInterventions } from '@/lib/api';
+import { getRecentInterventions } from '@/lib/api';
 import { Intervention } from '@/types/intervention';
 import { Skeleton } from '@/components/ui/skeleton';
 
@@ -31,7 +31,8 @@ export default function DashboardPage() {
 
   const loadInterventions = async () => {
     try {
-      const data = await getTodayInterventions();
+      // Fetch only the 10 most recent interventions for dashboard
+      const data = await getRecentInterventions(10);
       setInterventions(data);
     } catch (error) {
       console.error('Error loading interventions:', error);
@@ -55,7 +56,7 @@ export default function DashboardPage() {
 
   return (
     <div className="pb-4">
-      <Header title="SmartElectric" showNotifications />
+      <Header title="ENES Électricité" showNotifications />
 
       <div className="px-4 space-y-6">
         {/* Welcome Section */}
@@ -83,7 +84,7 @@ export default function DashboardPage() {
               <ClipboardList className="w-5 h-5 text-primary" />
             </div>
             <p className="text-2xl font-bold">{interventions.length}</p>
-            <p className="text-xs text-muted-foreground">Interventions</p>
+            <p className="text-xs text-muted-foreground">Récentes</p>
           </div>
 
           <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
@@ -136,12 +137,13 @@ export default function DashboardPage() {
           </Link>
         </div>
 
-        {/* Today's Interventions */}
+        {/* Recent Interventions */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="font-bold">Aujourd'hui</h3>
-            <Link to="/interventions" className="text-sm text-primary font-medium">
+            <h3 className="font-bold">10 dernières interventions</h3>
+            <Link to="/interventions" className="text-sm text-primary font-medium flex items-center gap-1">
               Voir tout
+              <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
 
@@ -154,11 +156,11 @@ export default function DashboardPage() {
           ) : interventions.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-50" />
-              <p>Aucune intervention aujourd'hui</p>
+              <p>Aucune intervention récente</p>
             </div>
           ) : (
             <div className="space-y-3 stagger-children">
-              {interventions.slice(0, 5).map((intervention) => (
+              {interventions.map((intervention) => (
                 <InterventionCard key={intervention.id} intervention={intervention} />
               ))}
             </div>
