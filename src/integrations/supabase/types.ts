@@ -14,7 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      released_interventions: {
+        Row: {
+          client_name: string
+          created_at: string
+          date_start: string | null
+          id: string
+          intervention_id: number
+          intervention_label: string
+          intervention_ref: string
+          intervention_type: string
+          latitude: number | null
+          location: string
+          longitude: number | null
+          priority: string
+          released_at: string
+          released_by_name: string
+          released_by_user_id: number
+          status: string
+          taken_at: string | null
+          taken_by_name: string | null
+          taken_by_user_id: number | null
+        }
+        Insert: {
+          client_name: string
+          created_at?: string
+          date_start?: string | null
+          id?: string
+          intervention_id: number
+          intervention_label: string
+          intervention_ref: string
+          intervention_type?: string
+          latitude?: number | null
+          location: string
+          longitude?: number | null
+          priority?: string
+          released_at?: string
+          released_by_name: string
+          released_by_user_id: number
+          status?: string
+          taken_at?: string | null
+          taken_by_name?: string | null
+          taken_by_user_id?: number | null
+        }
+        Update: {
+          client_name?: string
+          created_at?: string
+          date_start?: string | null
+          id?: string
+          intervention_id?: number
+          intervention_label?: string
+          intervention_ref?: string
+          intervention_type?: string
+          latitude?: number | null
+          location?: string
+          longitude?: number | null
+          priority?: string
+          released_at?: string
+          released_by_name?: string
+          released_by_user_id?: number
+          status?: string
+          taken_at?: string | null
+          taken_by_name?: string | null
+          taken_by_user_id?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
