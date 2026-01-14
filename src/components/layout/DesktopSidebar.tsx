@@ -7,6 +7,7 @@ import {
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useAvailableCount } from '@/hooks/useAvailableCount';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -24,11 +25,12 @@ export function DesktopSidebar() {
   const { worker, logout } = useAuth();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const availableCount = useAvailableCount();
 
   const mainNavItems: NavItem[] = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: t('nav.interventions') },
-    { to: '/available', icon: HandHeart, label: 'Disponibles' },
+    { to: '/available', icon: HandHeart, label: 'Disponibles', badge: availableCount },
     { to: '/map', icon: Map, label: 'Carte' },
     { to: '/calendar', icon: Calendar, label: t('nav.calendar') },
     { to: '/profile', icon: User, label: t('nav.profile') },
@@ -47,16 +49,24 @@ export function DesktopSidebar() {
       <Link
         to={item.to}
         className={cn(
-          "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group",
+          "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all duration-200 group relative",
           active 
             ? "bg-primary text-primary-foreground shadow-md" 
             : "hover:bg-secondary text-muted-foreground hover:text-foreground"
         )}
       >
-        <item.icon className={cn(
-          "w-5 h-5 shrink-0 transition-transform",
-          active && "scale-110"
-        )} />
+        <div className="relative">
+          <item.icon className={cn(
+            "w-5 h-5 shrink-0 transition-transform",
+            active && "scale-110"
+          )} />
+          {/* Badge on collapsed icon */}
+          {item.badge && item.badge > 0 && isCollapsed && (
+            <span className="absolute -top-2 -right-2 min-w-[16px] h-[16px] flex items-center justify-center bg-destructive text-destructive-foreground text-[9px] font-bold rounded-full px-0.5">
+              {item.badge > 99 ? '99+' : item.badge}
+            </span>
+          )}
+        </div>
         {!isCollapsed && (
           <span className={cn(
             "font-medium truncate",
@@ -66,7 +76,7 @@ export function DesktopSidebar() {
           </span>
         )}
         {item.badge && item.badge > 0 && !isCollapsed && (
-          <span className="ml-auto bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full">
+          <span className="ml-auto bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full animate-pulse">
             {item.badge}
           </span>
         )}
