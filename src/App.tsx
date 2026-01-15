@@ -1,5 +1,6 @@
 import * as React from "react";
 import { Toaster } from "@/components/ui/toaster";
+import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
@@ -20,7 +21,6 @@ import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import DiagnosticPage from "./pages/DiagnosticPage";
 import NotFound from "./pages/NotFound";
-import { Toaster as Sonner } from "sonner";
 import { rescheduleRemindersOnStart } from "@/lib/interventionReminders";
 
 const queryClient = new QueryClient();
@@ -68,7 +68,7 @@ const App = () => (
       <LanguageProvider>
         <TooltipProvider>
           <Toaster />
-          <Sonner position="top-center" richColors />
+          <SonnerToaster position="top-center" />
           <BrowserRouter>
             <AuthProvider>
               <AppRoutes />
