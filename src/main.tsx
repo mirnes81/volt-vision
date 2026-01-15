@@ -2,6 +2,10 @@ import * as React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
+import { preloadOfflineCache } from "./hooks/useInterventionsCache";
+
+// Preload offline cache immediately
+preloadOfflineCache();
 
 // Register service worker for PWA
 if ('serviceWorker' in navigator) {
