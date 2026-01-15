@@ -225,6 +225,7 @@ export type Database = {
           taken_by_name: string | null
           taken_by_supabase_uid: string | null
           taken_by_user_id: number | null
+          tenant_id: string | null
         }
         Insert: {
           client_name: string
@@ -248,6 +249,7 @@ export type Database = {
           taken_by_name?: string | null
           taken_by_supabase_uid?: string | null
           taken_by_user_id?: number | null
+          tenant_id?: string | null
         }
         Update: {
           client_name?: string
@@ -271,8 +273,17 @@ export type Database = {
           taken_by_name?: string | null
           taken_by_supabase_uid?: string | null
           taken_by_user_id?: number | null
+          tenant_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "released_interventions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       saas_profiles: {
         Row: {
