@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { InterventionCard } from '@/components/intervention/InterventionCard';
 import { useAuth } from '@/contexts/AuthContext';
-import { getRecentInterventions, getAllInterventions } from '@/lib/api';
+import { useInterventionsCache } from '@/hooks/useInterventionsCache';
 import { Intervention } from '@/types/intervention';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -12,14 +12,15 @@ import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { worker } = useAuth();
-  const [interventions, setInterventions] = useState<Intervention[]>([]);
-  const [allInterventions, setAllInterventions] = useState<Intervention[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  // Use shared cache - this reuses data already loaded elsewhere
+  const { interventions: allInterventions, isLoading } = useInterventionsCache(false);
+  
+  // Get recent 10 for display
+  const interventions = useMemo(() => allInterventions.slice(0, 10), [allInterventions]);
 
   useEffect(() => {
-    loadInterventions();
-
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     
@@ -31,21 +32,6 @@ export default function DashboardPage() {
       window.removeEventListener('offline', handleOffline);
     };
   }, []);
-
-  const loadInterventions = async () => {
-    try {
-      const [recent, all] = await Promise.all([
-        getRecentInterventions(10),
-        getAllInterventions()
-      ]);
-      setInterventions(recent);
-      setAllInterventions(all);
-    } catch (error) {
-      console.error('Error loading interventions:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
 
   // Today's interventions
   const todayInterventions = useMemo(() => {
