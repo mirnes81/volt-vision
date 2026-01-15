@@ -1,9 +1,11 @@
 import { useState, useRef, useEffect } from 'react';
-import { Eraser, Check, PenTool, FileText, Loader2 } from 'lucide-react';
+import { Eraser, Check, PenTool, FileText, Loader2, WifiOff, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { saveSignature, generatePdf } from '@/lib/api';
 import { toast } from 'sonner';
+import { Badge } from '@/components/ui/badge';
+import { cn } from '@/lib/utils';
 
 interface SignatureSectionProps {
   intervention: Intervention;
@@ -16,6 +18,7 @@ export function SignatureSection({ intervention, onUpdate }: SignatureSectionPro
   const [hasSignature, setHasSignature] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pdfStatus, setPdfStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
+  const [offlineSignature, setOfflineSignature] = useState<string | null>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -110,23 +113,35 @@ export function SignatureSection({ intervention, onUpdate }: SignatureSectionPro
     try {
       // 1. Save signature
       const dataUrl = canvas.toDataURL('image/png');
-      await saveSignature(intervention.id, dataUrl);
-      toast.success('Signature enregistrée');
+      const result = await saveSignature(intervention.id, dataUrl);
       
-      // 2. Automatically generate PDF report
-      setPdfStatus('generating');
-      toast.info('Génération du rapport PDF...', { duration: 2000 });
-      
-      try {
-        const pdfResult = await generatePdf(intervention.id);
-        setPdfStatus('success');
-        toast.success('Rapport PDF généré !', {
-          description: pdfResult.fileName,
+      if (result.offline) {
+        // Store locally for display
+        setOfflineSignature(dataUrl);
+        toast.success('Signature sauvegardée hors-ligne', {
+          description: 'Elle sera synchronisée au retour de la connexion',
+          icon: <WifiOff className="w-4 h-4" />,
         });
-      } catch (pdfError) {
-        console.error('PDF generation failed:', pdfError);
-        setPdfStatus('error');
-        toast.warning('Signature enregistrée, mais erreur lors de la génération du PDF');
+        toast.info('Le PDF sera généré lors de la synchronisation');
+        setPdfStatus('idle');
+      } else {
+        toast.success('Signature enregistrée');
+        
+        // 2. Automatically generate PDF report (only when online)
+        setPdfStatus('generating');
+        toast.info('Génération du rapport PDF...', { duration: 2000 });
+        
+        try {
+          const pdfResult = await generatePdf(intervention.id);
+          setPdfStatus('success');
+          toast.success('Rapport PDF généré !', {
+            description: pdfResult.fileName,
+          });
+        } catch (pdfError) {
+          console.error('PDF generation failed:', pdfError);
+          setPdfStatus('error');
+          toast.warning('Signature enregistrée, mais erreur lors de la génération du PDF');
+        }
       }
       
       onUpdate();
@@ -136,21 +151,54 @@ export function SignatureSection({ intervention, onUpdate }: SignatureSectionPro
       setIsLoading(false);
     }
   };
+  
+  // Display either server signature, offline signature, or nothing
+  const displayedSignature = intervention.signaturePath || offlineSignature;
 
   return (
     <div className="space-y-4">
-      {/* Existing Signature */}
-      {intervention.signaturePath && (
-        <div className="bg-card rounded-2xl p-4 shadow-card border border-success/30">
-          <p className="text-sm font-medium text-success mb-2 flex items-center gap-2">
-            <Check className="w-4 h-4" />
-            Signature client enregistrée
+      {/* Existing Signature (server or offline) */}
+      {displayedSignature && (
+        <div className={cn(
+          "bg-card rounded-2xl p-4 shadow-card border",
+          offlineSignature && !intervention.signaturePath 
+            ? "border-warning/30" 
+            : "border-success/30"
+        )}>
+          <p className={cn(
+            "text-sm font-medium mb-2 flex items-center gap-2",
+            offlineSignature && !intervention.signaturePath 
+              ? "text-warning" 
+              : "text-success"
+          )}>
+            {offlineSignature && !intervention.signaturePath ? (
+              <>
+                <CloudOff className="w-4 h-4" />
+                Signature en attente de synchronisation
+              </>
+            ) : (
+              <>
+                <Check className="w-4 h-4" />
+                Signature client enregistrée
+              </>
+            )}
           </p>
-          <img 
-            src={intervention.signaturePath} 
-            alt="Signature client"
-            className="w-full h-32 object-contain rounded-lg bg-white"
-          />
+          <div className="relative">
+            <img 
+              src={displayedSignature} 
+              alt="Signature client"
+              className="w-full h-32 object-contain rounded-lg bg-white"
+            />
+            {offlineSignature && !intervention.signaturePath && (
+              <Badge 
+                variant="secondary" 
+                className="absolute top-2 right-2 bg-warning/90 text-warning-foreground gap-1"
+              >
+                <WifiOff className="w-3 h-3" />
+                Hors-ligne
+              </Badge>
+            )}
+          </div>
         </div>
       )}
 
