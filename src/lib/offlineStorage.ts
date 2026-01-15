@@ -4,7 +4,7 @@ import { Intervention, WorkerHour, Material, Task } from '@/types/intervention';
 // Export the pending sync item type
 export interface PendingSyncItem {
   id: number;
-  type: 'hour' | 'material' | 'task' | 'photo' | 'signature';
+  type: 'hour' | 'material' | 'task' | 'photo' | 'signature' | 'note';
   interventionId: number;
   data: unknown;
   createdAt: string;
@@ -100,7 +100,7 @@ export async function getInterventionOffline(id: number): Promise<Intervention |
 
 // Pending sync
 export async function addPendingSync(
-  type: 'hour' | 'material' | 'task' | 'photo' | 'signature',
+  type: 'hour' | 'material' | 'task' | 'photo' | 'signature' | 'note',
   interventionId: number,
   data: unknown
 ): Promise<void> {

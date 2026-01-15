@@ -57,6 +57,10 @@ interface SignatureSyncData {
   signerName: string;
 }
 
+interface NoteSyncData {
+  note_private: string;
+}
+
 /**
  * Sync a single pending item to the server
  */
@@ -76,6 +80,9 @@ export async function syncPendingItem(item: PendingSyncItem): Promise<void> {
       break;
     case 'signature':
       await syncSignature(item.interventionId, item.data as SignatureSyncData);
+      break;
+    case 'note':
+      await syncNote(item.interventionId, item.data as NoteSyncData);
       break;
     default:
       console.warn(`[Sync] Unknown sync type: ${item.type}`);
@@ -137,5 +144,14 @@ async function syncSignature(interventionId: number, data: SignatureSyncData): P
     interventionId,
     signatureBase64: data.signatureBase64,
     signerName: data.signerName,
+  });
+}
+
+async function syncNote(interventionId: number, data: NoteSyncData): Promise<void> {
+  await callDolibarrApi('update-intervention', {
+    id: interventionId,
+    data: {
+      note_private: data.note_private,
+    },
   });
 }
