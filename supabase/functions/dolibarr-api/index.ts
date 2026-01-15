@@ -175,6 +175,18 @@ serve(async (req) => {
         }
       }
       
+      // Get all users with emails
+      case 'get-users': {
+        console.log('[GET-USERS] Fetching all Dolibarr users');
+        const usersMap = await getCachedUsers();
+        const usersArray = Array.from(usersMap.values());
+        console.log(`[GET-USERS] Found ${usersArray.length} users`);
+        return new Response(
+          JSON.stringify(usersArray),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
       // Get current user info
       case 'get-current-user':
         endpoint = '/users/info';
