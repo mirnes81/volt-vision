@@ -1,10 +1,11 @@
 import { useState, useRef } from 'react';
-import { Camera, ImagePlus, X } from 'lucide-react';
+import { Camera, ImagePlus, X, WifiOff, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { uploadPhoto } from '@/lib/api';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 interface PhotosSectionProps {
   intervention: Intervention;
@@ -24,6 +25,7 @@ export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
   const [selectedType, setSelectedType] = useState<PhotoType>('pendant');
   const [isLoading, setIsLoading] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [offlinePhotos, setOfflinePhotos] = useState<Array<{ id: number; type: PhotoType; filePath: string }>>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -36,8 +38,22 @@ export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
 
     setIsLoading(true);
     try {
-      await uploadPhoto(intervention.id, file, selectedType);
-      toast.success('Photo ajoutée');
+      const result = await uploadPhoto(intervention.id, file, selectedType);
+      
+      if (result.offline) {
+        // Store locally for display
+        setOfflinePhotos(prev => [...prev, {
+          id: result.id,
+          type: selectedType,
+          filePath: result.filePath,
+        }]);
+        toast.success('Photo sauvegardée hors-ligne', {
+          description: 'Elle sera synchronisée au retour de la connexion',
+          icon: <WifiOff className="w-4 h-4" />,
+        });
+      } else {
+        toast.success('Photo ajoutée');
+      }
       onUpdate();
     } catch (error) {
       toast.error('Erreur lors de l\'upload');
@@ -49,10 +65,16 @@ export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
       }
     }
   };
+  
+  // Combine server photos with offline photos
+  const allPhotos = [
+    ...intervention.photos,
+    ...offlinePhotos.map(p => ({ ...p, datePhoto: new Date().toISOString(), isOffline: true })),
+  ];
 
   const groupedPhotos = photoTypes.map(type => ({
     ...type,
-    photos: intervention.photos.filter(p => p.type === type.value),
+    photos: allPhotos.filter(p => p.type === type.value),
   }));
 
   return (
@@ -124,13 +146,22 @@ export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
                 {group.photos.map((photo) => (
                   <div 
                     key={photo.id} 
-                    className="aspect-square rounded-xl overflow-hidden bg-secondary"
+                    className="aspect-square rounded-xl overflow-hidden bg-secondary relative"
                   >
                     <img 
                       src={photo.filePath} 
                       alt={`Photo ${group.label}`}
                       className="w-full h-full object-cover"
                     />
+                    {'isOffline' in photo && photo.isOffline && (
+                      <Badge 
+                        variant="secondary" 
+                        className="absolute bottom-1 right-1 bg-warning/90 text-warning-foreground text-[10px] px-1 py-0 gap-0.5"
+                      >
+                        <CloudOff className="w-2.5 h-2.5" />
+                        <span className="sr-only">Hors-ligne</span>
+                      </Badge>
+                    )}
                   </div>
                 ))}
               </div>

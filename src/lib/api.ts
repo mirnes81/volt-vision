@@ -397,7 +397,38 @@ export async function uploadPhoto(
   interventionId: number, 
   file: File, 
   type: 'avant' | 'pendant' | 'apres' | 'oibt' | 'defaut'
-): Promise<{ id: number; filePath: string }> {
+): Promise<{ id: number; filePath: string; offline?: boolean }> {
+  const filename = `${type}_${Date.now()}_${file.name}`;
+  
+  // Convert file to base64 for offline storage
+  const fileToBase64 = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const result = reader.result as string;
+        resolve(result.split(',')[1]); // Remove data URL prefix
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  };
+  
+  // Check if we should queue offline
+  if (shouldQueueOffline()) {
+    const base64 = await fileToBase64();
+    const localFilePath = URL.createObjectURL(file);
+    
+    await addPendingSync('photo', interventionId, {
+      base64,
+      type,
+      filename,
+      mimeType: file.type,
+    });
+    
+    console.log('[API] Photo queued for offline sync:', filename);
+    return { id: Date.now(), filePath: localFilePath, offline: true };
+  }
+  
   if (useRealApi()) {
     return dolibarrApi.dolibarrUploadPhoto(interventionId, file, type);
   }
@@ -422,10 +453,25 @@ export async function uploadPhoto(
 }
 
 // Signature
-export async function saveSignature(interventionId: number, signatureDataUrl: string, signerName?: string): Promise<void> {
+export async function saveSignature(interventionId: number, signatureDataUrl: string, signerName?: string): Promise<{ offline?: boolean }> {
+  // Check if we should queue offline
+  if (shouldQueueOffline()) {
+    // Extract base64 from data URL
+    const base64 = signatureDataUrl.split(',')[1];
+    
+    await addPendingSync('signature', interventionId, {
+      signatureBase64: base64,
+      signerName: signerName || 'Client',
+      dataUrl: signatureDataUrl, // Keep original for local display
+    });
+    
+    console.log('[API] Signature queued for offline sync');
+    return { offline: true };
+  }
+  
   if (useRealApi()) {
     await dolibarrApi.dolibarrSaveSignature(interventionId, signatureDataUrl, signerName || 'Client');
-    return;
+    return {};
   }
   
   await delay(300);
@@ -435,6 +481,7 @@ export async function saveSignature(interventionId: number, signatureDataUrl: st
   
   intervention.signaturePath = signatureDataUrl;
   intervention.status = 'termine';
+  return {};
 }
 
 // PDF
