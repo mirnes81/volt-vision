@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { Intervention, Worker } from '@/types/intervention';
+import { Intervention } from '@/types/intervention';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -81,48 +81,9 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
   };
 
   const handleSave = async () => {
-    setIsLoading(true);
-    try {
-      const updateData: Record<string, any> = {};
-      
-      // Update assigned user if changed
-      if (selectedUserId && selectedUserId !== intervention.assignedTo?.id?.toString()) {
-        updateData.fk_user_author = parseInt(selectedUserId);
-      }
-      
-      // Update date if changed
-      if (selectedDate) {
-        const dateObj = new Date(selectedDate);
-        updateData.dateo = Math.floor(dateObj.getTime() / 1000); // Unix timestamp
-      }
-      
-      if (Object.keys(updateData).length === 0) {
-        toast.info('Aucune modification à enregistrer');
-        setIsOpen(false);
-        return;
-      }
-      
-      const { error } = await supabase.functions.invoke('dolibarr-api', {
-        body: { 
-          action: 'update-intervention',
-          params: {
-            id: intervention.id,
-            data: updateData,
-          },
-        },
-      });
-      
-      if (error) throw error;
-      
-      toast.success('Intervention mise à jour');
-      setIsOpen(false);
-      onUpdate();
-    } catch (error) {
-      console.error('Error updating intervention:', error);
-      toast.error('Erreur lors de la mise à jour');
-    } finally {
-      setIsLoading(false);
-    }
+    // NOTE: L'API REST Dolibarr v18 ne supporte pas la méthode PUT pour les interventions.
+    // La mise à jour doit être faite directement dans Dolibarr.
+    toast.error("L'API Dolibarr ne permet pas de modifier les interventions. Veuillez modifier directement dans Dolibarr.");
   };
 
   if (!isAdmin) return null;

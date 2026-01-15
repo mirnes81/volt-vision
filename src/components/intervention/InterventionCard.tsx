@@ -1,24 +1,14 @@
-import { useState, useEffect } from 'react';
-import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Hash, Calendar, Building2, Key, Lock, Home, Gauge, ChevronDown, UserPlus, Loader2 } from 'lucide-react';
+import { useState } from 'react';
+import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Hash, Calendar, Building2, Key, Lock, Home, Gauge, ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention, InterventionStatus } from '@/types/intervention';
 import { cn } from '@/lib/utils';
 import { updateInterventionStatus } from '@/lib/dolibarrApi';
 import { toast } from '@/components/ui/sonner';
-import { supabase } from '@/integrations/supabase/client';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface InterventionCardProps {
   intervention: Intervention;
   onStatusChange?: (interventionId: number, newStatus: InterventionStatus) => void;
-  onAssignmentChange?: (interventionId: number) => void;
-}
-
-interface DolibarrUser {
-  id: number;
-  name: string;
-  firstName: string;
-  login: string;
 }
 
 const typeLabels: Record<string, string> = {
@@ -101,17 +91,10 @@ function isUserAdmin(): boolean {
   }
 }
 
-export function InterventionCard({ intervention, onStatusChange, onAssignmentChange }: InterventionCardProps) {
+export function InterventionCard({ intervention, onStatusChange }: InterventionCardProps) {
   const [currentStatus, setCurrentStatus] = useState<InterventionStatus>(intervention.status);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
-  
-  // Assignment state for admins
-  const [showAssignDropdown, setShowAssignDropdown] = useState(false);
-  const [users, setUsers] = useState<DolibarrUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
-  const [isAssigning, setIsAssigning] = useState(false);
-  const [currentAssignee, setCurrentAssignee] = useState(intervention.assignedTo);
   
   const isAdmin = isUserAdmin();
   const status = statusConfig[currentStatus] || statusConfig.a_planifier;
@@ -124,8 +107,8 @@ export function InterventionCard({ intervention, onStatusChange, onAssignmentCha
   const interventionDate = formatDateWithDay(intervention.dateStart || intervention.datePlanned);
 
   const briefing = intervention.briefing || intervention.description;
-  const assigneeName = currentAssignee 
-    ? `${currentAssignee.firstName} ${currentAssignee.name}`.trim()
+  const assigneeName = intervention.assignedTo 
+    ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
     : null;
 
   // Intervention extrafields
@@ -172,99 +155,6 @@ export function InterventionCard({ intervention, onStatusChange, onAssignmentCha
     setShowDropdown(false);
   };
 
-  // Load users for assignment dropdown
-  const loadUsers = async () => {
-    if (users.length > 0) return; // Already loaded
-    setLoadingUsers(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('dolibarr-api', {
-        body: { action: 'get-users' },
-      });
-      
-      if (error) throw error;
-      
-      if (Array.isArray(data)) {
-        console.log('[InterventionCard] Raw users from API:', data);
-        setUsers(data.map((u: any) => {
-          // Handle various field name formats from Dolibarr API
-          const lastName = u.lastname || u.name || u.nom || '';
-          const firstName = u.firstname || u.prenom || '';
-          const login = u.login || '';
-          
-          console.log(`[InterventionCard] User: ${login}, lastName: ${lastName}, firstName: ${firstName}`);
-          
-          return {
-            id: parseInt(u.id),
-            name: lastName,
-            firstName: firstName,
-            login: login,
-          };
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading users:', error);
-      toast.error('Erreur lors du chargement des utilisateurs');
-    } finally {
-      setLoadingUsers(false);
-    }
-  };
-
-  const handleAssignDropdownToggle = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (!showAssignDropdown) {
-      loadUsers();
-    }
-    setShowAssignDropdown(!showAssignDropdown);
-  };
-
-  const handleAssignDropdownClose = (e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setShowAssignDropdown(false);
-  };
-
-  const handleAssignUser = async (e: React.MouseEvent, userId: number) => {
-    e.preventDefault();
-    e.stopPropagation();
-    
-    if (isAssigning) return;
-    
-    setIsAssigning(true);
-    setShowAssignDropdown(false);
-    
-    try {
-      const { error } = await supabase.functions.invoke('dolibarr-api', {
-        body: { 
-          action: 'update-intervention',
-          params: {
-            id: intervention.id,
-            data: { fk_user_author: userId },
-          },
-        },
-      });
-      
-      if (error) throw error;
-      
-      // Update local state
-      const assignedUser = users.find(u => u.id === userId);
-      if (assignedUser) {
-        setCurrentAssignee({
-          id: assignedUser.id,
-          name: assignedUser.name,
-          firstName: assignedUser.firstName,
-        });
-      }
-      
-      toast.success('Technicien assigné avec succès');
-      onAssignmentChange?.(intervention.id);
-    } catch (error) {
-      console.error('Error assigning user:', error);
-      toast.error('Erreur lors de l\'assignation');
-    } finally {
-      setIsAssigning(false);
-    }
-  };
 
   return (
     <Link to={`/intervention/${intervention.id}`}>
@@ -439,82 +329,10 @@ export function InterventionCard({ intervention, onStatusChange, onAssignmentCha
           </div>
         )}
 
-        {/* Assigned to - Always show, with assignment option for admins */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 relative">
+        {/* Assigned to - Display only (Dolibarr API doesn't support PUT for interventions) */}
+        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
           <User className="w-4 h-4 shrink-0" />
-          {isAdmin ? (
-            <>
-              <button
-                onClick={handleAssignDropdownToggle}
-                disabled={isAssigning}
-                className={cn(
-                  "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all",
-                  assigneeName 
-                    ? "bg-secondary text-foreground" 
-                    : "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200",
-                  isAssigning && "opacity-50 cursor-not-allowed",
-                  !isAssigning && "hover:ring-2 hover:ring-primary/30 cursor-pointer"
-                )}
-              >
-                {isAssigning ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <UserPlus className="w-3.5 h-3.5" />
-                )}
-                {isAssigning 
-                  ? 'Assignation...' 
-                  : assigneeName 
-                    ? `${assigneeName} (modifier)` 
-                    : 'Non assigné - Cliquer pour assigner'}
-                <ChevronDown className={cn("w-3 h-3 transition-transform", showAssignDropdown && "rotate-180")} />
-              </button>
-              
-              {/* Assignment dropdown menu */}
-              {showAssignDropdown && (
-                <>
-                  {/* Backdrop to close dropdown */}
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={handleAssignDropdownClose}
-                  />
-                  <div className="absolute left-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[200px] max-h-60 overflow-y-auto">
-                    {loadingUsers ? (
-                      <div className="flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground">
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                        Chargement...
-                      </div>
-                    ) : users.length === 0 ? (
-                      <div className="px-3 py-2 text-xs text-muted-foreground">
-                        Aucun utilisateur trouvé
-                      </div>
-                    ) : (
-                      users.map((user) => (
-                        <button
-                          key={user.id}
-                          onClick={(e) => handleAssignUser(e, user.id)}
-                          className={cn(
-                            "w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-secondary/80 transition-colors text-left",
-                            currentAssignee?.id === user.id && "bg-primary/10 text-primary"
-                          )}
-                        >
-                          <User className="w-3.5 h-3.5" />
-                          <span className="flex-1">
-                            {user.firstName || user.name 
-                              ? `${user.firstName} ${user.name}`.trim() 
-                              : user.login}
-                            {(user.firstName || user.name) && user.login && (
-                              <span className="text-muted-foreground ml-1">({user.login})</span>
-                            )}
-                          </span>
-                          {currentAssignee?.id === user.id && <span className="ml-auto text-primary">✓</span>}
-                        </button>
-                      ))
-                    )}
-                  </div>
-                </>
-              )}
-            </>
-          ) : assigneeName ? (
+          {assigneeName ? (
             <span className="truncate">Assigné à : <span className="font-medium text-foreground">{assigneeName}</span></span>
           ) : (
             <span className="truncate text-amber-600 dark:text-amber-400 font-medium">Non assigné</span>
