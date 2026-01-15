@@ -185,7 +185,6 @@ const translations: Translations = {
   'login.username': { fr: 'Identifiant', de: 'Benutzername', it: 'Nome utente' },
   'login.password': { fr: 'Mot de passe', de: 'Passwort', it: 'Password' },
   'login.submit': { fr: 'Se connecter', de: 'Anmelden', it: 'Accedi' },
-  'login.demo': { fr: 'Demo: identifiant', de: 'Demo: Benutzername', it: 'Demo: nome utente' },
 };
 
 interface LanguageContextType {

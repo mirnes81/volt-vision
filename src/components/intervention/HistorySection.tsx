@@ -3,7 +3,7 @@ import { History, MapPin, Calendar, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention } from '@/types/intervention';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { mockInterventions } from '@/lib/mockData';
+import { getAllInterventions } from '@/lib/api';
 import { Skeleton } from '@/components/ui/skeleton';
 
 interface HistorySectionProps {
@@ -17,21 +17,24 @@ export function HistorySection({ intervention }: HistorySectionProps) {
 
   useEffect(() => {
     loadHistory();
-  }, [intervention.location]);
+  }, [intervention.location, intervention.clientId]);
 
   const loadHistory = async () => {
     setIsLoading(true);
-    // Simulate API call - in real app, query by location/client
-    await new Promise(resolve => setTimeout(resolve, 500));
-    
-    // Find interventions at same location (excluding current)
-    const history = mockInterventions.filter(
-      i => i.id !== intervention.id && 
-      (i.location === intervention.location || i.clientId === intervention.clientId)
-    );
-    
-    setPreviousInterventions(history);
-    setIsLoading(false);
+    try {
+      const allInterventions = await getAllInterventions();
+      // Find interventions at same location or for same client (excluding current)
+      const history = allInterventions.filter(
+        i => i.id !== intervention.id && 
+        (i.location === intervention.location || i.clientId === intervention.clientId)
+      );
+      setPreviousInterventions(history);
+    } catch (error) {
+      console.error('Erreur chargement historique:', error);
+      setPreviousInterventions([]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const typeLabels: Record<string, string> = {
