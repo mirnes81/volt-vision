@@ -36,10 +36,17 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
       : ''
   );
 
-  // Check if current user is admin
-  const workerData = localStorage.getItem('worker');
+  // Check if current user is admin - check both localStorage keys
+  const workerData = localStorage.getItem('mv3_worker') || localStorage.getItem('worker');
   const worker = workerData ? JSON.parse(workerData) : null;
   const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
+  
+  console.log('[AdminEditSection] Admin check:', { 
+    hasWorkerData: !!workerData, 
+    admin: worker?.admin, 
+    isAdmin: worker?.isAdmin, 
+    result: isAdmin 
+  });
 
   // Load users when dialog opens
   useEffect(() => {
