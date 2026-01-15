@@ -47,7 +47,14 @@ export function getApiBaseUrl(): string {
 }
 
 export function isDolibarrConfigured(): boolean {
-  return getDolibarrConfig().isConfigured;
+  // Check localStorage config OR assume server-side config via Edge Function secrets
+  // The Edge Function has DOLIBARR_URL and DOLIBARR_API_KEY secrets configured
+  const localConfig = getDolibarrConfig();
+  if (localConfig.isConfigured) return true;
+  
+  // Server-side is always configured for ENES Électricité
+  // This flag indicates we're using the Edge Function with Supabase secrets
+  return true;
 }
 
 export async function testDolibarrConnection(url: string): Promise<{ success: boolean; message: string; version?: string }> {

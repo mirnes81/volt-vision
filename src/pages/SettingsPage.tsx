@@ -227,40 +227,28 @@ export default function SettingsPage() {
                 <Server className="h-5 w-5" />
                 État de la connexion
               </CardTitle>
-              {config.isConfigured ? (
-                <Badge variant="default" className="bg-green-500">
-                  <Wifi className="h-3 w-3 mr-1" />
-                  Connecté
-                </Badge>
-              ) : (
-              <Badge variant="secondary">
-                  <WifiOff className="h-3 w-3 mr-1" />
-                  Non configuré
-                </Badge>
-              )}
+              <Badge variant="default" className="bg-green-500">
+                <Wifi className="h-3 w-3 mr-1" />
+                Connecté (serveur)
+              </Badge>
             </div>
           </CardHeader>
           <CardContent>
-            {config.isConfigured ? (
-              <div className="text-sm text-muted-foreground">
-                <p>Connecté à: <span className="font-mono text-foreground">{config.baseUrl}</span></p>
-                {config.lastTest && (
-                  <p className="mt-1">
-                    Dernier test: {new Date(config.lastTest).toLocaleString('fr-CH')}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
-                <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5" />
-                <div className="text-sm">
-                  <p className="font-medium">Configuration requise</p>
-                  <p className="text-muted-foreground">
-                    Configurez la connexion à votre Dolibarr pour accéder aux interventions.
-                  </p>
+            <div className="text-sm text-muted-foreground">
+              <div className="flex items-start gap-2 p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+                <CheckCircle className="h-5 w-5 text-green-500 mt-0.5" />
+                <div>
+                  <p className="font-medium text-foreground">Configuration serveur active</p>
+                  <p>Les clés API Dolibarr sont configurées côté serveur (Edge Function).</p>
+                  <p className="mt-1 font-mono text-xs">https://crm.enes-electricite.ch</p>
                 </div>
               </div>
-            )}
+              {config.baseUrl && (
+                <p className="mt-2">
+                  Configuration locale: <span className="font-mono text-foreground">{config.baseUrl}</span>
+                </p>
+              )}
+            </div>
           </CardContent>
         </Card>
 
