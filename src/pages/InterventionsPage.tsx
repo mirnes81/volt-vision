@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, ClipboardList, RefreshCw } from 'lucide-react';
+import { Search, ClipboardList, RefreshCw, WifiOff, Database, Cloud, Zap } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { InterventionCard } from '@/components/intervention/InterventionCard';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,44 @@ const filters = [
 
 const PAGE_SIZE = 25;
 
+// Cache source indicator
+const CacheIndicator = ({ source, isOffline }: { source: string | null; isOffline: boolean }) => {
+  if (isOffline) {
+    return (
+      <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-warning/10 text-warning text-xs font-medium">
+        <WifiOff className="w-3 h-3" />
+        <span>Hors ligne</span>
+      </div>
+    );
+  }
+  
+  const icons = {
+    memory: <Zap className="w-3 h-3" />,
+    session: <Zap className="w-3 h-3" />,
+    indexeddb: <Database className="w-3 h-3" />,
+    network: <Cloud className="w-3 h-3" />,
+  };
+  
+  const labels = {
+    memory: 'Cache',
+    session: 'Cache',
+    indexeddb: 'Local',
+    network: 'Réseau',
+  };
+  
+  if (!source) return null;
+  
+  return (
+    <div className={cn(
+      "flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium",
+      source === 'network' ? "bg-success/10 text-success" : "bg-primary/10 text-primary"
+    )}>
+      {icons[source as keyof typeof icons]}
+      <span>{labels[source as keyof typeof labels]}</span>
+    </div>
+  );
+};
+
 export default function InterventionsPage() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
@@ -30,10 +68,14 @@ export default function InterventionsPage() {
   const worker = workerData ? JSON.parse(workerData) : null;
   const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
 
-  // Use cached interventions
-  const { interventions, isLoading, isRefreshing, refresh } = useInterventionsCache(showOnlyMine);
+  // Use cached interventions with offline support
+  const { interventions, isLoading, isRefreshing, isOffline, cacheSource, refresh } = useInterventionsCache(showOnlyMine);
 
   const handleRefresh = async () => {
+    if (isOffline) {
+      toast.error('Impossible de rafraîchir hors ligne');
+      return;
+    }
     await refresh();
     toast.success('Liste actualisée');
   };
@@ -168,11 +210,14 @@ export default function InterventionsPage() {
           ))}
         </div>
 
-        {/* Info bar with pagination */}
+        {/* Info bar with pagination and cache indicator */}
         <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>
-            Page {currentPage}/{totalPages || 1} ({filteredInterventions.length} interventions)
-          </span>
+          <div className="flex items-center gap-2">
+            <span>
+              Page {currentPage}/{totalPages || 1} ({filteredInterventions.length})
+            </span>
+            <CacheIndicator source={cacheSource} isOffline={isOffline} />
+          </div>
           <div className="flex items-center gap-2">
             <Button
               variant="outline"
