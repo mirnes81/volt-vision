@@ -1,15 +1,30 @@
 import * as React from "react";
-import { Toaster as Sonner, toast } from "sonner";
-import { useTheme } from "@/contexts/ThemeContext";
+import { Toaster as Sonner } from "sonner";
 
 type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const { actualTheme } = useTheme();
+  // Get theme from document class instead of context to avoid conflicts
+  const [theme, setTheme] = React.useState<'light' | 'dark'>('light');
+
+  React.useEffect(() => {
+    const root = document.documentElement;
+    const updateTheme = () => {
+      setTheme(root.classList.contains('dark') ? 'dark' : 'light');
+    };
+    
+    updateTheme();
+    
+    // Watch for class changes
+    const observer = new MutationObserver(updateTheme);
+    observer.observe(root, { attributes: true, attributeFilter: ['class'] });
+    
+    return () => observer.disconnect();
+  }, []);
 
   return (
     <Sonner
-      theme={actualTheme as ToasterProps["theme"]}
+      theme={theme}
       className="toaster group"
       toastOptions={{
         classNames: {
@@ -25,4 +40,6 @@ const Toaster = ({ ...props }: ToasterProps) => {
   );
 };
 
-export { Toaster, toast };
+// Re-export toast from sonner
+export { Toaster };
+export { toast } from "sonner";
