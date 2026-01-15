@@ -66,14 +66,23 @@ serve(async (req) => {
         const response = await fetchWithTimeout(`${baseUrl}/users?limit=100`, { method: 'GET', headers }, 8000);
         if (response.ok) {
           const usersData = await response.json();
+          console.log('[getCachedUsers] First user raw data:', JSON.stringify(usersData[0] || {}).substring(0, 500));
           if (Array.isArray(usersData)) {
             usersData.forEach((u: any) => {
+              // Check admin status - admin=1 or superadmin=1 or login='admin'
+              const isAdmin = u.admin === '1' || u.admin === 1 || 
+                              u.superadmin === '1' || u.superadmin === 1 ||
+                              (u.login || '').toLowerCase() === 'admin';
+              
               usersMap.set(String(u.id), {
                 id: parseInt(u.id),
                 name: u.lastname || u.login || '',
                 firstName: u.firstname || '',
                 login: u.login || '',
                 email: u.email || '',
+                admin: isAdmin ? '1' : '0',
+                superadmin: u.superadmin || '0',
+                statut: u.statut || '1',
               });
             });
           }
