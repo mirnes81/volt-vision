@@ -3,7 +3,7 @@ import { QrCode, X, CheckCircle, Flashlight, FlashlightOff, History, Camera, Bar
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { mockProducts } from '@/lib/mockData';
+import { getProducts } from '@/lib/api';
 import { Product } from '@/types/intervention';
 import { toast } from 'sonner';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
@@ -19,6 +19,9 @@ interface QRScannerSectionProps {
   onProductScanned: (product: Product, qty: number) => void;
 }
 
+// Cache for products
+let productsCache: Product[] | null = null;
+
 export function QRScannerSection({ onProductScanned }: QRScannerSectionProps) {
   const { t } = useLanguage();
   const [isScanning, setIsScanning] = useState(false);
@@ -29,10 +32,27 @@ export function QRScannerSection({ onProductScanned }: QRScannerSectionProps) {
   const [showHistory, setShowHistory] = useState(false);
   const [scanMode, setScanMode] = useState<'qr' | 'barcode'>('qr');
   const [lastScannedCode, setLastScannedCode] = useState<string>('');
+  const [products, setProducts] = useState<Product[]>([]);
   const scannerRef = useRef<Html5Qrcode | null>(null);
   const videoTrackRef = useRef<MediaStreamTrack | null>(null);
 
   useEffect(() => {
+    // Load products from API
+    const loadProducts = async () => {
+      try {
+        if (productsCache) {
+          setProducts(productsCache);
+        } else {
+          const data = await getProducts();
+          productsCache = data;
+          setProducts(data);
+        }
+      } catch (error) {
+        console.error('Erreur chargement produits:', error);
+      }
+    };
+    loadProducts();
+    
     // Load scan history from localStorage
     const saved = localStorage.getItem('qr_scan_history');
     if (saved) {
@@ -63,13 +83,13 @@ export function QRScannerSection({ onProductScanned }: QRScannerSectionProps) {
 
   const findProduct = useCallback((code: string): Product | null => {
     // Try exact match first
-    let product = mockProducts.find(
+    let product = products.find(
       p => p.ref.toLowerCase() === code.toLowerCase()
     );
     
     // Try partial match (code contains ref or ref contains code)
     if (!product) {
-      product = mockProducts.find(
+      product = products.find(
         p => code.toLowerCase().includes(p.ref.toLowerCase()) ||
              p.ref.toLowerCase().includes(code.toLowerCase())
       );
@@ -79,7 +99,7 @@ export function QRScannerSection({ onProductScanned }: QRScannerSectionProps) {
     // This would need a barcode field in Product type
     
     return product || null;
-  }, []);
+  }, [products]);
 
   const handleScanSuccess = useCallback((decodedText: string) => {
     // Prevent duplicate scans

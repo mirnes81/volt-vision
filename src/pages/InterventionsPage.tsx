@@ -64,7 +64,7 @@ export default function InterventionsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   
   // Check if user is admin
-  const workerData = localStorage.getItem('worker');
+  const workerData = localStorage.getItem('mv3_worker');
   const worker = workerData ? JSON.parse(workerData) : null;
   const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
 

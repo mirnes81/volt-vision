@@ -18,7 +18,7 @@ export function generateInterventionPDF(intervention: Intervention): void {
   // Header
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('MV3 PRO Électricien', pageWidth / 2, y, { align: 'center' });
+  doc.text('ENES Électricité', pageWidth / 2, y, { align: 'center' });
   y += 10;
   
   doc.setFontSize(16);
@@ -131,7 +131,7 @@ export function generateOIBTPDF(intervention: Intervention, oibtData: OIBTData):
   // Header
   doc.setFontSize(20);
   doc.setFont('helvetica', 'bold');
-  doc.text('MV3 PRO Électricien', pageWidth / 2, y, { align: 'center' });
+  doc.text('ENES Électricité', pageWidth / 2, y, { align: 'center' });
   y += 10;
   
   doc.setFontSize(16);

@@ -140,7 +140,7 @@ export default function ProfilePage() {
           <div className="flex-1">
             <p className="font-medium">Configuration Dolibarr</p>
             <p className="text-xs text-muted-foreground">
-              {isDolibarrConfigured() ? 'Mode connecté' : 'Mode démo actif'}
+              {isDolibarrConfigured() ? 'Connecté' : 'Non configuré'}
             </p>
           </div>
         </button>
@@ -151,7 +151,7 @@ export default function ProfilePage() {
           {t('profile.logout')}
         </Button>
 
-        <p className="text-center text-xs text-muted-foreground">MV3 Pro Électricien v2.0.0</p>
+        <p className="text-center text-xs text-muted-foreground">ENES Électricité v2.0.0</p>
       </div>
     </div>
   );

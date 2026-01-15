@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { mockInterventions } from '@/lib/mockData';
 import { Intervention } from '@/types/intervention';
+import { getAllInterventions } from '@/lib/api';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { 
@@ -155,7 +155,8 @@ function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {
 
 export default function MapPage() {
   const navigate = useNavigate();
-  const [interventions] = useState<Intervention[]>(mockInterventions);
+  const [interventions, setInterventions] = useState<Intervention[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
   const [showList, setShowList] = useState(false);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
@@ -164,6 +165,23 @@ export default function MapPage() {
   const [routeInfos, setRouteInfos] = useState<Map<number, RouteInfo>>(new Map());
   const [flyToCenter, setFlyToCenter] = useState<[number, number] | null>(null);
   const [flyToZoom, setFlyToZoom] = useState<number | undefined>(undefined);
+  
+  // Load interventions from API
+  useEffect(() => {
+    const loadInterventions = async () => {
+      try {
+        setIsLoading(true);
+        const data = await getAllInterventions();
+        setInterventions(data);
+      } catch (error) {
+        console.error('Erreur chargement interventions:', error);
+        toast.error('Erreur de chargement des interventions');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadInterventions();
+  }, []);
 
   const filteredInterventions = filterStatus
     ? interventions.filter(i => i.status === filterStatus)

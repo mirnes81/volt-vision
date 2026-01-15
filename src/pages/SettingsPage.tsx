@@ -105,7 +105,7 @@ export default function SettingsPage() {
     
     toast({
       title: 'Configuration sauvegardée',
-      description: url ? 'Mode Dolibarr actif' : 'Mode démo actif',
+      description: url ? 'Connexion Dolibarr configurée' : 'Configuration réinitialisée',
     });
   };
 
@@ -118,7 +118,7 @@ export default function SettingsPage() {
     
     toast({
       title: 'Configuration réinitialisée',
-      description: 'Mode démo activé',
+      description: 'Veuillez reconfigurer la connexion Dolibarr',
     });
   };
 
@@ -233,9 +233,9 @@ export default function SettingsPage() {
                   Connecté
                 </Badge>
               ) : (
-                <Badge variant="secondary">
+              <Badge variant="secondary">
                   <WifiOff className="h-3 w-3 mr-1" />
-                  Mode démo
+                  Non configuré
                 </Badge>
               )}
             </div>
@@ -254,9 +254,9 @@ export default function SettingsPage() {
               <div className="flex items-start gap-2 p-3 bg-muted rounded-lg">
                 <AlertTriangle className="h-5 w-5 text-yellow-500 mt-0.5" />
                 <div className="text-sm">
-                  <p className="font-medium">Mode démonstration actif</p>
+                  <p className="font-medium">Configuration requise</p>
                   <p className="text-muted-foreground">
-                    Les données sont simulées. Configurez votre Dolibarr pour synchroniser les vraies données.
+                    Configurez la connexion à votre Dolibarr pour accéder aux interventions.
                   </p>
                 </div>
               </div>
@@ -352,7 +352,7 @@ export default function SettingsPage() {
                 onClick={handleReset}
                 className="w-full text-muted-foreground"
               >
-                Réinitialiser (mode démo)
+                Réinitialiser la configuration
               </Button>
             )}
           </CardContent>
@@ -367,9 +367,8 @@ export default function SettingsPage() {
             <div className="space-y-2">
               <p className="font-medium text-foreground">Sur votre Dolibarr:</p>
               <ol className="list-decimal list-inside space-y-1 ml-2">
-                <li>Installer le module <span className="font-mono text-primary">mv3_electricien</span></li>
-                <li>Activer le module dans Configuration → Modules</li>
                 <li>Activer l'API REST dans Configuration → Modules → API</li>
+                <li>Générer une clé API dans votre profil utilisateur</li>
                 <li>Configurer CORS si nécessaire</li>
               </ol>
             </div>
