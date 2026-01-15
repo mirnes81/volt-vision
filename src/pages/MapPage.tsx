@@ -29,7 +29,7 @@ import {
   SheetHeader,
   SheetTitle,
 } from '@/components/ui/sheet';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 const typeColors: Record<string, string> = {
   installation: '#10B981',
@@ -325,13 +325,22 @@ export default function MapPage() {
     ];
   }, [userLocation, selectedIntervention]);
 
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)]">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
   return (
-    <div className="relative h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)] -mx-4 -mt-4 lg:mx-0 lg:mt-0 lg:rounded-xl overflow-hidden">
+    <div className="relative h-[calc(100vh-8rem)] lg:h-[calc(100vh-4rem)] w-full overflow-hidden">
       {/* Map */}
       <MapContainer
         center={defaultCenter}
         zoom={11}
-        className="h-full w-full z-0"
+        className="h-full w-full"
+        style={{ height: '100%', width: '100%', position: 'absolute', top: 0, left: 0 }}
         zoomControl={false}
       >
         <TileLayer
