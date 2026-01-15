@@ -74,10 +74,37 @@ serve(async (req) => {
                               u.superadmin === '1' || u.superadmin === 1 ||
                               (u.login || '').toLowerCase() === 'admin';
               
+              // Extract name from signature if lastname/firstname are empty
+              let lastName = u.lastname || '';
+              let firstName = u.firstname || '';
+              
+              if (!lastName && !firstName && u.signature) {
+                // Clean signature (remove HTML entities like &nbsp;)
+                const cleanSignature = (u.signature || '')
+                  .replace(/&nbsp;/g, ' ')
+                  .replace(/<[^>]*>/g, '')
+                  .trim();
+                
+                if (cleanSignature) {
+                  const nameParts = cleanSignature.split(' ');
+                  if (nameParts.length >= 2) {
+                    lastName = nameParts[0];
+                    firstName = nameParts.slice(1).join(' ');
+                  } else {
+                    lastName = cleanSignature;
+                  }
+                }
+              }
+              
+              // Fallback to login if still no name
+              if (!lastName && !firstName) {
+                lastName = u.login || '';
+              }
+              
               usersMap.set(String(u.id), {
                 id: parseInt(u.id),
-                name: u.lastname || u.login || '',
-                firstName: u.firstname || '',
+                name: lastName,
+                firstName: firstName,
                 login: u.login || '',
                 email: u.email || '',
                 admin: isAdmin ? '1' : '0',
@@ -415,37 +442,56 @@ serve(async (req) => {
         });
         break;
       case 'update-intervention': {
-        // Dolibarr uses /ficheinter for intervention updates in some versions
         const intId = params.id;
         console.log(`[UPDATE-INTERVENTION] Updating intervention ${intId} with:`, JSON.stringify(params.data));
         
-        // Try /interventions first, then /ficheinter if it fails
+        // First, GET the current intervention to have all required fields
+        const getResponse = await fetchWithTimeout(
+          `${baseUrl}/interventions/${intId}`,
+          { method: 'GET', headers },
+          10000
+        );
+        
+        if (!getResponse.ok) {
+          console.error(`[UPDATE-INTERVENTION] Could not fetch intervention ${intId}: ${getResponse.status}`);
+          return new Response(
+            JSON.stringify({ error: `Intervention non trouvée: ${getResponse.status}` }),
+            { status: getResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const currentIntervention = await getResponse.json();
+        console.log(`[UPDATE-INTERVENTION] Current intervention ref: ${currentIntervention.ref}`);
+        
+        // Merge the update data with current intervention
+        // For user assignment, try different field names
+        const updateData: any = { ...currentIntervention };
+        
+        if (params.data.fk_user_author !== undefined) {
+          // Try multiple field names for user assignment
+          updateData.fk_user_author = params.data.fk_user_author;
+          updateData.user_author_id = params.data.fk_user_author;
+        }
+        
+        // Apply other updates
+        Object.keys(params.data).forEach(key => {
+          updateData[key] = params.data[key];
+        });
+        
+        console.log(`[UPDATE-INTERVENTION] Sending PUT with fk_user_author: ${updateData.fk_user_author}`);
+        
+        // Try PUT request
         let updateResponse = await fetchWithTimeout(
           `${baseUrl}/interventions/${intId}`,
           {
             method: 'PUT',
             headers,
-            body: JSON.stringify(params.data),
+            body: JSON.stringify(updateData),
           },
-          10000
+          15000
         );
         
-        console.log(`[UPDATE-INTERVENTION] Response from /interventions: ${updateResponse.status}`);
-        
-        // If 404, try alternative endpoint
-        if (updateResponse.status === 404) {
-          console.log('[UPDATE-INTERVENTION] Trying /ficheinter endpoint...');
-          updateResponse = await fetchWithTimeout(
-            `${baseUrl}/ficheinter/${intId}`,
-            {
-              method: 'PUT',
-              headers,
-              body: JSON.stringify(params.data),
-            },
-            10000
-          );
-          console.log(`[UPDATE-INTERVENTION] Response from /ficheinter: ${updateResponse.status}`);
-        }
+        console.log(`[UPDATE-INTERVENTION] Response: ${updateResponse.status}`);
         
         if (!updateResponse.ok) {
           const errText = await updateResponse.text();
