@@ -532,20 +532,38 @@ export async function dolibarrLogin(login: string, password: string): Promise<{ 
     // Search for user by login name
     const users = await callDolibarrApi<any[]>('login', { login, password });
     
-    console.log('[dolibarrLogin] Response:', users);
+    console.log('[dolibarrLogin] Full response from Dolibarr:', JSON.stringify(users, null, 2));
     
     // Check if user was found
     if (Array.isArray(users) && users.length > 0) {
       const userInfo = users[0];
+      
+      // Log ALL fields that might indicate admin status
+      console.log('[dolibarrLogin] User info - Admin fields:', {
+        id: userInfo.id,
+        login: userInfo.login,
+        admin: userInfo.admin,
+        adminType: typeof userInfo.admin,
+        superadmin: userInfo.superadmin,
+        superadminType: typeof userInfo.superadmin,
+        fk_user: userInfo.fk_user,
+        rights: userInfo.rights,
+        all_permissions: userInfo.all_permissions,
+        user_group: userInfo.user_group,
+        rawUserInfo: JSON.stringify(userInfo).substring(0, 500)
+      });
       
       // Check if user is active/enabled
       if (userInfo.statut === '0' || userInfo.statut === 0) {
         throw new Error('Votre compte est désactivé. Contactez votre administrateur.');
       }
       
-      // Check if admin (admin field or superadmin)
-      const isAdmin = userInfo.admin === '1' || userInfo.admin === 1 || 
-                      userInfo.superadmin === '1' || userInfo.superadmin === 1;
+      // Check if admin - expand the check to include more possibilities
+      const isAdmin = userInfo.admin === '1' || userInfo.admin === 1 || userInfo.admin === true ||
+                      userInfo.superadmin === '1' || userInfo.superadmin === 1 || userInfo.superadmin === true ||
+                      userInfo.fk_user === null || userInfo.fk_user === '0' || userInfo.fk_user === 0;  // SuperAdmin has no parent
+      
+      console.log('[dolibarrLogin] Admin check result:', isAdmin);
       
       const worker = {
         id: parseInt(userInfo.id) || 1,
@@ -557,6 +575,8 @@ export async function dolibarrLogin(login: string, password: string): Promise<{ 
         admin: isAdmin ? '1' : '0',
         isAdmin: isAdmin,
       };
+      
+      console.log('[dolibarrLogin] Saving worker:', worker);
       
       // Generate a session token
       const token = `doli_${userInfo.id}_${Date.now()}`;
