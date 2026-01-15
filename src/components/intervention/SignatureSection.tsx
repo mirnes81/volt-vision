@@ -3,7 +3,7 @@ import { Eraser, Check, PenTool, FileText, Loader2, WifiOff, CloudOff } from 'lu
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { saveSignature, generatePdf } from '@/lib/api';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 

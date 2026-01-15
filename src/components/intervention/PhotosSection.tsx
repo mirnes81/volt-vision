@@ -3,7 +3,7 @@ import { Camera, ImagePlus, X, WifiOff, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { uploadPhoto } from '@/lib/api';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 

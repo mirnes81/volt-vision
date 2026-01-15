@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Intervention, WorkerHour } from '@/types/intervention';
 import { addManualHours } from '@/lib/api';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { 
   getHoursSettings, 

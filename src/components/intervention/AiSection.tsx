@@ -3,7 +3,7 @@ import { Sparkles, FileText, Wrench, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { generateAiSummary, generateAiDiagnostic } from '@/lib/api';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 interface AiSectionProps {
   intervention: Intervention;

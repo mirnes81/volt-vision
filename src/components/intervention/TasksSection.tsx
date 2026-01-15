@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Check, Circle } from 'lucide-react';
 import { Intervention, Task } from '@/types/intervention';
 import { updateTaskStatus } from '@/lib/api';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 
 interface TasksSectionProps {

@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { saveVoiceNote, getVoiceNotes, deleteVoiceNote, addPendingSync } from '@/lib/offlineStorage';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { isOnline } from '@/lib/offlineStorage';
