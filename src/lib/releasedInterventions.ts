@@ -22,13 +22,26 @@ export interface ReleasedIntervention {
   taken_by_supabase_uid: string | null;
   taken_at: string | null;
   status: 'available' | 'taken' | 'cancelled';
+  tenant_id: string | null;
   created_at: string;
 }
 
-// Get current Supabase user ID
-async function getSupabaseUserId(): Promise<string | null> {
+// Get current Supabase user info
+async function getSupabaseUserInfo(): Promise<{ uid: string | null; tenantId: string | null }> {
   const { data: { user } } = await supabase.auth.getUser();
-  return user?.id || null;
+  if (!user) return { uid: null, tenantId: null };
+  
+  // Try to get tenant_id from user's profile
+  const { data: profile } = await supabase
+    .from('saas_profiles')
+    .select('tenant_id')
+    .eq('id', user.id)
+    .maybeSingle();
+  
+  return { 
+    uid: user.id, 
+    tenantId: profile?.tenant_id || null 
+  };
 }
 
 // Release an intervention
@@ -38,7 +51,7 @@ export async function releaseIntervention(
   userName: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabaseUid = await getSupabaseUserId();
+    const { uid, tenantId } = await getSupabaseUserInfo();
     
     const { error } = await supabase.from('released_interventions').insert({
       intervention_id: intervention.id,
@@ -53,7 +66,8 @@ export async function releaseIntervention(
       priority: intervention.priority,
       released_by_user_id: userId,
       released_by_name: userName,
-      released_by_supabase_uid: supabaseUid,
+      released_by_supabase_uid: uid,
+      tenant_id: tenantId,
       status: 'available'
     });
 
@@ -72,14 +86,14 @@ export async function takeIntervention(
   userName: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const supabaseUid = await getSupabaseUserId();
+    const { uid } = await getSupabaseUserInfo();
     
     const { error } = await supabase
       .from('released_interventions')
       .update({
         taken_by_user_id: userId,
         taken_by_name: userName,
-        taken_by_supabase_uid: supabaseUid,
+        taken_by_supabase_uid: uid,
         taken_at: new Date().toISOString(),
         status: 'taken'
       })
