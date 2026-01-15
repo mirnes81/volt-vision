@@ -84,12 +84,19 @@ function formatDateWithDay(dateString?: string): { date: string; time: string | 
 
 // Check if user is admin
 function isUserAdmin(): boolean {
-  const workerData = localStorage.getItem('mv3_worker');
-  if (!workerData) return false;
+  // Check both localStorage keys for compatibility
+  const workerData = localStorage.getItem('mv3_worker') || localStorage.getItem('worker');
+  if (!workerData) {
+    console.log('[InterventionCard] No worker data found in localStorage');
+    return false;
+  }
   try {
     const worker = JSON.parse(workerData);
-    return worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
-  } catch {
+    const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
+    console.log('[InterventionCard] Admin check:', { admin: worker?.admin, isAdmin: worker?.isAdmin, result: isAdmin });
+    return isAdmin;
+  } catch (e) {
+    console.error('[InterventionCard] Error parsing worker data:', e);
     return false;
   }
 }
