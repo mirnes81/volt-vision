@@ -414,11 +414,54 @@ serve(async (req) => {
           fk_statut: 0,
         });
         break;
-      case 'update-intervention':
-        endpoint = `/interventions/${params.id}`;
-        method = 'PUT';
-        body = JSON.stringify(params.data);
-        break;
+      case 'update-intervention': {
+        // Dolibarr uses /ficheinter for intervention updates in some versions
+        const intId = params.id;
+        console.log(`[UPDATE-INTERVENTION] Updating intervention ${intId} with:`, JSON.stringify(params.data));
+        
+        // Try /interventions first, then /ficheinter if it fails
+        let updateResponse = await fetchWithTimeout(
+          `${baseUrl}/interventions/${intId}`,
+          {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify(params.data),
+          },
+          10000
+        );
+        
+        console.log(`[UPDATE-INTERVENTION] Response from /interventions: ${updateResponse.status}`);
+        
+        // If 404, try alternative endpoint
+        if (updateResponse.status === 404) {
+          console.log('[UPDATE-INTERVENTION] Trying /ficheinter endpoint...');
+          updateResponse = await fetchWithTimeout(
+            `${baseUrl}/ficheinter/${intId}`,
+            {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify(params.data),
+            },
+            10000
+          );
+          console.log(`[UPDATE-INTERVENTION] Response from /ficheinter: ${updateResponse.status}`);
+        }
+        
+        if (!updateResponse.ok) {
+          const errText = await updateResponse.text();
+          console.error('[UPDATE-INTERVENTION] Error:', errText);
+          return new Response(
+            JSON.stringify({ error: `Erreur mise à jour: ${updateResponse.status}`, details: errText }),
+            { status: updateResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const updateResult = await updateResponse.json();
+        return new Response(
+          JSON.stringify({ success: true, result: updateResult }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
 
       // Intervention Lines
       case 'add-intervention-line':
