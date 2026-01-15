@@ -1,12 +1,13 @@
 import { useState, useRef, useEffect } from 'react';
-import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2 } from 'lucide-react';
+import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2, Copy, Send, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { saveVoiceNote, getVoiceNotes, deleteVoiceNote } from '@/lib/offlineStorage';
+import { saveVoiceNote, getVoiceNotes, deleteVoiceNote, addPendingSync } from '@/lib/offlineStorage';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { isOnline } from '@/lib/offlineStorage';
 
 interface VoiceNotesSectionProps {
   intervention: Intervention;
@@ -43,6 +44,8 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
   const [playingId, setPlayingId] = useState<number | null>(null);
   const [transcribingId, setTranscribingId] = useState<number | null>(null);
   const [transcriptions, setTranscriptions] = useState<Record<number, string>>({});
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [sendingId, setSendingId] = useState<number | null>(null);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
@@ -202,6 +205,76 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
     loadVoiceNotes();
   };
 
+  const copyToClipboard = async (noteId: number) => {
+    const text = transcriptions[noteId];
+    if (!text) return;
+    
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(noteId);
+      toast.success('Texte copié dans le presse-papier');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch (error) {
+      console.error('Copy error:', error);
+      toast.error('Impossible de copier le texte');
+    }
+  };
+
+  const sendToInterventionNotes = async (noteId: number) => {
+    const text = transcriptions[noteId];
+    if (!text) return;
+    
+    setSendingId(noteId);
+    
+    try {
+      // Get existing notes from localStorage or create new
+      const notesKey = `intervention_notes_${intervention.id}`;
+      const existingNotes = localStorage.getItem(notesKey) || '';
+      const timestamp = new Date().toLocaleString('fr-CH');
+      const newNote = `[${timestamp}] ${text}`;
+      const updatedNotes = existingNotes 
+        ? `${existingNotes}\n\n${newNote}`
+        : newNote;
+      
+      // Save locally first
+      localStorage.setItem(notesKey, updatedNotes);
+      
+      if (isOnline()) {
+        // Send to Dolibarr as note_private update
+        const { error } = await supabase.functions.invoke('dolibarr-api', {
+          body: {
+            action: 'update-intervention',
+            params: {
+              id: intervention.id,
+              data: {
+                note_private: updatedNotes
+              }
+            }
+          }
+        });
+        
+        if (error) {
+          throw new Error(error.message);
+        }
+        
+        toast.success('Note ajoutée à l\'intervention');
+      } else {
+        // Queue for offline sync
+        await addPendingSync('note', intervention.id, {
+          note_private: updatedNotes
+        });
+        
+        
+        toast.success('Note sauvegardée (synchronisation hors-ligne)');
+      }
+    } catch (error) {
+      console.error('Send to notes error:', error);
+      toast.error("Erreur lors de l'envoi de la note");
+    } finally {
+      setSendingId(null);
+    }
+  };
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -324,12 +397,54 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
                   </button>
                 </div>
                 
-                {/* Transcription text */}
+                {/* Transcription text with actions */}
                 {transcriptions[note.id] && (
                   <div className="mt-3 pt-3 border-t border-border/50">
-                    <p className="text-sm text-foreground leading-relaxed">
+                    <p className="text-sm text-foreground leading-relaxed mb-3">
                       {transcriptions[note.id]}
                     </p>
+                    
+                    {/* Action buttons for transcription */}
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => copyToClipboard(note.id)}
+                        className="gap-2 flex-1"
+                      >
+                        {copiedId === note.id ? (
+                          <>
+                            <Check className="w-4 h-4 text-green-500" />
+                            Copié
+                          </>
+                        ) : (
+                          <>
+                            <Copy className="w-4 h-4" />
+                            Copier
+                          </>
+                        )}
+                      </Button>
+                      
+                      <Button
+                        variant="default"
+                        size="sm"
+                        onClick={() => sendToInterventionNotes(note.id)}
+                        disabled={sendingId === note.id}
+                        className="gap-2 flex-1"
+                      >
+                        {sendingId === note.id ? (
+                          <>
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                            Envoi...
+                          </>
+                        ) : (
+                          <>
+                            <Send className="w-4 h-4" />
+                            Ajouter aux notes
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 )}
                 
