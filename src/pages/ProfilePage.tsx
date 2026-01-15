@@ -1,5 +1,6 @@
-import { LogOut, User, Phone, Mail, Shield, HelpCircle, Moon, Sun, Globe, Wifi, WifiOff, Settings } from 'lucide-react';
+import { LogOut, User, Phone, Mail, Shield, HelpCircle, Moon, Sun, Globe, Wifi, WifiOff, Settings, Users, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -8,12 +9,52 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { isDolibarrConfigured } from '@/lib/dolibarrConfig';
+import { supabase } from '@/integrations/supabase/client';
+
+interface DolibarrUser {
+  id: number;
+  login: string;
+  name: string;
+  firstName: string;
+  email: string;
+  admin: string;
+}
 
 export default function ProfilePage() {
   const { worker, logout } = useAuth();
   const { theme, setTheme, actualTheme } = useTheme();
   const { language, setLanguage, t } = useLanguage();
   const navigate = useNavigate();
+  
+  const [dolibarrUsers, setDolibarrUsers] = useState<DolibarrUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+
+  // Fetch all Dolibarr users on mount
+  useEffect(() => {
+    async function fetchDolibarrUsers() {
+      setLoadingUsers(true);
+      try {
+        const { data, error } = await supabase.functions.invoke('dolibarr-api', {
+          body: { action: 'get-users' },
+        });
+        
+        if (error) throw error;
+        
+        console.log('[ProfilePage] Dolibarr users:', data);
+        if (Array.isArray(data)) {
+          setDolibarrUsers(data);
+        }
+      } catch (err) {
+        console.error('[ProfilePage] Error fetching users:', err);
+      } finally {
+        setLoadingUsers(false);
+      }
+    }
+    
+    if (isDolibarrConfigured()) {
+      fetchDolibarrUsers();
+    }
+  }, []);
 
   const handleLogout = () => {
     logout();
@@ -117,6 +158,45 @@ export default function ProfilePage() {
             ))}
           </div>
         </div>
+
+        {/* Dolibarr Users Emails */}
+        {isDolibarrConfigured() && (
+          <div className="bg-card rounded-xl p-4 shadow-card border border-border/50">
+            <div className="flex items-center gap-2 mb-3">
+              <Users className="w-4 h-4 text-muted-foreground" />
+              <p className="text-sm font-medium">Utilisateurs Dolibarr</p>
+            </div>
+            {loadingUsers ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="w-5 h-5 animate-spin text-primary" />
+              </div>
+            ) : dolibarrUsers.length > 0 ? (
+              <div className="space-y-2 max-h-64 overflow-y-auto">
+                {dolibarrUsers.map((user) => (
+                  <div key={user.id} className="flex items-center gap-3 p-2 rounded-lg bg-secondary/50">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
+                      <User className="w-4 h-4 text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-medium truncate">
+                        {user.firstName} {user.name}
+                        {user.admin === '1' && (
+                          <span className="ml-2 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Admin</span>
+                        )}
+                      </p>
+                      <p className="text-xs text-muted-foreground truncate flex items-center gap-1">
+                        <Mail className="w-3 h-3" />
+                        {user.email || 'Pas d\'email'}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-2">Aucun utilisateur trouvé</p>
+            )}
+          </div>
+        )}
 
         {/* Offline Status */}
         <div className="bg-card rounded-xl p-4 shadow-card border border-border/50 flex items-center gap-4">
