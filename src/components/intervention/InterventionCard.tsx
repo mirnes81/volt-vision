@@ -425,18 +425,18 @@ export function InterventionCard({ intervention, onStatusChange, onAssignmentCha
         {/* Assigned to - Always show, with assignment option for admins */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3 relative">
           <User className="w-4 h-4 shrink-0" />
-          {assigneeName ? (
-            <span className="truncate">Assigné à : <span className="font-medium text-foreground">{assigneeName}</span></span>
-          ) : isAdmin ? (
+          {isAdmin ? (
             <>
               <button
                 onClick={handleAssignDropdownToggle}
                 disabled={isAssigning}
                 className={cn(
                   "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all",
-                  "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200",
+                  assigneeName 
+                    ? "bg-secondary text-foreground" 
+                    : "bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200",
                   isAssigning && "opacity-50 cursor-not-allowed",
-                  !isAssigning && "hover:ring-2 hover:ring-amber-400/50 cursor-pointer"
+                  !isAssigning && "hover:ring-2 hover:ring-primary/30 cursor-pointer"
                 )}
               >
                 {isAssigning ? (
@@ -444,7 +444,11 @@ export function InterventionCard({ intervention, onStatusChange, onAssignmentCha
                 ) : (
                   <UserPlus className="w-3.5 h-3.5" />
                 )}
-                {isAssigning ? 'Assignation...' : 'Non assigné - Cliquer pour assigner'}
+                {isAssigning 
+                  ? 'Assignation...' 
+                  : assigneeName 
+                    ? `${assigneeName} (modifier)` 
+                    : 'Non assigné - Cliquer pour assigner'}
                 <ChevronDown className={cn("w-3 h-3 transition-transform", showAssignDropdown && "rotate-180")} />
               </button>
               
@@ -471,10 +475,14 @@ export function InterventionCard({ intervention, onStatusChange, onAssignmentCha
                         <button
                           key={user.id}
                           onClick={(e) => handleAssignUser(e, user.id)}
-                          className="w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-secondary/80 transition-colors text-left"
+                          className={cn(
+                            "w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-secondary/80 transition-colors text-left",
+                            currentAssignee?.id === user.id && "bg-primary/10 text-primary"
+                          )}
                         >
                           <User className="w-3.5 h-3.5" />
                           {user.firstName} {user.name}
+                          {currentAssignee?.id === user.id && <span className="ml-auto text-primary">✓</span>}
                         </button>
                       ))
                     )}
@@ -482,6 +490,8 @@ export function InterventionCard({ intervention, onStatusChange, onAssignmentCha
                 </>
               )}
             </>
+          ) : assigneeName ? (
+            <span className="truncate">Assigné à : <span className="font-medium text-foreground">{assigneeName}</span></span>
           ) : (
             <span className="truncate text-amber-600 dark:text-amber-400 font-medium">Non assigné</span>
           )}
