@@ -578,6 +578,50 @@ export type Database = {
           },
         ]
       }
+      tenant_configurations_safe: {
+        Row: {
+          created_at: string | null
+          daily_hours_limit: number | null
+          dolibarr_api_key: string | null
+          dolibarr_url: string | null
+          id: string | null
+          language: string | null
+          tenant_id: string | null
+          timezone: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          daily_hours_limit?: number | null
+          dolibarr_api_key?: never
+          dolibarr_url?: string | null
+          id?: string | null
+          language?: string | null
+          tenant_id?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          daily_hours_limit?: number | null
+          dolibarr_api_key?: never
+          dolibarr_url?: string | null
+          id?: string | null
+          language?: string | null
+          tenant_id?: string | null
+          timezone?: string | null
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tenant_configurations_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: true
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
@@ -593,6 +637,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      mask_api_key: { Args: { api_key: string }; Returns: string }
       user_belongs_to_tenant: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
