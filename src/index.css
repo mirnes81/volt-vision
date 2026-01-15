@@ -156,6 +156,35 @@
   .scrollbar-hide::-webkit-scrollbar {
     display: none;
   }
+
+  /* Leaflet map fixes */
+  .leaflet-container {
+    width: 100% !important;
+    height: 100% !important;
+    z-index: 0;
+    background: hsl(var(--background));
+  }
+
+  .leaflet-pane,
+  .leaflet-tile,
+  .leaflet-marker-icon,
+  .leaflet-marker-shadow,
+  .leaflet-tile-container,
+  .leaflet-pane > svg,
+  .leaflet-pane > canvas,
+  .leaflet-zoom-box,
+  .leaflet-image-layer,
+  .leaflet-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+  }
+
+  .custom-marker,
+  .user-marker {
+    background: transparent !important;
+    border: none !important;
+  }
 }
 
 @layer utilities {
