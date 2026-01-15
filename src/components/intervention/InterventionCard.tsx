@@ -184,12 +184,22 @@ export function InterventionCard({ intervention, onStatusChange, onAssignmentCha
       if (error) throw error;
       
       if (Array.isArray(data)) {
-        setUsers(data.map((u: any) => ({
-          id: parseInt(u.id),
-          name: u.lastname || u.login || '',
-          firstName: u.firstname || '',
-          login: u.login || '',
-        })));
+        console.log('[InterventionCard] Raw users from API:', data);
+        setUsers(data.map((u: any) => {
+          // Handle various field name formats from Dolibarr API
+          const lastName = u.lastname || u.name || u.nom || '';
+          const firstName = u.firstname || u.prenom || '';
+          const login = u.login || '';
+          
+          console.log(`[InterventionCard] User: ${login}, lastName: ${lastName}, firstName: ${firstName}`);
+          
+          return {
+            id: parseInt(u.id),
+            name: lastName,
+            firstName: firstName,
+            login: login,
+          };
+        }));
       }
     } catch (error) {
       console.error('Error loading users:', error);
@@ -488,7 +498,14 @@ export function InterventionCard({ intervention, onStatusChange, onAssignmentCha
                           )}
                         >
                           <User className="w-3.5 h-3.5" />
-                          {user.firstName} {user.name}
+                          <span className="flex-1">
+                            {user.firstName || user.name 
+                              ? `${user.firstName} ${user.name}`.trim() 
+                              : user.login}
+                            {(user.firstName || user.name) && user.login && (
+                              <span className="text-muted-foreground ml-1">({user.login})</span>
+                            )}
+                          </span>
                           {currentAssignee?.id === user.id && <span className="ml-auto text-primary">✓</span>}
                         </button>
                       ))
