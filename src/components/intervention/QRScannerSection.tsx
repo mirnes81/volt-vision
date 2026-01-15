@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { getProducts } from '@/lib/api';
 import { Product } from '@/types/intervention';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 
 interface ScanHistoryItem {

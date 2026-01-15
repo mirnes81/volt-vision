@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import logoEnes from '@/assets/logo-enes.png';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { testDolibarrConnection, dolibarrLogin } from '@/lib/dolibarrApi';
 
 export default function LoginPage() {

@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { notifications } from '@/lib/pushNotifications';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 export function NotificationSettings() {
   const {

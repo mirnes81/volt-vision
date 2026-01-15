@@ -6,7 +6,7 @@ import {
   PendingSyncItem 
 } from '@/lib/offlineStorage';
 import { syncPendingItem } from '@/lib/syncService';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 interface SyncState {
   pendingCount: number;

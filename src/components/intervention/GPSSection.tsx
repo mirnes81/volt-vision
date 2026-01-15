@@ -3,7 +3,7 @@ import { MapPin, Navigation, ExternalLink, Loader2, Compass } from 'lucide-react
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 interface GPSSectionProps {
   intervention: Intervention;

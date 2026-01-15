@@ -4,7 +4,7 @@ import { HandHeart, Loader2, CheckCircle } from 'lucide-react';
 import { Intervention } from '@/types/intervention';
 import { releaseIntervention } from '@/lib/releasedInterventions';
 import { useAuth } from '@/contexts/AuthContext';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import {
   AlertDialog,
   AlertDialogAction,

@@ -25,7 +25,7 @@ import { getIntervention } from '@/lib/api';
 import { Intervention } from '@/types/intervention';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { 
   scheduleInterventionReminder, 
   cancelInterventionReminder,

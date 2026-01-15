@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 const filters = [
   { value: 'all', label: 'Toutes' },

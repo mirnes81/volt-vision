@@ -6,7 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Intervention } from '@/types/intervention';
 import { generateOIBTPDF } from '@/lib/pdfGenerator';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 
 interface OIBTSectionProps {

@@ -4,7 +4,7 @@ import { Link } from 'react-router-dom';
 import { Intervention, InterventionStatus } from '@/types/intervention';
 import { cn } from '@/lib/utils';
 import { updateInterventionStatus } from '@/lib/dolibarrApi';
-import { toast } from 'sonner';
+import { toast } from '@/components/ui/sonner';
 
 interface InterventionCardProps {
   intervention: Intervention;
