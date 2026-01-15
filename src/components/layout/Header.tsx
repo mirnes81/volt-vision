@@ -2,6 +2,7 @@ import { ChevronLeft, Bell, Zap } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useTheme } from '@/contexts/ThemeContext';
+import { SyncStatusIndicator } from '@/components/sync/SyncStatusIndicator';
 
 interface HeaderProps {
   title?: string;
@@ -43,6 +44,8 @@ export function Header({ title = 'SmartElectric', showBack = false, showNotifica
         </div>
         
         <div className="flex items-center gap-1">
+          <SyncStatusIndicator />
+          
           {showNotifications && (
             <Button variant="ghost" size="icon" className="relative rounded-xl">
               <Bell className="w-5 h-5" />

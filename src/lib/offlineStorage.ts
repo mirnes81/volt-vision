@@ -1,6 +1,16 @@
 import { openDB, DBSchema, IDBPDatabase } from 'idb';
 import { Intervention, WorkerHour, Material, Task } from '@/types/intervention';
 
+// Export the pending sync item type
+export interface PendingSyncItem {
+  id: number;
+  type: 'hour' | 'material' | 'task' | 'photo' | 'signature';
+  interventionId: number;
+  data: unknown;
+  createdAt: string;
+  retryCount?: number;
+}
+
 interface MV3DB extends DBSchema {
   interventions: {
     key: number;
@@ -9,13 +19,7 @@ interface MV3DB extends DBSchema {
   };
   pendingSync: {
     key: number;
-    value: {
-      id: number;
-      type: 'hour' | 'material' | 'task' | 'photo' | 'signature';
-      interventionId: number;
-      data: unknown;
-      createdAt: string;
-    };
+    value: PendingSyncItem;
   };
   voiceNotes: {
     key: number;
@@ -44,20 +48,28 @@ let db: IDBPDatabase<MV3DB> | null = null;
 export async function initDB(): Promise<IDBPDatabase<MV3DB>> {
   if (db) return db;
   
-  db = await openDB<MV3DB>('mv3-electricien', 1, {
-    upgrade(db) {
+  db = await openDB<MV3DB>('mv3-electricien', 2, {
+    upgrade(db, oldVersion) {
       // Interventions store
-      const interventionStore = db.createObjectStore('interventions', { keyPath: 'id' });
-      interventionStore.createIndex('by-status', 'status');
+      if (!db.objectStoreNames.contains('interventions')) {
+        const interventionStore = db.createObjectStore('interventions', { keyPath: 'id' });
+        interventionStore.createIndex('by-status', 'status');
+      }
       
       // Pending sync store
-      db.createObjectStore('pendingSync', { keyPath: 'id', autoIncrement: true });
+      if (!db.objectStoreNames.contains('pendingSync')) {
+        db.createObjectStore('pendingSync', { keyPath: 'id', autoIncrement: true });
+      }
       
       // Voice notes store
-      db.createObjectStore('voiceNotes', { keyPath: 'id', autoIncrement: true });
+      if (!db.objectStoreNames.contains('voiceNotes')) {
+        db.createObjectStore('voiceNotes', { keyPath: 'id', autoIncrement: true });
+      }
       
       // Vehicle stock store
-      db.createObjectStore('vehicleStock', { keyPath: 'productId' });
+      if (!db.objectStoreNames.contains('vehicleStock')) {
+        db.createObjectStore('vehicleStock', { keyPath: 'productId' });
+      }
     },
   });
   
@@ -102,9 +114,19 @@ export async function addPendingSync(
   });
 }
 
-export async function getPendingSync(): Promise<MV3DB['pendingSync']['value'][]> {
+export async function getPendingSync(): Promise<PendingSyncItem[]> {
   const database = await initDB();
   return database.getAll('pendingSync');
+}
+
+export async function getPendingSyncCount(): Promise<number> {
+  const database = await initDB();
+  return database.count('pendingSync');
+}
+
+export async function deletePendingSyncItem(id: number): Promise<void> {
+  const database = await initDB();
+  await database.delete('pendingSync', id);
 }
 
 export async function clearPendingSync(): Promise<void> {

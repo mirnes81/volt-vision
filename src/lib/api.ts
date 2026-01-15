@@ -1,6 +1,7 @@
 import { Intervention, Material, Task, Worker, WorkerHour, Product } from '@/types/intervention';
 import { mockInterventions, mockProducts, mockWorker, delay } from './mockData';
 import * as dolibarrApi from './dolibarrApi';
+import { addPendingSync } from './offlineStorage';
 
 // Store for mock data mutations
 let interventions = [...mockInterventions];
@@ -16,6 +17,11 @@ const mockClients = [
 function useRealApi(): boolean {
   const token = localStorage.getItem('mv3_token');
   return token !== null && token !== 'demo_token';
+}
+
+// Check if we should queue for offline sync
+function shouldQueueOffline(): boolean {
+  return !navigator.onLine && useRealApi();
 }
 
 export function logout(): void {
@@ -143,17 +149,9 @@ export async function createIntervention(data: {
 
 // Hours
 export async function startHours(interventionId: number, workType: string): Promise<WorkerHour> {
-  if (useRealApi()) {
-    return dolibarrApi.dolibarrStartHours(interventionId, workType);
-  }
-  
-  await delay(300);
   const worker = getCurrentWorker();
   if (!worker) throw new Error('Non authentifié');
-  
-  const intervention = interventions.find(i => i.id === interventionId);
-  if (!intervention) throw new Error('Intervention non trouvée');
-  
+
   const newHour: WorkerHour = {
     id: Date.now(),
     userId: worker.id,
@@ -161,6 +159,24 @@ export async function startHours(interventionId: number, workType: string): Prom
     dateStart: new Date().toISOString(),
     workType,
   };
+
+  if (useRealApi()) {
+    // Queue for offline sync if no connection
+    if (shouldQueueOffline()) {
+      await addPendingSync('hour', interventionId, {
+        workType,
+        dateStart: newHour.dateStart,
+        isManual: false,
+      });
+      console.log('[Offline] Hour start queued for sync');
+      return newHour;
+    }
+    return dolibarrApi.dolibarrStartHours(interventionId, workType);
+  }
+  
+  await delay(300);
+  const intervention = interventions.find(i => i.id === interventionId);
+  if (!intervention) throw new Error('Intervention non trouvée');
   
   intervention.hours.push(newHour);
   if (intervention.status === 'a_planifier') {
@@ -170,9 +186,35 @@ export async function startHours(interventionId: number, workType: string): Prom
   return newHour;
 }
 
-export async function stopHours(interventionId: number, hourId: number): Promise<WorkerHour> {
+export async function stopHours(interventionId: number, hourId: number, comment?: string): Promise<WorkerHour> {
+  const hoursKey = `intervention_hours_${interventionId}`;
+  const hours: WorkerHour[] = JSON.parse(localStorage.getItem(hoursKey) || '[]');
+  const hour = hours.find(h => h.id === hourId);
+  
+  if (hour) {
+    hour.dateEnd = new Date().toISOString();
+    const start = new Date(hour.dateStart);
+    const end = new Date(hour.dateEnd);
+    hour.durationHours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60) * 100) / 100;
+    hour.comment = comment;
+    localStorage.setItem(hoursKey, JSON.stringify(hours));
+  }
+
   if (useRealApi()) {
-    return dolibarrApi.dolibarrStopHours(interventionId, hourId);
+    // Queue for offline sync if no connection
+    if (shouldQueueOffline() && hour) {
+      await addPendingSync('hour', interventionId, {
+        workType: hour.workType,
+        dateStart: hour.dateStart,
+        dateEnd: hour.dateEnd,
+        durationHours: hour.durationHours,
+        comment: hour.comment,
+        isManual: false,
+      });
+      console.log('[Offline] Hour stop queued for sync');
+      return hour;
+    }
+    return dolibarrApi.dolibarrStopHours(interventionId, hourId, comment);
   }
   
   await delay(300);
@@ -180,34 +222,27 @@ export async function stopHours(interventionId: number, hourId: number): Promise
   const intervention = interventions.find(i => i.id === interventionId);
   if (!intervention) throw new Error('Intervention non trouvée');
   
-  const hour = intervention.hours.find(h => h.id === hourId);
-  if (!hour) throw new Error('Entrée horaire non trouvée');
+  const mockHour = intervention.hours.find(h => h.id === hourId);
+  if (!mockHour) throw new Error('Entrée horaire non trouvée');
   
-  hour.dateEnd = new Date().toISOString();
-  const start = new Date(hour.dateStart);
-  const end = new Date(hour.dateEnd);
-  hour.durationHours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60) * 100) / 100;
+  mockHour.dateEnd = new Date().toISOString();
+  const start = new Date(mockHour.dateStart);
+  const end = new Date(mockHour.dateEnd);
+  mockHour.durationHours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60) * 100) / 100;
   
-  return hour;
+  return mockHour;
 }
 
 export async function addManualHours(
   interventionId: number, 
   data: { dateStart: string; dateEnd: string; workType: string; comment?: string }
 ): Promise<WorkerHour> {
-  if (useRealApi()) {
-    return dolibarrApi.dolibarrAddManualHours(interventionId, data);
-  }
-  
-  await delay(300);
   const worker = getCurrentWorker();
   if (!worker) throw new Error('Non authentifié');
-  
-  const intervention = interventions.find(i => i.id === interventionId);
-  if (!intervention) throw new Error('Intervention non trouvée');
-  
+
   const start = new Date(data.dateStart);
   const end = new Date(data.dateEnd);
+  const durationHours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60) * 100) / 100;
   
   const newHour: WorkerHour = {
     id: Date.now(),
@@ -215,10 +250,38 @@ export async function addManualHours(
     userName: `${worker.firstName} ${worker.name}`,
     dateStart: data.dateStart,
     dateEnd: data.dateEnd,
-    durationHours: Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60) * 100) / 100,
+    durationHours,
     workType: data.workType,
     comment: data.comment,
   };
+
+  if (useRealApi()) {
+    // Queue for offline sync if no connection
+    if (shouldQueueOffline()) {
+      await addPendingSync('hour', interventionId, {
+        workType: data.workType,
+        dateStart: data.dateStart,
+        dateEnd: data.dateEnd,
+        durationHours,
+        comment: data.comment,
+        isManual: true,
+      });
+      console.log('[Offline] Manual hours queued for sync');
+      
+      // Save locally too
+      const hoursKey = `intervention_hours_${interventionId}`;
+      const existingHours = JSON.parse(localStorage.getItem(hoursKey) || '[]');
+      existingHours.push(newHour);
+      localStorage.setItem(hoursKey, JSON.stringify(existingHours));
+      
+      return newHour;
+    }
+    return dolibarrApi.dolibarrAddManualHours(interventionId, data);
+  }
+  
+  await delay(300);
+  const intervention = interventions.find(i => i.id === interventionId);
+  if (!intervention) throw new Error('Intervention non trouvée');
   
   intervention.hours.push(newHour);
   return newHour;
@@ -238,7 +301,35 @@ export async function addMaterial(
   interventionId: number, 
   data: { productId: number; qty: number; comment?: string }
 ): Promise<Material> {
+  // Create local material object for immediate UI feedback
+  const productName = await getProductName(data.productId);
+  const newMaterial: Material = {
+    id: Date.now(),
+    productId: data.productId,
+    productName,
+    qtyUsed: data.qty,
+    unit: 'pce',
+    comment: data.comment,
+  };
+
   if (useRealApi()) {
+    // Queue for offline sync if no connection
+    if (shouldQueueOffline()) {
+      await addPendingSync('material', interventionId, {
+        productId: data.productId,
+        qtyUsed: data.qty,
+        comment: data.comment,
+      });
+      console.log('[Offline] Material queued for sync');
+      
+      // Save locally for immediate display
+      const materialsKey = `intervention_materials_${interventionId}`;
+      const existingMaterials = JSON.parse(localStorage.getItem(materialsKey) || '[]');
+      existingMaterials.push(newMaterial);
+      localStorage.setItem(materialsKey, JSON.stringify(existingMaterials));
+      
+      return newMaterial;
+    }
     return dolibarrApi.dolibarrAddMaterial(interventionId, { 
       productId: data.productId, 
       qtyUsed: data.qty, 
@@ -254,17 +345,22 @@ export async function addMaterial(
   const product = mockProducts.find(p => p.id === data.productId);
   if (!product) throw new Error('Produit non trouvé');
   
-  const newMaterial: Material = {
-    id: Date.now(),
-    productId: data.productId,
-    productName: product.label,
-    qtyUsed: data.qty,
-    unit: product.unit,
-    comment: data.comment,
-  };
+  newMaterial.productName = product.label;
+  newMaterial.unit = product.unit;
   
   intervention.materials.push(newMaterial);
   return newMaterial;
+}
+
+// Helper to get product name (from cache or API)
+async function getProductName(productId: number): Promise<string> {
+  try {
+    const products = await getProducts();
+    const product = products.find(p => p.id === productId);
+    return product?.label || `Produit #${productId}`;
+  } catch {
+    return `Produit #${productId}`;
+  }
 }
 
 // Tasks
