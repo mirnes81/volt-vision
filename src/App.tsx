@@ -20,7 +20,7 @@ import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import DiagnosticPage from "./pages/DiagnosticPage";
 import NotFound from "./pages/NotFound";
-import { Toaster as SonnerToaster } from "@/components/ui/sonner";
+import { Toaster as Sonner } from "sonner";
 import { rescheduleRemindersOnStart } from "@/lib/interventionReminders";
 
 const queryClient = new QueryClient();
@@ -62,25 +62,19 @@ const AppRoutes = () => (
   </Routes>
 );
 
-function AppContent() {
-  return (
-    <TooltipProvider>
-      <Toaster />
-      <SonnerToaster position="top-center" />
-      <BrowserRouter>
-        <AuthProvider>
-          <AppRoutes />
-        </AuthProvider>
-      </BrowserRouter>
-    </TooltipProvider>
-  );
-}
-
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <LanguageProvider>
-        <AppContent />
+        <TooltipProvider>
+          <Toaster />
+          <Sonner position="top-center" richColors />
+          <BrowserRouter>
+            <AuthProvider>
+              <AppRoutes />
+            </AuthProvider>
+          </BrowserRouter>
+        </TooltipProvider>
       </LanguageProvider>
     </ThemeProvider>
   </QueryClientProvider>
