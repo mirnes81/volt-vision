@@ -15,12 +15,20 @@ export interface ReleasedIntervention {
   priority: string;
   released_by_user_id: number;
   released_by_name: string;
+  released_by_supabase_uid: string | null;
   released_at: string;
   taken_by_user_id: number | null;
   taken_by_name: string | null;
+  taken_by_supabase_uid: string | null;
   taken_at: string | null;
   status: 'available' | 'taken' | 'cancelled';
   created_at: string;
+}
+
+// Get current Supabase user ID
+async function getSupabaseUserId(): Promise<string | null> {
+  const { data: { user } } = await supabase.auth.getUser();
+  return user?.id || null;
 }
 
 // Release an intervention
@@ -30,6 +38,8 @@ export async function releaseIntervention(
   userName: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const supabaseUid = await getSupabaseUserId();
+    
     const { error } = await supabase.from('released_interventions').insert({
       intervention_id: intervention.id,
       intervention_ref: intervention.ref,
@@ -43,6 +53,7 @@ export async function releaseIntervention(
       priority: intervention.priority,
       released_by_user_id: userId,
       released_by_name: userName,
+      released_by_supabase_uid: supabaseUid,
       status: 'available'
     });
 
@@ -61,11 +72,14 @@ export async function takeIntervention(
   userName: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const supabaseUid = await getSupabaseUserId();
+    
     const { error } = await supabase
       .from('released_interventions')
       .update({
         taken_by_user_id: userId,
         taken_by_name: userName,
+        taken_by_supabase_uid: supabaseUid,
         taken_at: new Date().toISOString(),
         status: 'taken'
       })

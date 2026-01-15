@@ -218,10 +218,12 @@ export type Database = {
           priority: string
           released_at: string
           released_by_name: string
+          released_by_supabase_uid: string | null
           released_by_user_id: number
           status: string
           taken_at: string | null
           taken_by_name: string | null
+          taken_by_supabase_uid: string | null
           taken_by_user_id: number | null
         }
         Insert: {
@@ -239,10 +241,12 @@ export type Database = {
           priority?: string
           released_at?: string
           released_by_name: string
+          released_by_supabase_uid?: string | null
           released_by_user_id: number
           status?: string
           taken_at?: string | null
           taken_by_name?: string | null
+          taken_by_supabase_uid?: string | null
           taken_by_user_id?: number | null
         }
         Update: {
@@ -260,10 +264,12 @@ export type Database = {
           priority?: string
           released_at?: string
           released_by_name?: string
+          released_by_supabase_uid?: string | null
           released_by_user_id?: number
           status?: string
           taken_at?: string | null
           taken_by_name?: string | null
+          taken_by_supabase_uid?: string | null
           taken_by_user_id?: number | null
         }
         Relationships: []
