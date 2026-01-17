@@ -76,19 +76,30 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
   const loadUsers = async () => {
     setLoadingUsers(true);
     try {
+      console.log('[AdminEditSection] Loading users...');
       const { data, error } = await supabase.functions.invoke('dolibarr-api', {
         body: { action: 'get-users' },
       });
       
-      if (error) throw error;
+      console.log('[AdminEditSection] Users response:', { data, error });
       
-      if (Array.isArray(data)) {
-        setUsers(data.map((u: any) => ({
+      if (error) {
+        console.error('[AdminEditSection] API error:', error);
+        throw error;
+      }
+      
+      if (Array.isArray(data) && data.length > 0) {
+        const mappedUsers = data.map((u: any) => ({
           id: parseInt(u.id) || 0,
-          name: u.lastname || u.login || '',
-          firstName: u.firstname || '',
+          name: u.name || u.lastname || u.login || 'Inconnu',
+          firstName: u.firstName || u.firstname || '',
           login: u.login || '',
-        })));
+        }));
+        console.log('[AdminEditSection] Mapped users:', mappedUsers);
+        setUsers(mappedUsers);
+      } else {
+        console.warn('[AdminEditSection] No users returned from API');
+        // Don't show error toast, just leave empty
       }
     } catch (error) {
       console.error('[AdminEditSection] Error loading users:', error);
@@ -136,6 +147,11 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
               <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
                 Chargement des techniciens...
+              </div>
+            ) : users.length === 0 ? (
+              <div className="text-sm text-muted-foreground py-2 px-3 bg-muted/50 rounded-md">
+                Aucun utilisateur disponible depuis Dolibarr. 
+                Vérifiez que la clé API a les droits sur les utilisateurs.
               </div>
             ) : (
               <select
