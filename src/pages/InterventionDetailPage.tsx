@@ -19,6 +19,7 @@ import { HistorySection } from '@/components/intervention/HistorySection';
 import { StockSection } from '@/components/intervention/StockSection';
 import { ReleaseButton } from '@/components/intervention/ReleaseButton';
 import { AdminEditSection } from '@/components/intervention/AdminEditSection';
+import { MultiAssignmentPanel } from '@/components/assignments/MultiAssignmentPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { getIntervention } from '@/lib/api';
@@ -334,8 +335,8 @@ export default function InterventionDetailPage() {
             )}
           </div>
 
-          {/* Assigned worker + Admin Edit */}
-          <div className="flex items-center justify-between gap-2 text-sm mt-3 pt-3 border-t border-border/50">
+          {/* Assigned worker + Admin Edit + Multi-Assignment */}
+          <div className="flex items-center justify-between gap-2 text-sm mt-3 pt-3 border-t border-border/50 flex-wrap">
             <div className="flex items-center gap-2">
               <User className="w-4 h-4 text-muted-foreground" />
               <span className="text-muted-foreground">Assigné à :</span>
@@ -343,8 +344,21 @@ export default function InterventionDetailPage() {
                 {assigneeName || 'Non assigné'}
               </span>
             </div>
-            {/* Admin edit button */}
-            <AdminEditSection intervention={intervention} onUpdate={handleUpdate} />
+            <div className="flex items-center gap-2">
+              {/* Multi-assignment panel for admins */}
+              <MultiAssignmentPanel
+                interventionId={intervention.id}
+                interventionRef={intervention.ref}
+                interventionLabel={intervention.label}
+                clientName={intervention.clientName}
+                location={intervention.location}
+                datePlanned={intervention.dateStart}
+                priority={intervention.priority as 'normal' | 'urgent' | 'critical'}
+                onAssignmentsChange={handleUpdate}
+              />
+              {/* Admin edit button */}
+              <AdminEditSection intervention={intervention} onUpdate={handleUpdate} />
+            </div>
           </div>
 
         {/* Date with day of week, time and reminder button */}

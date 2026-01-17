@@ -252,6 +252,96 @@ export type Database = {
           },
         ]
       }
+      intervention_assignments: {
+        Row: {
+          acknowledged_at: string | null
+          assigned_at: string
+          assigned_by: string | null
+          autonomous_intervention_id: string | null
+          client_name: string | null
+          created_at: string
+          date_planned: string | null
+          id: string
+          intervention_id: number | null
+          intervention_label: string
+          intervention_ref: string
+          is_primary: boolean | null
+          last_reminder_sent: string | null
+          location: string | null
+          notification_acknowledged: boolean | null
+          notification_sent: boolean | null
+          priority: string
+          reminder_count: number | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          acknowledged_at?: string | null
+          assigned_at?: string
+          assigned_by?: string | null
+          autonomous_intervention_id?: string | null
+          client_name?: string | null
+          created_at?: string
+          date_planned?: string | null
+          id?: string
+          intervention_id?: number | null
+          intervention_label: string
+          intervention_ref: string
+          is_primary?: boolean | null
+          last_reminder_sent?: string | null
+          location?: string | null
+          notification_acknowledged?: boolean | null
+          notification_sent?: boolean | null
+          priority?: string
+          reminder_count?: number | null
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          acknowledged_at?: string | null
+          assigned_at?: string
+          assigned_by?: string | null
+          autonomous_intervention_id?: string | null
+          client_name?: string | null
+          created_at?: string
+          date_planned?: string | null
+          id?: string
+          intervention_id?: number | null
+          intervention_label?: string
+          intervention_ref?: string
+          is_primary?: boolean | null
+          last_reminder_sent?: string | null
+          location?: string | null
+          notification_acknowledged?: boolean | null
+          notification_sent?: boolean | null
+          priority?: string
+          reminder_count?: number | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "intervention_assignments_autonomous_intervention_id_fkey"
+            columns: ["autonomous_intervention_id"]
+            isOneToOne: false
+            referencedRelation: "autonomous_interventions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "intervention_assignments_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       released_interventions: {
         Row: {
           client_name: string
