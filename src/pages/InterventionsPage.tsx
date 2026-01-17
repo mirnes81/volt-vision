@@ -60,13 +60,16 @@ const CacheIndicator = ({ source, isOffline }: { source: string | null; isOfflin
 export default function InterventionsPage() {
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('all');
-  const [showOnlyMine, setShowOnlyMine] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   
   // Check if user is admin
   const workerData = localStorage.getItem('mv3_worker');
   const worker = workerData ? JSON.parse(workerData) : null;
   const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
+  
+  // Non-admins always see only their interventions
+  // Admins can toggle between all and their own
+  const [showOnlyMine, setShowOnlyMine] = useState(!isAdmin);
 
   // Use cached interventions with offline support
   const { interventions, isLoading, isRefreshing, isOffline, cacheSource, refresh } = useInterventionsCache(showOnlyMine);
