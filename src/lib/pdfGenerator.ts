@@ -117,7 +117,7 @@ export function generateInterventionPDF(intervention: Intervention): void {
   
   // Footer
   doc.setFontSize(8);
-  doc.text('MV3 PRO Électricien - Suisse', pageWidth / 2, 290, { align: 'center' });
+  doc.text('ENES Électricité - Suisse', pageWidth / 2, 290, { align: 'center' });
   
   // Save
   doc.save(`intervention_${intervention.ref}.pdf`);
@@ -267,7 +267,7 @@ export function generateOIBTPDF(intervention: Intervention, oibtData: OIBTData):
   
   // Footer
   doc.setFontSize(8);
-  doc.text('Document généré selon OIBT/NIBT - MV3 PRO Électricien - Suisse', pageWidth / 2, 290, { align: 'center' });
+  doc.text('Document généré selon OIBT/NIBT - ENES Électricité - Suisse', pageWidth / 2, 290, { align: 'center' });
   
   // Save
   doc.save(`OIBT_${intervention.ref}.pdf`);
