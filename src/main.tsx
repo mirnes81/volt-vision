@@ -4,12 +4,13 @@ import App from "./App.tsx";
 import "./index.css";
 import { preloadOfflineCache } from "./hooks/useInterventionsCache";
 
-// Clear cache automatically for Lovable preview sessions
+// Clear cache automatically for Lovable preview sessions (only in editor preview, not published app)
 function clearPreviewCache() {
-  const isPreview = window.location.hostname.includes('preview--') || 
-                    window.location.hostname.includes('lovable.app');
+  // Only clear for the Lovable editor preview, not the published app
+  const isEditorPreview = window.location.hostname.includes('preview--') && 
+                          window.location.hostname.includes('lovable.app');
   
-  if (isPreview) {
+  if (isEditorPreview) {
     const sessionKey = 'lovable_preview_session';
     const currentSession = sessionStorage.getItem(sessionKey);
     
