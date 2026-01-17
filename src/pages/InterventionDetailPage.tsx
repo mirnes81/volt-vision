@@ -206,7 +206,7 @@ export default function InterventionDetailPage() {
           </div>
 
           {/* Intervention Extrafields */}
-          {(intervention.extraBon || intervention.extraAdresse || intervention.extraContact || intervention.extraCle || intervention.extraCode || intervention.extraNoImm || intervention.extraAdresseComplete || intervention.extraNCompt) && (
+          {(intervention.extraBon || intervention.extraAdresse || intervention.extraContact || intervention.extraCle || intervention.extraCode || intervention.extraNoImm || intervention.extraAdresseComplete || intervention.extraNCompt || intervention.extraPropImm || intervention.extraConcierge || intervention.extraAppartement) && (
             <div className="space-y-2 border-t border-border/50 pt-3 mt-3">
               <h3 className="font-semibold text-foreground text-sm mb-2">Informations complémentaires</h3>
               
@@ -219,8 +219,22 @@ export default function InterventionDetailPage() {
 
               {intervention.extraNoImm && (
                 <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
-                  <span className="text-muted-foreground">🏢 Immeuble/Appt:</span>
+                  <span className="text-muted-foreground">🏢 N° Immeuble:</span>
                   <span className="font-semibold text-foreground">{intervention.extraNoImm}</span>
+                </div>
+              )}
+
+              {intervention.extraPropImm && (
+                <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
+                  <span className="text-muted-foreground">👤 Propriétaire:</span>
+                  <span className="font-semibold text-foreground">{intervention.extraPropImm}</span>
+                </div>
+              )}
+
+              {intervention.extraAppartement && (
+                <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
+                  <span className="text-muted-foreground">🚪 Appartement:</span>
+                  <span className="font-semibold text-foreground">{intervention.extraAppartement}</span>
                 </div>
               )}
               
@@ -241,7 +255,14 @@ export default function InterventionDetailPage() {
               {intervention.extraContact && (
                 <div className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4 text-primary shrink-0" />
-                  <span className="text-foreground">Concierge: {intervention.extraContact}</span>
+                  <span className="text-foreground">Contact: {intervention.extraContact}</span>
+                </div>
+              )}
+
+              {intervention.extraConcierge && (
+                <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
+                  <span className="text-muted-foreground">🏠 Concierge:</span>
+                  <span className="font-semibold text-foreground">{intervention.extraConcierge}</span>
                 </div>
               )}
 

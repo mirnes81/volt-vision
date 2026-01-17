@@ -74,14 +74,17 @@ export interface Intervention {
   clientNotes?: string;
   clientExtrafields?: Record<string, any>;
   // Intervention extrafields
-  extraBon?: string;
-  extraAdresse?: string;
-  extraContact?: string;
-  extraCle?: string;
-  extraCode?: string;
-  extraNoImm?: string;           // N° immeuble
+  extraBon?: string;           // N° de Bon (options_bongerance)
+  extraAdresse?: string;       // Adresse intervention (options_adresse)
+  extraContact?: string;       // Contact/Employé (options_employe)
+  extraCle?: string;           // Clé (options_cle)
+  extraCode?: string;          // Code (options_code)
+  extraNoImm?: string;         // N° immeuble (options_noimm)
   extraAdresseComplete?: string; // Adresse complète
-  extraNCompt?: string;          // N° compteur
+  extraNCompt?: string;        // N° compteur (options_ncompt)
+  extraPropImm?: string;       // Propriétaire immeuble (options_propimm)
+  extraConcierge?: string;     // Concierge (options_concierge)
+  extraAppartement?: string;   // Appartement (options_appartement)
   interventionExtrafields?: Record<string, any>;
   projectId?: number;
   projectRef?: string;
