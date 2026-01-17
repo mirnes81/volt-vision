@@ -1,4 +1,4 @@
-import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, Calendar, Zap } from 'lucide-react';
+import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, Calendar, User, Building, Phone } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention, InterventionStatus } from '@/types/intervention';
 import { cn } from '@/lib/utils';
@@ -33,6 +33,13 @@ const dayNames: Record<number, string> = {
   6: 'Sam',
 };
 
+// Check if intervention is urgent based on priority or label/description
+function isUrgent(intervention: Intervention): boolean {
+  if (intervention.priority === 'urgent' || intervention.priority === 'critical') return true;
+  const textToCheck = `${intervention.label} ${intervention.description}`.toLowerCase();
+  return textToCheck.includes('urgent');
+}
+
 function formatDateTime(dateString?: string): { day: string; date: string; time: string | null } | null {
   if (!dateString) return null;
   try {
@@ -63,12 +70,29 @@ export function InterventionCardCompact({ intervention }: InterventionCardCompac
   
   const typeColor = typeColors[intervention.type] || 'bg-primary';
   const location = intervention.extraAdresse || intervention.location;
+  const urgent = isUrgent(intervention);
+  
+  // Worker hours summary for this intervention
+  const totalHours = intervention.hours?.reduce((sum, h) => sum + (h.durationHours || 0), 0) || 0;
 
   return (
     <Link to={`/intervention/${intervention.id}`}>
-      <article className="group relative bg-card rounded-xl p-3 shadow-sm border border-border/50 hover:shadow-md hover:border-primary/30 transition-all duration-200">
+      <article className={cn(
+        "group relative bg-card rounded-xl p-3 shadow-sm border transition-all duration-200",
+        urgent 
+          ? "border-destructive/50 hover:border-destructive hover:shadow-destructive/20" 
+          : "border-border/50 hover:border-primary/30 hover:shadow-md"
+      )}>
         {/* Type indicator line */}
         <div className={cn("absolute left-0 top-3 bottom-3 w-1 rounded-full", typeColor)} />
+        
+        {/* Urgent banner */}
+        {urgent && (
+          <div className="absolute -top-1 -right-1 bg-destructive text-destructive-foreground px-2 py-0.5 rounded-bl-lg rounded-tr-lg text-[10px] font-bold flex items-center gap-1 shadow-sm">
+            <AlertTriangle className="w-3 h-3" />
+            URGENT
+          </div>
+        )}
         
         <div className="pl-3">
           {/* Header row */}
@@ -76,8 +100,10 @@ export function InterventionCardCompact({ intervention }: InterventionCardCompac
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 mb-0.5">
                 <span className="text-[10px] font-semibold text-primary/80">{intervention.ref}</span>
-                {intervention.priority === 'urgent' && (
-                  <AlertTriangle className="w-3 h-3 text-destructive animate-pulse" />
+                {intervention.extraBon && (
+                  <span className="text-[10px] font-medium text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                    # {intervention.extraBon}
+                  </span>
                 )}
               </div>
               <h3 className="font-semibold text-sm text-foreground truncate leading-tight">
@@ -89,7 +115,8 @@ export function InterventionCardCompact({ intervention }: InterventionCardCompac
             <div className={cn(
               "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold shrink-0",
               status.bgColor,
-              status.color
+              status.color,
+              urgent && "mt-3" // Push down if urgent banner
             )}>
               <StatusIcon className="w-3 h-3" />
               <span className="hidden sm:inline">{status.label}</span>
@@ -99,44 +126,91 @@ export function InterventionCardCompact({ intervention }: InterventionCardCompac
           {/* Label */}
           <p className="text-xs text-muted-foreground truncate mb-2">{intervention.label}</p>
           
-          {/* Info row */}
-          <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
-            {/* Date & time */}
-            {dateInfo && (
-              <div className="flex items-center gap-1">
-                <Calendar className="w-3 h-3 text-primary" />
-                <span className="font-medium">{dateInfo.day} {dateInfo.date}</span>
-                {dateInfo.time && (
-                  <span className="text-primary font-semibold">{dateInfo.time}</span>
+          {/* Location & Contact info */}
+          <div className="flex flex-col gap-1 mb-2">
+            {/* Date & location row */}
+            <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+              {dateInfo && (
+                <div className="flex items-center gap-1">
+                  <Calendar className="w-3 h-3 text-primary" />
+                  <span className="font-medium">{dateInfo.day} {dateInfo.date}</span>
+                  {dateInfo.time && (
+                    <span className="text-primary font-semibold">{dateInfo.time}</span>
+                  )}
+                </div>
+              )}
+              {location && (
+                <div className="flex items-center gap-1 min-w-0">
+                  <MapPin className="w-3 h-3 shrink-0" />
+                  <span className="truncate max-w-[150px]">{location}</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Concierge/Contact info */}
+            {(intervention.extraContact || intervention.extraNoImm) && (
+              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
+                {intervention.extraContact && (
+                  <div className="flex items-center gap-1">
+                    <Phone className="w-3 h-3 text-primary/70" />
+                    <span className="truncate max-w-[120px]">Concierge: {intervention.extraContact}</span>
+                  </div>
+                )}
+                {intervention.extraNoImm && (
+                  <div className="flex items-center gap-1">
+                    <Building className="w-3 h-3 text-primary/70" />
+                    <span>Immeuble: {intervention.extraNoImm}</span>
+                  </div>
                 )}
               </div>
             )}
+          </div>
+          
+          {/* Footer: Assigned worker + Tasks progress */}
+          <div className="flex items-center justify-between gap-2 text-[11px]">
+            {/* Assigned worker */}
+            <div className={cn(
+              "flex items-center gap-1",
+              intervention.assignedTo ? "text-muted-foreground" : "text-destructive"
+            )}>
+              <User className="w-3 h-3" />
+              {intervention.assignedTo ? (
+                <span className="font-medium">
+                  {intervention.assignedTo.firstName || intervention.assignedTo.name}
+                  {totalHours > 0 && (
+                    <span className="ml-1 text-primary">({totalHours.toFixed(1)}h)</span>
+                  )}
+                </span>
+              ) : (
+                <span className="font-semibold">Non assigné</span>
+              )}
+            </div>
             
-            {/* Location */}
-            {location && (
-              <div className="flex items-center gap-1 min-w-0">
-                <MapPin className="w-3 h-3 shrink-0" />
-                <span className="truncate max-w-[120px]">{location}</span>
-              </div>
-            )}
-            
-            {/* Tasks progress */}
-            {totalTasks > 0 && (
-              <div className="flex items-center gap-1.5 ml-auto">
-                <div className="w-12 h-1 bg-secondary rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary rounded-full transition-all"
-                    style={{ width: `${progress}%` }}
-                  />
+            {/* Type label + Tasks progress */}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-medium text-muted-foreground capitalize">
+                {intervention.type}
+              </span>
+              {totalTasks > 0 && (
+                <div className="flex items-center gap-1.5">
+                  <div className="w-12 h-1 bg-secondary rounded-full overflow-hidden">
+                    <div 
+                      className="h-full bg-primary rounded-full transition-all"
+                      style={{ width: `${progress}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] font-medium">{completedTasks}/{totalTasks}</span>
                 </div>
-                <span className="text-[10px] font-medium">{completedTasks}/{totalTasks}</span>
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
         
         {/* Hover effect */}
-        <div className="absolute inset-0 rounded-xl bg-primary/5 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none" />
+        <div className={cn(
+          "absolute inset-0 rounded-xl opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none",
+          urgent ? "bg-destructive/5" : "bg-primary/5"
+        )} />
       </article>
     </Link>
   );
