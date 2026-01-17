@@ -1,3 +1,4 @@
+// Main entry point - v1.0.1
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
