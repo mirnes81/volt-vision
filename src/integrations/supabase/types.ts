@@ -202,6 +202,56 @@ export type Database = {
           },
         ]
       }
+      hours_alerts: {
+        Row: {
+          acknowledged: boolean | null
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          alert_date: string
+          created_at: string
+          excess_minutes: number
+          id: string
+          limit_minutes: number
+          tenant_id: string
+          total_minutes: number
+          user_id: string
+        }
+        Insert: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_date: string
+          created_at?: string
+          excess_minutes: number
+          id?: string
+          limit_minutes: number
+          tenant_id: string
+          total_minutes: number
+          user_id: string
+        }
+        Update: {
+          acknowledged?: boolean | null
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          alert_date?: string
+          created_at?: string
+          excess_minutes?: number
+          id?: string
+          limit_minutes?: number
+          tenant_id?: string
+          total_minutes?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "hours_alerts_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       released_interventions: {
         Row: {
           client_name: string
@@ -491,6 +541,92 @@ export type Database = {
           },
         ]
       }
+      work_time_entries: {
+        Row: {
+          clock_in: string
+          clock_in_latitude: number | null
+          clock_in_longitude: number | null
+          clock_out: string | null
+          clock_out_latitude: number | null
+          clock_out_longitude: number | null
+          comment: string | null
+          created_at: string
+          dolibarr_line_id: number | null
+          dolibarr_sync_at: string | null
+          duration_minutes: number | null
+          id: string
+          intervention_id: number | null
+          intervention_ref: string | null
+          rejection_reason: string | null
+          status: string
+          synced_to_dolibarr: boolean | null
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          validated_at: string | null
+          validated_by: string | null
+          work_type: string | null
+        }
+        Insert: {
+          clock_in?: string
+          clock_in_latitude?: number | null
+          clock_in_longitude?: number | null
+          clock_out?: string | null
+          clock_out_latitude?: number | null
+          clock_out_longitude?: number | null
+          comment?: string | null
+          created_at?: string
+          dolibarr_line_id?: number | null
+          dolibarr_sync_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          intervention_id?: number | null
+          intervention_ref?: string | null
+          rejection_reason?: string | null
+          status?: string
+          synced_to_dolibarr?: boolean | null
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+          validated_at?: string | null
+          validated_by?: string | null
+          work_type?: string | null
+        }
+        Update: {
+          clock_in?: string
+          clock_in_latitude?: number | null
+          clock_in_longitude?: number | null
+          clock_out?: string | null
+          clock_out_latitude?: number | null
+          clock_out_longitude?: number | null
+          comment?: string | null
+          created_at?: string
+          dolibarr_line_id?: number | null
+          dolibarr_sync_at?: string | null
+          duration_minutes?: number | null
+          id?: string
+          intervention_id?: number | null
+          intervention_ref?: string | null
+          rejection_reason?: string | null
+          status?: string
+          synced_to_dolibarr?: boolean | null
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+          validated_at?: string | null
+          validated_by?: string | null
+          work_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_time_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       autonomous_clients_limited: {
@@ -533,6 +669,28 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "autonomous_clients_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      daily_work_summary: {
+        Row: {
+          approved_minutes: number | null
+          entry_count: number | null
+          first_clock_in: string | null
+          last_clock_out: string | null
+          pending_minutes: number | null
+          tenant_id: string | null
+          total_minutes: number | null
+          user_id: string | null
+          work_date: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_time_entries_tenant_id_fkey"
             columns: ["tenant_id"]
             isOneToOne: false
             referencedRelation: "tenants"
@@ -630,6 +788,15 @@ export type Database = {
       }
     }
     Functions: {
+      check_daily_hours_limit: {
+        Args: { _date?: string; _tenant_id: string; _user_id: string }
+        Returns: {
+          is_exceeded: boolean
+          limit_minutes: number
+          remaining_minutes: number
+          total_minutes: number
+        }[]
+      }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       has_management_role: {
         Args: { _tenant_id: string; _user_id: string }
