@@ -3,7 +3,7 @@ import { Calendar, User, Save, Loader2, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
 import { Intervention } from '@/types/intervention';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -20,33 +20,52 @@ interface DolibarrUser {
   login: string;
 }
 
+// Safe localStorage getter
+function getWorkerFromStorage(): any | null {
+  try {
+    const workerData = localStorage.getItem('mv3_worker') || localStorage.getItem('worker');
+    if (!workerData) return null;
+    return JSON.parse(workerData);
+  } catch (e) {
+    console.error('[AdminEditSection] Error parsing worker data:', e);
+    return null;
+  }
+}
+
 export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [users, setUsers] = useState<DolibarrUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // Form state
   const [selectedUserId, setSelectedUserId] = useState<string>(
-    intervention.assignedTo?.id?.toString() || ''
+    intervention.assignedTo?.id?.toString() || 'none'
   );
-  const [selectedDate, setSelectedDate] = useState<string>(
-    intervention.dateStart 
-      ? new Date(intervention.dateStart).toISOString().slice(0, 16)
-      : ''
-  );
-
-  // Check if current user is admin - check both localStorage keys
-  const workerData = localStorage.getItem('mv3_worker') || localStorage.getItem('worker');
-  const worker = workerData ? JSON.parse(workerData) : null;
-  const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
-  
-  console.log('[AdminEditSection] Admin check:', { 
-    hasWorkerData: !!workerData, 
-    admin: worker?.admin, 
-    isAdmin: worker?.isAdmin, 
-    result: isAdmin 
+  const [selectedDate, setSelectedDate] = useState<string>(() => {
+    try {
+      if (intervention.dateStart) {
+        return new Date(intervention.dateStart).toISOString().slice(0, 16);
+      }
+    } catch (e) {
+      console.error('[AdminEditSection] Error parsing date:', e);
+    }
+    return '';
   });
+
+  // Check admin status safely
+  useEffect(() => {
+    const worker = getWorkerFromStorage();
+    const adminCheck = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
+    setIsAdmin(adminCheck);
+    console.log('[AdminEditSection] Admin check:', { 
+      hasWorker: !!worker, 
+      admin: worker?.admin, 
+      isAdmin: worker?.isAdmin, 
+      result: adminCheck 
+    });
+  }, []);
 
   // Load users when dialog opens
   useEffect(() => {
@@ -66,14 +85,14 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
       
       if (Array.isArray(data)) {
         setUsers(data.map((u: any) => ({
-          id: parseInt(u.id),
+          id: parseInt(u.id) || 0,
           name: u.lastname || u.login || '',
           firstName: u.firstname || '',
           login: u.login || '',
         })));
       }
     } catch (error) {
-      console.error('Error loading users:', error);
+      console.error('[AdminEditSection] Error loading users:', error);
       toast.error('Erreur lors du chargement des utilisateurs');
     } finally {
       setLoadingUsers(false);
@@ -84,6 +103,7 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
     // NOTE: L'API REST Dolibarr v18 ne supporte pas la méthode PUT pour les interventions.
     // La mise à jour doit être faite directement dans Dolibarr.
     toast.error("L'API Dolibarr ne permet pas de modifier les interventions. Veuillez modifier directement dans Dolibarr.");
+    setIsOpen(false);
   };
 
   if (!isAdmin) return null;
@@ -96,11 +116,14 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
           Modifier
         </Button>
       </DialogTrigger>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Modifier l'intervention
           </DialogTitle>
+          <DialogDescription>
+            Modifier l'assignation et la date de l'intervention {intervention.ref}
+          </DialogDescription>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
