@@ -237,18 +237,14 @@ serve(async (req) => {
             }
           }
           
-          // Login failed - check error
+          // Login failed - log and continue to fallback
           const errorText = await loginResponse.text();
           console.log(`[LOGIN] Native login failed: ${loginResponse.status} - ${errorText}`);
-          
-          if (loginResponse.status === 403 || loginResponse.status === 401) {
-            return new Response(
-              JSON.stringify({ error: 'Identifiants incorrects. Vérifiez votre login et mot de passe.' }),
-              { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
-          }
+          console.log(`[LOGIN] Will try fallback method...`);
+          // Don't return error here - continue to fallback method
         } catch (loginError) {
           console.error(`[LOGIN] Native login error:`, loginError);
+          console.log(`[LOGIN] Will try fallback method...`);
         }
         
         // Fallback: Try to find user in cache (for servers where /login might not work)
