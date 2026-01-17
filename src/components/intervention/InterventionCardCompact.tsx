@@ -147,19 +147,24 @@ export function InterventionCardCompact({ intervention }: InterventionCardCompac
               )}
             </div>
             
-            {/* Concierge/Contact info */}
-            {(intervention.extraContact || intervention.extraNoImm) && (
-              <div className="flex items-center gap-3 text-[11px] text-muted-foreground">
-                {intervention.extraContact && (
+            {/* Concierge/Immeuble info */}
+            {(intervention.extraConcierge || intervention.extraNoImm || intervention.extraAppartement) && (
+              <div className="flex items-center gap-3 text-[11px] text-muted-foreground flex-wrap">
+                {intervention.extraConcierge && (
                   <div className="flex items-center gap-1">
                     <Phone className="w-3 h-3 text-primary/70" />
-                    <span className="truncate max-w-[120px]">Concierge: {intervention.extraContact}</span>
+                    <span className="truncate max-w-[150px]">Concierge: {intervention.extraConcierge}</span>
                   </div>
                 )}
                 {intervention.extraNoImm && (
                   <div className="flex items-center gap-1">
                     <Building className="w-3 h-3 text-primary/70" />
-                    <span>Immeuble: {intervention.extraNoImm}</span>
+                    <span>Imm: {intervention.extraNoImm}</span>
+                  </div>
+                )}
+                {intervention.extraAppartement && (
+                  <div className="flex items-center gap-1">
+                    <span>🚪 Appt: {intervention.extraAppartement}</span>
                   </div>
                 )}
               </div>
