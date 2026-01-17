@@ -116,12 +116,12 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
                 Chargement...
               </div>
             ) : (
-              <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+              <Select value={selectedUserId || "none"} onValueChange={(val) => setSelectedUserId(val === "none" ? "" : val)}>
                 <SelectTrigger>
                   <SelectValue placeholder="Sélectionner un technicien" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Non assigné</SelectItem>
+                  <SelectItem value="none">Non assigné</SelectItem>
                   {users.map((user) => (
                     <SelectItem key={user.id} value={user.id.toString()}>
                       {user.firstName} {user.name} ({user.login})
