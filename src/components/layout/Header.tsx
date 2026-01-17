@@ -11,7 +11,7 @@ interface HeaderProps {
   rightAction?: React.ReactNode;
 }
 
-export function Header({ title = 'SmartElectric', showBack = false, showNotifications = false, rightAction }: HeaderProps) {
+export function Header({ title = 'ENES Électricité', showBack = false, showNotifications = false, rightAction }: HeaderProps) {
   const navigate = useNavigate();
   const { actualTheme, setTheme } = useTheme();
   

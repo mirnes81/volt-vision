@@ -35,7 +35,7 @@ export function NotificationSettings() {
   };
 
   const sendTestNotification = () => {
-    notifications.newIntervention('INT-2024-TEST', 'Client Test');
+    notifications.newIntervention('TEST-NOTIF', 'Test Notification');
     toast.success('Notification test envoyée');
   };
 

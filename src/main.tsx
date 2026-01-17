@@ -1,54 +1,100 @@
-// Main entry point - v1.0.1
+// Main entry point - v2.0.0 ENES Électricité
 import * as React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { preloadOfflineCache } from "./hooks/useInterventionsCache";
 
-// Clear cache automatically for Lovable preview sessions (only in editor preview, not published app)
-function clearPreviewCache() {
-  // Only clear for the Lovable editor preview, not the published app
-  const isEditorPreview = window.location.hostname.includes('preview--') && 
-                          window.location.hostname.includes('lovable.app');
+// AGGRESSIVE cache clearing for all sessions to remove old demo data
+async function clearAllCaches() {
+  console.log('[ENES] Clearing all caches and old data...');
   
-  if (isEditorPreview) {
-    const sessionKey = 'lovable_preview_session';
-    const currentSession = sessionStorage.getItem(sessionKey);
-    
-    // If no session marker exists, this is a new preview session - clear old data
-    if (!currentSession) {
-      console.log('[Preview] New session detected - clearing cached data');
-      
-      // Clear authentication data
-      localStorage.removeItem('mv3_token');
-      localStorage.removeItem('mv3_worker');
-      localStorage.removeItem('worker');
-      
-      // Clear intervention cache
-      localStorage.removeItem('interventions_cache');
-      localStorage.removeItem('interventions_cache_timestamp');
-      
-      // Mark this session
-      sessionStorage.setItem(sessionKey, Date.now().toString());
+  // Clear all localStorage demo data
+  const keysToRemove = [
+    'mv3_token', 'mv3_worker', 'worker',
+    'interventions_cache', 'interventions_cache_timestamp',
+    'interventions_cache_all', 'interventions_cache_mine',
+    'interventions_cache_all_meta', 'interventions_cache_mine_meta',
+    'dolibarr_config', 'hours_settings', 'reminder_settings'
+  ];
+  keysToRemove.forEach(key => localStorage.removeItem(key));
+  
+  // Clear sessionStorage
+  sessionStorage.clear();
+  
+  // Unregister old service workers and clear caches
+  if ('serviceWorker' in navigator) {
+    try {
+      const registrations = await navigator.serviceWorker.getRegistrations();
+      for (const registration of registrations) {
+        console.log('[ENES] Unregistering old SW:', registration.scope);
+        await registration.unregister();
+      }
+    } catch (e) {
+      console.warn('[ENES] Could not unregister SW:', e);
     }
   }
+  
+  // Clear all browser caches
+  if ('caches' in window) {
+    try {
+      const cacheNames = await caches.keys();
+      for (const name of cacheNames) {
+        console.log('[ENES] Deleting cache:', name);
+        await caches.delete(name);
+      }
+    } catch (e) {
+      console.warn('[ENES] Could not clear caches:', e);
+    }
+  }
+  
+  // Clear IndexedDB
+  if ('indexedDB' in window) {
+    try {
+      const databases = await indexedDB.databases?.() || [];
+      for (const db of databases) {
+        if (db.name) {
+          console.log('[ENES] Deleting IndexedDB:', db.name);
+          indexedDB.deleteDatabase(db.name);
+        }
+      }
+    } catch (e) {
+      console.warn('[ENES] Could not clear IndexedDB:', e);
+    }
+  }
+  
+  console.log('[ENES] All caches cleared!');
 }
 
-// Run cache cleanup before anything else
-clearPreviewCache();
+// Check if this is a fresh start that needs cache clearing
+const CACHE_VERSION = 'enes-v2';
+const lastVersion = localStorage.getItem('app_cache_version');
 
-// Preload offline cache immediately
-preloadOfflineCache();
+if (lastVersion !== CACHE_VERSION) {
+  // Version changed or first run - clear everything
+  clearAllCaches().then(() => {
+    localStorage.setItem('app_cache_version', CACHE_VERSION);
+    // Reload to get fresh content
+    if (lastVersion) {
+      window.location.reload();
+    }
+  });
+} else {
+  // Normal start - preload offline cache
+  preloadOfflineCache();
+}
 
-// Register service worker for PWA
+// Register new service worker
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
-        console.log('SW registered:', registration.scope);
+        console.log('[ENES] SW registered:', registration.scope);
+        // Force update check
+        registration.update();
       })
       .catch((error) => {
-        console.log('SW registration failed:', error);
+        console.log('[ENES] SW registration failed:', error);
       });
   });
 }
