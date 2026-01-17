@@ -205,12 +205,15 @@ serve(async (req) => {
         }
       }
       
-      // Get all users with emails
+      // Get all active users
       case 'get-users': {
-        console.log('[GET-USERS] Fetching all Dolibarr users');
+        console.log('[GET-USERS] Fetching all active Dolibarr users');
         const usersMap = await getCachedUsers();
-        const usersArray = Array.from(usersMap.values());
-        console.log(`[GET-USERS] Found ${usersArray.length} users`);
+        // Filter only active users (statut = '1' or 1)
+        const usersArray = Array.from(usersMap.values()).filter((u: any) => 
+          u.statut === '1' || u.statut === 1
+        );
+        console.log(`[GET-USERS] Found ${usersArray.length} active users out of ${usersMap.size} total`);
         return new Response(
           JSON.stringify(usersArray),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
