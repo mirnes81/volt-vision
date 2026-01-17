@@ -230,7 +230,7 @@ export default function LoginPage() {
 
       {/* Version */}
       <p className="mt-4 text-xs text-muted-foreground/50">
-        SmartElectric Suite v1.0.0
+        ENES Électricité v1.0.0
       </p>
     </div>
   );
