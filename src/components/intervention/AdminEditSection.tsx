@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Calendar, User, Save, Loader2, X, Settings, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Intervention } from '@/types/intervention';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { createPortal } from 'react-dom';
 
 interface AdminEditSectionProps {
   intervention: Intervention;
@@ -36,271 +37,296 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
   const [users, setUsers] = useState<DolibarrUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [mounted, setMounted] = useState(false);
   
   // Form state
   const [selectedUserId, setSelectedUserId] = useState<string>(
     intervention.assignedTo?.id?.toString() || ''
   );
-  const [selectedDate, setSelectedDate] = useState<string>(() => {
+  const [selectedDate, setSelectedDate] = useState<string>('');
+
+  // Initialize date safely
+  useEffect(() => {
     try {
       if (intervention.dateStart) {
-        return new Date(intervention.dateStart).toISOString().slice(0, 16);
+        const date = new Date(intervention.dateStart);
+        if (!isNaN(date.getTime())) {
+          setSelectedDate(date.toISOString().slice(0, 16));
+        }
       }
     } catch (e) {
       console.error('[AdminEditSection] Error parsing date:', e);
     }
-    return '';
-  });
+  }, [intervention.dateStart]);
+
+  // Mount check for portal
+  useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
 
   // Check admin status safely
   useEffect(() => {
-    const worker = getWorkerFromStorage();
-    const adminCheck = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
-    setIsAdmin(adminCheck);
-    console.log('[AdminEditSection] Admin check:', { 
-      hasWorker: !!worker, 
-      admin: worker?.admin, 
-      isAdmin: worker?.isAdmin, 
-      result: adminCheck 
-    });
+    try {
+      const worker = getWorkerFromStorage();
+      const adminCheck = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
+      setIsAdmin(adminCheck);
+      console.log('[AdminEditSection] Admin check:', adminCheck);
+    } catch (e) {
+      console.error('[AdminEditSection] Error checking admin:', e);
+      setIsAdmin(false);
+    }
   }, []);
 
-  const handleOpen = async () => {
-    console.log('[AdminEditSection] Opening panel...');
-    setIsOpen(true);
-    if (users.length === 0) {
-      await loadUsers();
-    }
-  };
-
-  const handleClose = () => {
-    console.log('[AdminEditSection] Closing panel...');
-    setIsOpen(false);
-  };
-
-  const loadUsers = async () => {
+  const loadUsers = useCallback(async () => {
+    if (loadingUsers) return;
     setLoadingUsers(true);
+    
     try {
       console.log('[AdminEditSection] Loading users...');
       const { data, error } = await supabase.functions.invoke('dolibarr-api', {
         body: { action: 'get-users' },
       });
       
-      console.log('[AdminEditSection] Users response:', { data, error });
+      if (error) {
+        console.error('[AdminEditSection] API error:', error);
+        throw error;
+      }
       
       let mappedUsers: DolibarrUser[] = [];
       
-      if (!error && Array.isArray(data) && data.length > 0) {
+      if (Array.isArray(data) && data.length > 0) {
         mappedUsers = data.map((u: any) => ({
           id: parseInt(u.id) || 0,
           name: u.name || u.lastname || u.login || 'Inconnu',
           firstName: u.firstName || u.firstname || '',
           login: u.login || '',
-        }));
-        console.log('[AdminEditSection] Mapped users from API:', mappedUsers.length, 'users');
-      } else {
-        console.warn('[AdminEditSection] No users from API, using fallback');
+        })).filter((u: DolibarrUser) => u.id > 0);
+        
+        console.log('[AdminEditSection] Loaded', mappedUsers.length, 'users');
       }
       
-      // Fallback: add current assigned user if not in list
+      // Add fallbacks
       if (intervention.assignedTo?.id) {
-        const assignedId = intervention.assignedTo.id;
-        const exists = mappedUsers.some(u => u.id === assignedId);
+        const exists = mappedUsers.some(u => u.id === intervention.assignedTo?.id);
         if (!exists) {
           mappedUsers.unshift({
-            id: assignedId,
+            id: intervention.assignedTo.id,
             name: intervention.assignedTo.name || '',
             firstName: intervention.assignedTo.firstName || '',
             login: '',
           });
-          console.log('[AdminEditSection] Added assigned user as fallback');
         }
       }
       
-      // Also add current logged-in worker as fallback
       const currentWorker = getWorkerFromStorage();
       if (currentWorker?.id) {
         const workerId = parseInt(currentWorker.id);
-        const exists = mappedUsers.some(u => u.id === workerId);
-        if (!exists && workerId > 0) {
+        if (workerId > 0 && !mappedUsers.some(u => u.id === workerId)) {
           mappedUsers.push({
             id: workerId,
             name: currentWorker.lastname || currentWorker.name || '',
             firstName: currentWorker.firstname || currentWorker.firstName || '',
             login: currentWorker.login || '',
           });
-          console.log('[AdminEditSection] Added current worker as fallback');
         }
       }
       
       setUsers(mappedUsers);
-      console.log('[AdminEditSection] Final users count:', mappedUsers.length);
     } catch (error) {
-      console.error('[AdminEditSection] Error loading users:', error);
+      console.error('[AdminEditSection] Error:', error);
       
-      // Even on error, provide fallback options
-      const fallbackUsers: DolibarrUser[] = [];
-      
+      // Fallback to assigned user only
+      const fallback: DolibarrUser[] = [];
       if (intervention.assignedTo?.id) {
-        fallbackUsers.push({
+        fallback.push({
           id: intervention.assignedTo.id,
           name: intervention.assignedTo.name || '',
           firstName: intervention.assignedTo.firstName || '',
           login: '',
         });
       }
-      
-      const currentWorker = getWorkerFromStorage();
-      if (currentWorker?.id) {
-        const workerId = parseInt(currentWorker.id);
-        if (!fallbackUsers.some(u => u.id === workerId) && workerId > 0) {
-          fallbackUsers.push({
-            id: workerId,
-            name: currentWorker.lastname || currentWorker.name || '',
-            firstName: currentWorker.firstname || currentWorker.firstName || '',
-            login: currentWorker.login || '',
-          });
-        }
-      }
-      
-      setUsers(fallbackUsers);
-      
-      if (fallbackUsers.length === 0) {
-        toast.error('Erreur lors du chargement des utilisateurs');
-      }
+      setUsers(fallback);
     } finally {
       setLoadingUsers(false);
     }
-  };
+  }, [intervention.assignedTo, loadingUsers]);
 
-  const handleSave = async () => {
-    toast.info("L'API Dolibarr ne permet pas de modifier l'assignation. Modifiez directement dans Dolibarr.");
+  const handleOpen = useCallback(() => {
+    console.log('[AdminEditSection] Opening...');
+    setIsOpen(true);
+    if (users.length === 0) {
+      loadUsers();
+    }
+  }, [users.length, loadUsers]);
+
+  const handleClose = useCallback(() => {
+    console.log('[AdminEditSection] Closing...');
+    setIsOpen(false);
+  }, []);
+
+  const handleSave = useCallback(() => {
+    toast.info("Modification non supportée par l'API Dolibarr. Modifiez directement dans Dolibarr.");
     handleClose();
-  };
+  }, [handleClose]);
 
-  if (!isAdmin) return null;
+  // Don't render if not admin
+  if (!isAdmin) {
+    return null;
+  }
+
+  const modalContent = isOpen ? (
+    <>
+      {/* Backdrop */}
+      <div 
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0,0,0,0.5)',
+          zIndex: 9998,
+        }}
+        onClick={handleClose}
+      />
+      
+      {/* Panel */}
+      <div 
+        style={{
+          position: 'fixed',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'white',
+          borderTopLeftRadius: '16px',
+          borderTopRightRadius: '16px',
+          zIndex: 9999,
+          maxHeight: '80vh',
+          overflow: 'hidden',
+          boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
+        }}
+      >
+        {/* Handle */}
+        <div style={{ display: 'flex', justifyContent: 'center', padding: '8px' }}>
+          <div style={{ width: '40px', height: '4px', backgroundColor: '#ccc', borderRadius: '2px' }} />
+        </div>
+
+        {/* Header */}
+        <div style={{ padding: '0 16px 12px', borderBottom: '1px solid #eee' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <Settings style={{ width: '20px', height: '20px', color: '#6B8E23' }} />
+              <span style={{ fontSize: '18px', fontWeight: 600 }}>Modifier l'intervention</span>
+            </div>
+            <button onClick={handleClose} style={{ padding: '8px', background: 'none', border: 'none', cursor: 'pointer' }}>
+              <X style={{ width: '20px', height: '20px' }} />
+            </button>
+          </div>
+          <p style={{ fontSize: '14px', color: '#666', marginTop: '4px' }}>
+            Assignation et date de {intervention.ref}
+          </p>
+        </div>
+        
+        {/* Content */}
+        <div style={{ padding: '16px', overflowY: 'auto', maxHeight: 'calc(80vh - 180px)' }}>
+          {/* User Selection */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
+              <User style={{ width: '16px', height: '16px', color: '#6B8E23' }} />
+              Technicien assigné
+            </label>
+            
+            {loadingUsers ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '12px', backgroundColor: '#f5f5f5', borderRadius: '8px' }}>
+                <Loader2 style={{ width: '16px', height: '16px', animation: 'spin 1s linear infinite' }} />
+                <span style={{ fontSize: '14px', color: '#666' }}>Chargement...</span>
+              </div>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                <select
+                  value={selectedUserId}
+                  onChange={(e) => setSelectedUserId(e.target.value)}
+                  style={{
+                    width: '100%',
+                    height: '48px',
+                    padding: '0 40px 0 12px',
+                    fontSize: '16px',
+                    border: '1px solid #ddd',
+                    borderRadius: '8px',
+                    backgroundColor: 'white',
+                    appearance: 'none',
+                    cursor: 'pointer',
+                  }}
+                >
+                  <option value="">Non assigné</option>
+                  {users.map((user) => (
+                    <option key={user.id} value={user.id.toString()}>
+                      {user.firstName} {user.name} {user.login ? `(${user.login})` : ''}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', width: '20px', height: '20px', color: '#666', pointerEvents: 'none' }} />
+              </div>
+            )}
+            
+            {intervention.assignedTo && (
+              <p style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                Actuellement : {intervention.assignedTo.firstName} {intervention.assignedTo.name}
+              </p>
+            )}
+          </div>
+          
+          {/* Date Selection */}
+          <div style={{ marginBottom: '16px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
+              <Calendar style={{ width: '16px', height: '16px', color: '#6B8E23' }} />
+              Date et heure
+            </label>
+            <input
+              type="datetime-local"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{
+                width: '100%',
+                height: '48px',
+                padding: '0 12px',
+                fontSize: '16px',
+                border: '1px solid #ddd',
+                borderRadius: '8px',
+              }}
+            />
+            {intervention.dateStart && (
+              <p style={{ fontSize: '12px', color: '#888', marginTop: '4px' }}>
+                Actuellement : {new Date(intervention.dateStart).toLocaleString('fr-CH')}
+              </p>
+            )}
+          </div>
+        </div>
+        
+        {/* Footer */}
+        <div style={{ padding: '16px', borderTop: '1px solid #eee', display: 'flex', gap: '12px' }}>
+          <Button variant="outline" onClick={handleClose} disabled={isLoading} style={{ flex: 1, height: '48px' }}>
+            <X style={{ width: '16px', height: '16px', marginRight: '8px' }} />
+            Annuler
+          </Button>
+          <Button onClick={handleSave} disabled={isLoading} style={{ flex: 1, height: '48px' }}>
+            <Save style={{ width: '16px', height: '16px', marginRight: '8px' }} />
+            Enregistrer
+          </Button>
+        </div>
+      </div>
+    </>
+  ) : null;
 
   return (
-    <div className="relative">
-      {/* Trigger Button */}
+    <>
       <Button variant="outline" size="sm" className="gap-2" onClick={handleOpen}>
         <User className="w-4 h-4" />
         Modifier
       </Button>
-
-      {/* Inline Modal Overlay */}
-      {isOpen && (
-        <div 
-          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
-          onClick={handleClose}
-        />
-      )}
-
-      {/* Bottom Sheet Panel */}
-      {isOpen && (
-        <div 
-          className="fixed inset-x-0 bottom-0 z-50 bg-background border-t rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom duration-300"
-          style={{ maxHeight: '80vh' }}
-        >
-          {/* Handle bar */}
-          <div className="flex justify-center py-2">
-            <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
-          </div>
-
-          {/* Header */}
-          <div className="px-6 pb-4 border-b">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <Settings className="w-5 h-5 text-primary" />
-                <h2 className="text-lg font-semibold">Modifier l'intervention</h2>
-              </div>
-              <Button variant="ghost" size="icon" onClick={handleClose}>
-                <X className="w-5 h-5" />
-              </Button>
-            </div>
-            <p className="text-sm text-muted-foreground mt-1">
-              Modifier l'assignation et la date de {intervention.ref}
-            </p>
-          </div>
-          
-          {/* Content */}
-          <div className="px-6 py-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 180px)' }}>
-            {/* Assignation */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <User className="w-4 h-4 text-primary" />
-                Technicien assigné
-              </label>
-              {loadingUsers ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground py-3 px-3 bg-muted/30 rounded-lg">
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Chargement des techniciens...
-                </div>
-              ) : users.length === 0 ? (
-                <div className="text-sm text-muted-foreground py-3 px-3 bg-muted/30 rounded-lg">
-                  Aucun utilisateur disponible.
-                </div>
-              ) : (
-                <div className="relative">
-                  <select
-                    value={selectedUserId}
-                    onChange={(e) => setSelectedUserId(e.target.value)}
-                    className="w-full h-12 px-4 py-2 text-base border border-input bg-background rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
-                  >
-                    <option value="">Non assigné</option>
-                    {users.map((user) => (
-                      <option key={user.id} value={user.id.toString()}>
-                        {user.firstName} {user.name} {user.login ? `(${user.login})` : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
-                </div>
-              )}
-              {intervention.assignedTo && (
-                <p className="text-xs text-muted-foreground">
-                  Actuellement : {intervention.assignedTo.firstName} {intervention.assignedTo.name}
-                </p>
-              )}
-            </div>
-            
-            {/* Date */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium flex items-center gap-2">
-                <Calendar className="w-4 h-4 text-primary" />
-                Date et heure d'intervention
-              </label>
-              <Input
-                type="datetime-local"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="w-full h-12 text-base"
-              />
-              {intervention.dateStart && (
-                <p className="text-xs text-muted-foreground">
-                  Actuellement : {new Date(intervention.dateStart).toLocaleString('fr-CH')}
-                </p>
-              )}
-            </div>
-          </div>
-          
-          {/* Actions */}
-          <div className="px-6 py-4 border-t bg-muted/20 flex gap-3">
-            <Button variant="outline" onClick={handleClose} disabled={isLoading} className="flex-1 h-12">
-              <X className="w-4 h-4 mr-2" />
-              Annuler
-            </Button>
-            <Button onClick={handleSave} disabled={isLoading} className="flex-1 h-12">
-              {isLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Save className="w-4 h-4 mr-2" />
-              )}
-              Enregistrer
-            </Button>
-          </div>
-        </div>
-      )}
-    </div>
+      
+      {mounted && modalContent && createPortal(modalContent, document.body)}
+    </>
   );
 }
