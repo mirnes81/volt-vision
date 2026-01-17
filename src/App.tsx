@@ -16,6 +16,7 @@ import InterventionDetailPage from "./pages/InterventionDetailPage";
 import NewInterventionPage from "./pages/NewInterventionPage";
 import CalendarPage from "./pages/CalendarPage";
 import MapPage from "./pages/MapPage";
+import TimeTrackingPage from "./pages/TimeTrackingPage";
 import AvailableInterventionsPage from "./pages/AvailableInterventionsPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
@@ -56,6 +57,7 @@ const AppRoutes = () => (
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/map" element={<MapPage />} />
       <Route path="/available" element={<AvailableInterventionsPage />} />
+      <Route path="/time-tracking" element={<TimeTrackingPage />} />
       <Route path="/profile" element={<ProfilePage />} />
     </Route>
     <Route path="*" element={<NotFound />} />

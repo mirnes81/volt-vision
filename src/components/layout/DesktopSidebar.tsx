@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, ClipboardList, Calendar, User, Settings, ChevronLeft, ChevronRight,
-  Zap, LogOut, Moon, Sun, Plus, Map, HandHeart
+  Zap, LogOut, Moon, Sun, Plus, Map, HandHeart, Clock
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -30,6 +30,7 @@ export function DesktopSidebar() {
   const mainNavItems: NavItem[] = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: t('nav.interventions') },
+    { to: '/time-tracking', icon: Clock, label: 'Suivi heures' },
     { to: '/available', icon: HandHeart, label: 'Disponibles', badge: availableCount },
     { to: '/map', icon: Map, label: 'Carte' },
     { to: '/calendar', icon: Calendar, label: t('nav.calendar') },

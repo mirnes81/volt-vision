@@ -1,17 +1,15 @@
-import { Home, ClipboardList, Calendar, User, HandHeart } from 'lucide-react';
+import { Home, ClipboardList, Calendar, User, Clock } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { useAvailableCount } from '@/hooks/useAvailableCount';
 import { cn } from '@/lib/utils';
 
 export function BottomNav() {
   const { t } = useLanguage();
-  const availableCount = useAvailableCount();
   
   const navItems = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: 'Mes Int.' },
-    { to: '/available', icon: HandHeart, label: 'Dispo', badge: availableCount },
+    { to: '/time-tracking', icon: Clock, label: 'Heures' },
     { to: '/calendar', icon: Calendar, label: t('nav.calendar') },
     { to: '/profile', icon: User, label: t('nav.profile') },
   ];
@@ -33,11 +31,6 @@ export function BottomNav() {
                   isActive && "bg-primary/10"
                 )}>
                   <item.icon className={cn("w-5 h-5 transition-all duration-200", isActive && "scale-110")} />
-                  {item.badge && item.badge > 0 && (
-                    <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] flex items-center justify-center bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full px-1 animate-pulse">
-                      {item.badge > 99 ? '99+' : item.badge}
-                    </span>
-                  )}
                 </div>
                 <span className={cn("text-[10px] mt-0.5 font-medium", isActive && "font-semibold")}>
                   {item.label}
