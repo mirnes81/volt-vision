@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Calendar, User, Save, Loader2, X } from 'lucide-react';
+import { Calendar, User, Save, Loader2, X, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { Intervention } from '@/types/intervention';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -41,7 +40,7 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
   
   // Form state
   const [selectedUserId, setSelectedUserId] = useState<string>(
-    intervention.assignedTo?.id?.toString() || 'none'
+    intervention.assignedTo?.id?.toString() || ''
   );
   const [selectedDate, setSelectedDate] = useState<string>(() => {
     try {
@@ -67,7 +66,7 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
     });
   }, []);
 
-  // Load users when dialog opens
+  // Load users when sheet opens
   useEffect(() => {
     if (isOpen && users.length === 0) {
       loadUsers();
@@ -101,7 +100,6 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
 
   const handleSave = async () => {
     // NOTE: L'API REST Dolibarr v18 ne supporte pas la méthode PUT pour les interventions.
-    // La mise à jour doit être faite directement dans Dolibarr.
     toast.error("L'API Dolibarr ne permet pas de modifier les interventions. Veuillez modifier directement dans Dolibarr.");
     setIsOpen(false);
   };
@@ -109,22 +107,23 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
   if (!isAdmin) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={setIsOpen}>
-      <DialogTrigger asChild>
+    <Sheet open={isOpen} onOpenChange={setIsOpen}>
+      <SheetTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <User className="w-4 h-4" />
           Modifier
         </Button>
-      </DialogTrigger>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
+      </SheetTrigger>
+      <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
+        <SheetHeader className="text-left">
+          <SheetTitle className="flex items-center gap-2">
+            <Settings className="w-5 h-5 text-primary" />
             Modifier l'intervention
-          </DialogTitle>
-          <DialogDescription>
-            Modifier l'assignation et la date de l'intervention {intervention.ref}
-          </DialogDescription>
-        </DialogHeader>
+          </SheetTitle>
+          <SheetDescription>
+            Modifier l'assignation et la date de {intervention.ref}
+          </SheetDescription>
+        </SheetHeader>
         
         <div className="space-y-4 py-4">
           {/* Assignation */}
@@ -134,24 +133,23 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
               Technicien assigné
             </label>
             {loadingUsers ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
                 <Loader2 className="w-4 h-4 animate-spin" />
-                Chargement...
+                Chargement des techniciens...
               </div>
             ) : (
-              <Select value={selectedUserId || "none"} onValueChange={(val) => setSelectedUserId(val === "none" ? "" : val)}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Sélectionner un technicien" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">Non assigné</SelectItem>
-                  {users.map((user) => (
-                    <SelectItem key={user.id} value={user.id.toString()}>
-                      {user.firstName} {user.name} ({user.login})
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <select
+                value={selectedUserId}
+                onChange={(e) => setSelectedUserId(e.target.value)}
+                className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="">Non assigné</option>
+                {users.map((user) => (
+                  <option key={user.id} value={user.id.toString()}>
+                    {user.firstName} {user.name} ({user.login})
+                  </option>
+                ))}
+              </select>
             )}
             {intervention.assignedTo && (
               <p className="text-xs text-muted-foreground">
@@ -181,12 +179,12 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
         </div>
         
         {/* Actions */}
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading}>
+        <div className="flex gap-2 pt-2 pb-4">
+          <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading} className="flex-1">
             <X className="w-4 h-4 mr-2" />
             Annuler
           </Button>
-          <Button onClick={handleSave} disabled={isLoading}>
+          <Button onClick={handleSave} disabled={isLoading} className="flex-1">
             {isLoading ? (
               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             ) : (
@@ -195,7 +193,7 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
             Enregistrer
           </Button>
         </div>
-      </DialogContent>
-    </Dialog>
+      </SheetContent>
+    </Sheet>
   );
 }
