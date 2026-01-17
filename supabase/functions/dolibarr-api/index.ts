@@ -173,36 +173,120 @@ serve(async (req) => {
         endpoint = '/status';
         break;
 
-      // Login - find user by login OR email
+      // Login - AUTHENTICATE user with Dolibarr native login API
       case 'login': {
-        const loginValue = (params.login || '').replace(/'/g, "''").trim().toLowerCase();
-        console.log(`[LOGIN] Attempting login for: "${loginValue}"`);
+        const loginValue = (params.login || '').trim();
+        const password = params.password || '';
+        console.log(`[LOGIN] Attempting authentication for: "${loginValue}"`);
         
+        // First, try Dolibarr native login endpoint (validates password)
+        try {
+          const loginResponse = await fetchWithTimeout(
+            `${baseUrl}/login?login=${encodeURIComponent(loginValue)}&password=${encodeURIComponent(password)}`,
+            { method: 'GET', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' } },
+            10000
+          );
+          
+          console.log(`[LOGIN] Native login response status: ${loginResponse.status}`);
+          
+          if (loginResponse.ok) {
+            const loginData = await loginResponse.json();
+            console.log(`[LOGIN] Native login SUCCESS:`, JSON.stringify(loginData).substring(0, 200));
+            
+            // loginData.success contains user info on successful auth
+            if (loginData.success && loginData.success.token) {
+              // Get full user info from cache
+              const usersMap = await getCachedUsers();
+              const userId = String(loginData.success.id || '');
+              let matchedUser = usersMap.get(userId);
+              
+              // If not in cache, search by login
+              if (!matchedUser) {
+                for (const [, u] of usersMap) {
+                  if ((u.login || '').toLowerCase() === loginValue.toLowerCase()) {
+                    matchedUser = u;
+                    break;
+                  }
+                }
+              }
+              
+              if (matchedUser) {
+                console.log(`[LOGIN] Authenticated user: id=${matchedUser.id}, login=${matchedUser.login}`);
+                return new Response(
+                  JSON.stringify([matchedUser]),
+                  { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                );
+              }
+              
+              // Fallback - build user from login response
+              const user = {
+                id: parseInt(loginData.success.id) || 0,
+                login: loginValue,
+                name: loginData.success.lastname || loginValue,
+                firstName: loginData.success.firstname || '',
+                email: loginData.success.email || '',
+                admin: loginData.success.admin || '0',
+                superadmin: loginData.success.superadmin || '0',
+                statut: '1',
+              };
+              
+              return new Response(
+                JSON.stringify([user]),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
+            }
+          }
+          
+          // Login failed - check error
+          const errorText = await loginResponse.text();
+          console.log(`[LOGIN] Native login failed: ${loginResponse.status} - ${errorText}`);
+          
+          if (loginResponse.status === 403 || loginResponse.status === 401) {
+            return new Response(
+              JSON.stringify({ error: 'Identifiants incorrects. Vérifiez votre login et mot de passe.' }),
+              { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+        } catch (loginError) {
+          console.error(`[LOGIN] Native login error:`, loginError);
+        }
+        
+        // Fallback: Try to find user in cache (for servers where /login might not work)
+        console.log(`[LOGIN] Fallback - searching user in cache...`);
         const usersMap = await getCachedUsers();
         
         let matchedUser = null;
         for (const [, u] of usersMap) {
           const userLogin = (u.login || '').toLowerCase();
           const userEmail = (u.email || '').toLowerCase();
-          if (userLogin === loginValue || userEmail === loginValue) {
+          if (userLogin === loginValue.toLowerCase() || userEmail === loginValue.toLowerCase()) {
             matchedUser = u;
             break;
           }
         }
         
         if (matchedUser) {
-          console.log(`[LOGIN] SUCCESS - Found user: id=${matchedUser.id}`);
+          // Check if user is active
+          if (matchedUser.statut === '0' || matchedUser.statut === 0) {
+            console.log(`[LOGIN] User found but INACTIVE: id=${matchedUser.id}`);
+            return new Response(
+              JSON.stringify({ error: 'Votre compte est désactivé. Contactez votre administrateur.' }),
+              { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          console.log(`[LOGIN] Fallback SUCCESS - Found user: id=${matchedUser.id}`);
           return new Response(
             JSON.stringify([matchedUser]),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
-        } else {
-          console.log(`[LOGIN] FAILED - No user found`);
-          return new Response(
-            JSON.stringify([]),
-            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
         }
+        
+        console.log(`[LOGIN] FAILED - No user found for: "${loginValue}"`);
+        return new Response(
+          JSON.stringify({ error: `Aucun compte trouvé pour "${loginValue}". Vérifiez votre identifiant.` }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
       
       // Get all active users

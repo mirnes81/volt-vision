@@ -524,73 +524,81 @@ export function getLocalHours(interventionId: number): WorkerHour[] {
   return JSON.parse(localStorage.getItem(hoursKey) || '[]');
 }
 
-// Login function - validate user exists in Dolibarr
+// Login function - authenticate user with Dolibarr
 export async function dolibarrLogin(login: string, password: string): Promise<{ token: string; worker: Worker }> {
-  console.log('[dolibarrLogin] Validating user:', login);
+  console.log('[dolibarrLogin] Authenticating user:', login);
   
   try {
-    // Search for user by login name
-    const users = await callDolibarrApi<any[]>('login', { login, password });
+    // Call login with password for real authentication
+    const response = await supabase.functions.invoke('dolibarr-api', {
+      body: { action: 'login', params: { login, password } },
+    });
     
-    console.log('[dolibarrLogin] Full response from Dolibarr:', JSON.stringify(users, null, 2));
+    console.log('[dolibarrLogin] Full response:', response);
     
-    // Check if user was found
-    if (Array.isArray(users) && users.length > 0) {
-      const userInfo = users[0];
-      
-      // Log ALL fields that might indicate admin status
-      console.log('[dolibarrLogin] User info - Admin fields:', {
-        id: userInfo.id,
-        login: userInfo.login,
-        admin: userInfo.admin,
-        adminType: typeof userInfo.admin,
-        superadmin: userInfo.superadmin,
-        superadminType: typeof userInfo.superadmin,
-        fk_user: userInfo.fk_user,
-        rights: userInfo.rights,
-        all_permissions: userInfo.all_permissions,
-        user_group: userInfo.user_group,
-        rawUserInfo: JSON.stringify(userInfo).substring(0, 500)
-      });
-      
-      // Check if user is active/enabled
-      if (userInfo.statut === '0' || userInfo.statut === 0) {
-        throw new Error('Votre compte est désactivé. Contactez votre administrateur.');
-      }
-      
-      // Check if admin - expand the check to include more possibilities
-      const isAdmin = userInfo.admin === '1' || userInfo.admin === 1 || userInfo.admin === true ||
-                      userInfo.superadmin === '1' || userInfo.superadmin === 1 || userInfo.superadmin === true ||
-                      userInfo.fk_user === null || userInfo.fk_user === '0' || userInfo.fk_user === 0;  // SuperAdmin has no parent
-      
-      console.log('[dolibarrLogin] Admin check result:', isAdmin);
-      
-      const worker = {
-        id: parseInt(userInfo.id) || 1,
-        login: userInfo.login || login,
-        name: userInfo.lastname || userInfo.login || login,
-        firstName: userInfo.firstname || '',
-        email: userInfo.email || '',
-        phone: userInfo.office_phone || '',
-        admin: isAdmin ? '1' : '0',
-        isAdmin: isAdmin,
-      };
-      
-      console.log('[dolibarrLogin] Saving worker:', worker);
-      
-      // Generate a session token
-      const token = `doli_${userInfo.id}_${Date.now()}`;
-      
-      localStorage.setItem('mv3_token', token);
-      localStorage.setItem('mv3_worker', JSON.stringify(worker));
-      // Also store as 'worker' for compatibility
-      localStorage.setItem('worker', JSON.stringify(worker));
-      
-      return { token, worker: worker as Worker };
+    // Check for error response
+    if (response.error) {
+      console.error('[dolibarrLogin] API error:', response.error);
+      throw new Error(response.error.message || 'Erreur de connexion');
     }
     
-    // No user found
-    throw new Error(`Aucun compte trouvé pour "${login}". Vérifiez votre identifiant ou email.`);
+    // Check if response data contains an error
+    if (response.data?.error) {
+      console.error('[dolibarrLogin] Login error:', response.data.error);
+      throw new Error(response.data.error);
+    }
+    
+    // Check if user was found
+    const users = response.data;
+    if (!Array.isArray(users) || users.length === 0) {
+      throw new Error(`Aucun compte trouvé pour "${login}". Vérifiez votre identifiant.`);
+    }
+    
+    const userInfo = users[0];
+    
+    // Log user info
+    console.log('[dolibarrLogin] User info:', {
+      id: userInfo.id,
+      login: userInfo.login,
+      name: userInfo.name,
+      admin: userInfo.admin,
+      superadmin: userInfo.superadmin,
+      statut: userInfo.statut,
+    });
+    
+    // Check if user is active/enabled
+    if (userInfo.statut === '0' || userInfo.statut === 0) {
+      throw new Error('Votre compte est désactivé. Contactez votre administrateur.');
+    }
+    
+    // Check if admin
+    const isAdmin = userInfo.admin === '1' || userInfo.admin === 1 || userInfo.admin === true ||
+                    userInfo.superadmin === '1' || userInfo.superadmin === 1 || userInfo.superadmin === true;
+    
+    console.log('[dolibarrLogin] Admin check result:', isAdmin);
+    
+    const worker = {
+      id: parseInt(userInfo.id) || 1,
+      login: userInfo.login || login,
+      name: userInfo.name || userInfo.lastname || userInfo.login || login,
+      firstName: userInfo.firstName || userInfo.firstname || '',
+      email: userInfo.email || '',
+      phone: userInfo.office_phone || '',
+      admin: isAdmin ? '1' : '0',
+      isAdmin: isAdmin,
+    };
+    
+    console.log('[dolibarrLogin] Saving worker:', worker);
+    
+    // Generate a session token
+    const token = `doli_${userInfo.id}_${Date.now()}`;
+    
+    localStorage.setItem('mv3_token', token);
+    localStorage.setItem('mv3_worker', JSON.stringify(worker));
+    localStorage.setItem('worker', JSON.stringify(worker));
+    
+    return { token, worker: worker as Worker };
+    
   } catch (error) {
     console.error('[dolibarrLogin] Failed:', error);
     
@@ -598,6 +606,7 @@ export async function dolibarrLogin(login: string, password: string): Promise<{ 
     if (error instanceof Error) {
       if (error.message.includes('désactivé') || 
           error.message.includes('Aucun compte') ||
+          error.message.includes('Identifiants incorrects') ||
           error.message.includes('Configuration')) {
         throw error;
       }
@@ -612,7 +621,7 @@ export async function dolibarrLogin(login: string, password: string): Promise<{ 
       }
       
       if (error.message.includes('401') || error.message.includes('403')) {
-        throw new Error('Accès refusé. Vérifiez vos droits d\'accès.');
+        throw new Error('Identifiants incorrects. Vérifiez votre login et mot de passe.');
       }
     }
     
