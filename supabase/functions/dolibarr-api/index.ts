@@ -583,9 +583,9 @@ serve(async (req) => {
         
         console.log(`[UPDATE-INTERVENTION] Sending PUT with fk_user_author: ${updateData.fk_user_author}`);
         
-        // Try PUT request
+        // Try PUT on /ficheinter/ first (standard Dolibarr endpoint for interventions)
         let updateResponse = await fetchWithTimeout(
-          `${baseUrl}/interventions/${intId}`,
+          `${baseUrl}/ficheinter/${intId}`,
           {
             method: 'PUT',
             headers,
@@ -594,7 +594,22 @@ serve(async (req) => {
           15000
         );
         
-        console.log(`[UPDATE-INTERVENTION] Response: ${updateResponse.status}`);
+        console.log(`[UPDATE-INTERVENTION] Response from /ficheinter/: ${updateResponse.status}`);
+        
+        // If /ficheinter/ fails, try /interventions/ as fallback
+        if (!updateResponse.ok) {
+          console.log(`[UPDATE-INTERVENTION] Trying /interventions/ as fallback...`);
+          updateResponse = await fetchWithTimeout(
+            `${baseUrl}/interventions/${intId}`,
+            {
+              method: 'PUT',
+              headers,
+              body: JSON.stringify(updateData),
+            },
+            15000
+          );
+          console.log(`[UPDATE-INTERVENTION] Response from /interventions/: ${updateResponse.status}`);
+        }
         
         if (!updateResponse.ok) {
           const errText = await updateResponse.text();
