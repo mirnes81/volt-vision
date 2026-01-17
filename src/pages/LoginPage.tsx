@@ -76,7 +76,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex flex-col lg:flex-row">
       {/* Left Panel - Branding (Desktop) */}
-      <div className="hidden lg:flex lg:w-1/2 bg-gradient-to-br from-primary via-primary to-primary-dark relative overflow-hidden">
+      <div className="hidden lg:flex lg:w-1/2 bg-primary relative overflow-hidden">
         {/* Decorative elements */}
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-20 w-72 h-72 bg-white rounded-full blur-3xl" />
@@ -130,7 +130,7 @@ export default function LoginPage() {
       <div className="flex-1 flex flex-col items-center justify-center p-6 sm:p-8 lg:p-12 bg-background relative">
         {/* Mobile Logo */}
         <div className="lg:hidden text-center mb-8 animate-slide-up">
-          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-gradient-to-br from-primary to-primary-dark shadow-lg mb-4">
+          <div className="inline-flex items-center justify-center w-20 h-20 rounded-2xl bg-primary shadow-lg mb-4">
             <img 
               src={logoEnes} 
               alt="ENES" 
@@ -275,7 +275,7 @@ export default function LoginPage() {
           <Button
             type="submit"
             disabled={isLoading || connectionStatus !== 'success'}
-            className="w-full h-14 text-base font-bold rounded-2xl bg-gradient-to-r from-primary to-primary-dark hover:opacity-90 transition-all shadow-lg shadow-primary/25"
+            className="w-full h-14 text-base font-bold rounded-2xl bg-primary hover:bg-primary/90 transition-all shadow-lg"
           >
             {isLoading ? (
               <Loader2 className="w-5 h-5 animate-spin" />
