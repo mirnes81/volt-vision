@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { BottomNav } from './BottomNav';
 import { DesktopSidebar } from './DesktopSidebar';
+import { UrgentNotificationToast } from '@/components/notifications/UrgentNotificationToast';
 
 export function AppLayout() {
   return (
@@ -20,6 +21,9 @@ export function AppLayout() {
           <BottomNav />
         </div>
       </div>
+
+      {/* Urgent Notifications Toast */}
+      <UrgentNotificationToast />
     </div>
   );
 }
