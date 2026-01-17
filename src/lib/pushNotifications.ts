@@ -1,4 +1,4 @@
-// Push Notification Service for SmartElectric PWA
+// Push Notification Service for ENES Électricité PWA
 
 const VAPID_PUBLIC_KEY = 'YOUR_VAPID_PUBLIC_KEY'; // À configurer
 
@@ -117,7 +117,7 @@ export async function showLocalNotification(payload: NotificationPayload): Promi
   }
 }
 
-// Notification presets for SmartElectric
+// Notification presets for ENES Électricité
 export const notifications = {
   newIntervention: (ref: string, client: string) => showLocalNotification({
     title: '📋 Nouvelle intervention',

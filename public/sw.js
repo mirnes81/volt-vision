@@ -1,5 +1,5 @@
-// SmartElectric Service Worker
-const CACHE_NAME = 'smartelectric-v1';
+// ENES Électricité Service Worker
+const CACHE_NAME = 'enes-electricite-v2';
 const OFFLINE_URL = '/';
 
 // Files to cache for offline use
@@ -21,14 +21,17 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate event - clean old caches
+// Activate event - clean ALL old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .map((name) => {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          })
       );
     })
   );
@@ -77,7 +80,7 @@ self.addEventListener('fetch', (event) => {
 // Push event - handle push notifications
 self.addEventListener('push', (event) => {
   let data = {
-    title: 'SmartElectric',
+    title: 'ENES Électricité',
     body: 'Nouvelle notification',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
@@ -96,7 +99,7 @@ self.addEventListener('push', (event) => {
     body: data.body,
     icon: data.icon || '/icon-192.png',
     badge: data.badge || '/icon-192.png',
-    tag: data.tag || 'smartelectric-notification',
+    tag: data.tag || 'enes-notification',
     data: data.data || {},
     actions: data.actions || [],
     requireInteraction: data.requireInteraction || false,
@@ -145,7 +148,6 @@ self.addEventListener('notificationclick', (event) => {
 
 // Handle notification close
 self.addEventListener('notificationclose', (event) => {
-  // Track dismissed notifications if needed
   console.log('Notification dismissed:', event.notification.tag);
 });
 
@@ -157,7 +159,5 @@ self.addEventListener('sync', (event) => {
 });
 
 async function syncPendingChanges() {
-  // This would sync data from IndexedDB to the server
-  // Implementation depends on the API structure
-  console.log('Syncing pending changes...');
+  console.log('[ENES] Syncing pending changes...');
 }

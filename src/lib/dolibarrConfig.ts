@@ -1,4 +1,4 @@
-// SmartElectric Configuration Manager
+// ENES Électricité Configuration Manager
 
 export interface DolibarrConfig {
   baseUrl: string;
