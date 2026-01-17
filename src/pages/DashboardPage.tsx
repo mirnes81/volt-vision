@@ -1,8 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Zap, ClipboardList, Clock, AlertTriangle, ChevronRight, Wifi, WifiOff, Plus, Calendar, TrendingUp, Users, MapPin } from 'lucide-react';
+import { Zap, ClipboardList, Clock, AlertTriangle, ChevronRight, Wifi, WifiOff, Plus, Calendar, TrendingUp, Users, MapPin, Play, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
-import { InterventionCard } from '@/components/intervention/InterventionCard';
+import { InterventionCardCompact } from '@/components/intervention/InterventionCardCompact';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
 import { Intervention } from '@/types/intervention';
@@ -190,7 +190,7 @@ export default function DashboardPage() {
 
             {/* Recent Interventions */}
             <div>
-              <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center justify-between mb-4">
                 <h3 className="font-bold text-lg">Dernières interventions</h3>
                 <Link to="/interventions" className="text-sm text-primary font-medium flex items-center gap-1 hover:underline">
                   Voir tout
@@ -199,9 +199,9 @@ export default function DashboardPage() {
               </div>
 
               {isLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton key={i} className="h-36 rounded-2xl" />
+                <div className="grid gap-2">
+                  {[1, 2, 3, 4, 5].map((i) => (
+                    <Skeleton key={i} className="h-20 rounded-xl" />
                   ))}
                 </div>
               ) : interventions.length === 0 ? (
@@ -216,9 +216,9 @@ export default function DashboardPage() {
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-3 stagger-children">
-                  {interventions.slice(0, 5).map((intervention) => (
-                    <InterventionCard key={intervention.id} intervention={intervention} />
+                <div className="grid gap-2">
+                  {interventions.slice(0, 8).map((intervention) => (
+                    <InterventionCardCompact key={intervention.id} intervention={intervention} />
                   ))}
                 </div>
               )}
