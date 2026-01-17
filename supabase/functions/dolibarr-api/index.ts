@@ -355,8 +355,15 @@ serve(async (req) => {
         
         // Enrich each intervention (no additional API calls needed!)
         const enrichedInterventions = interventions.map((int: any) => {
+          // Priority: fk_user_assigned > fk_user_valid > fk_user_author
+          // fk_user_assigned = who the intervention is assigned to
+          // fk_user_author = who created the intervention
+          const assignedId = String(int.fk_user_assigned || int.user_assigned_id || int.fk_user_valid || int.fk_user_author || int.user_author_id || '');
+          const assignedUser = usersMap.get(assignedId);
+          
+          // Also get author separately for reference
           const authorId = String(int.fk_user_author || int.user_author_id || '');
-          const assignedUser = usersMap.get(authorId);
+          const authorUser = usersMap.get(authorId);
           
           const clientId = String(int.socid || int.fk_soc || '');
           const clientInfo = clientsMap.get(clientId);
@@ -366,6 +373,7 @@ serve(async (req) => {
           return {
             ...int,
             assignedTo: assignedUser || null,
+            createdBy: authorUser || null,
             thirdparty_name: clientInfo?.name || int.thirdparty_name || '',
             client_address: clientInfo?.address || '',
             client_zip: clientInfo?.zip || '',
@@ -424,8 +432,12 @@ serve(async (req) => {
         const clientId = String(intData.socid || intData.fk_soc || '');
         const clientInfo = clientsMap.get(clientId);
         
+        // Priority: fk_user_assigned > fk_user_valid > fk_user_author
+        const assignedId = String(intData.fk_user_assigned || intData.user_assigned_id || intData.fk_user_valid || intData.fk_user_author || intData.user_author_id || '');
+        const assignedUser = usersMap.get(assignedId);
+        
         const authorId = String(intData.fk_user_author || intData.user_author_id || '');
-        const assignedUser = usersMap.get(authorId);
+        const authorUser = usersMap.get(authorId);
         
         // Fetch documents and proposals in parallel
         let documents: any[] = [];
@@ -500,6 +512,7 @@ serve(async (req) => {
           client_phone: clientInfo?.phone || '',
           client_email: clientInfo?.email || '',
           assignedTo: assignedUser,
+          createdBy: authorUser,
           linked_proposal_ref: linkedProposalRef,
           documents: documents,
           extra_bon: intExtrafields.options_bon || intExtrafields.options_bongerance || '',
