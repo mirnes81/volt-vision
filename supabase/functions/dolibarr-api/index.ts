@@ -548,75 +548,81 @@ serve(async (req) => {
         const intId = params.id;
         console.log(`[UPDATE-INTERVENTION] Updating intervention ${intId} with:`, JSON.stringify(params.data));
         
-        // First, GET the current intervention to have all required fields
-        const getResponse = await fetchWithTimeout(
-          `${baseUrl}/interventions/${intId}`,
-          { method: 'GET', headers },
-          10000
-        );
+        // Build minimal update payload - only include fields we want to change
+        const minimalUpdate: any = {};
         
-        if (!getResponse.ok) {
-          console.error(`[UPDATE-INTERVENTION] Could not fetch intervention ${intId}: ${getResponse.status}`);
-          return new Response(
-            JSON.stringify({ error: `Intervention non trouvée: ${getResponse.status}` }),
-            { status: getResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-          );
-        }
-        
-        const currentIntervention = await getResponse.json();
-        console.log(`[UPDATE-INTERVENTION] Current intervention ref: ${currentIntervention.ref}`);
-        
-        // Merge the update data with current intervention
-        // For user assignment, try different field names
-        const updateData: any = { ...currentIntervention };
-        
+        // Handle user assignment - Dolibarr uses fk_user_author for the assigned technician
         if (params.data.fk_user_author !== undefined) {
-          // Try multiple field names for user assignment
-          updateData.fk_user_author = params.data.fk_user_author;
-          updateData.user_author_id = params.data.fk_user_author;
+          minimalUpdate.fk_user_author = params.data.fk_user_author;
         }
         
-        // Apply other updates
+        // Handle date updates
+        if (params.data.dateo !== undefined) {
+          minimalUpdate.dateo = params.data.dateo;
+        }
+        if (params.data.date_intervention !== undefined) {
+          minimalUpdate.date_intervention = params.data.date_intervention;
+        }
+        
+        // Apply any other fields from params.data
         Object.keys(params.data).forEach(key => {
-          updateData[key] = params.data[key];
+          if (minimalUpdate[key] === undefined) {
+            minimalUpdate[key] = params.data[key];
+          }
         });
         
-        console.log(`[UPDATE-INTERVENTION] Sending PUT with fk_user_author: ${updateData.fk_user_author}`);
+        console.log(`[UPDATE-INTERVENTION] Minimal update payload:`, JSON.stringify(minimalUpdate));
         
-        // Try PUT on /ficheinter/ first (standard Dolibarr endpoint for interventions)
-        let updateResponse = await fetchWithTimeout(
-          `${baseUrl}/ficheinter/${intId}`,
-          {
-            method: 'PUT',
-            headers,
-            body: JSON.stringify(updateData),
-          },
-          15000
-        );
+        // Try multiple endpoint variations used by different Dolibarr versions
+        const endpoints = [
+          `${baseUrl}/fichinter/${intId}`,     // Without 'e' - some versions
+          `${baseUrl}/ficheinter/${intId}`,    // With 'e' - some versions  
+          `${baseUrl}/interventions/${intId}`, // API v18+ standard
+        ];
         
-        console.log(`[UPDATE-INTERVENTION] Response from /ficheinter/: ${updateResponse.status}`);
+        let updateResponse: Response | null = null;
+        let lastError = '';
         
-        // If /ficheinter/ fails, try /interventions/ as fallback
-        if (!updateResponse.ok) {
-          console.log(`[UPDATE-INTERVENTION] Trying /interventions/ as fallback...`);
-          updateResponse = await fetchWithTimeout(
-            `${baseUrl}/interventions/${intId}`,
-            {
-              method: 'PUT',
-              headers,
-              body: JSON.stringify(updateData),
-            },
-            15000
-          );
-          console.log(`[UPDATE-INTERVENTION] Response from /interventions/: ${updateResponse.status}`);
+        for (const endpoint of endpoints) {
+          console.log(`[UPDATE-INTERVENTION] Trying PUT on: ${endpoint}`);
+          
+          try {
+            updateResponse = await fetchWithTimeout(
+              endpoint,
+              {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify(minimalUpdate),
+              },
+              10000
+            );
+            
+            console.log(`[UPDATE-INTERVENTION] Response from ${endpoint}: ${updateResponse.status}`);
+            
+            if (updateResponse.ok) {
+              break; // Success!
+            } else {
+              lastError = await updateResponse.text();
+              console.log(`[UPDATE-INTERVENTION] Failed: ${lastError}`);
+            }
+          } catch (e) {
+            console.error(`[UPDATE-INTERVENTION] Error on ${endpoint}:`, e);
+            lastError = String(e);
+          }
         }
         
-        if (!updateResponse.ok) {
-          const errText = await updateResponse.text();
-          console.error('[UPDATE-INTERVENTION] Error:', errText);
+        if (!updateResponse || !updateResponse.ok) {
+          console.error('[UPDATE-INTERVENTION] All endpoints failed. Last error:', lastError);
+          
+          // If PUT doesn't work, this API might not support direct updates
+          // Return a helpful message
           return new Response(
-            JSON.stringify({ error: `Erreur mise à jour: ${updateResponse.status}`, details: errText }),
-            { status: updateResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            JSON.stringify({ 
+              error: `L'API Dolibarr ne supporte pas la modification directe. Modifiez dans Dolibarr.`,
+              details: lastError,
+              suggestion: 'La modification d\'assignation n\'est pas supportée par l\'API REST de cette version de Dolibarr.'
+            }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         
