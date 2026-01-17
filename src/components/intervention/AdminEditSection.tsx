@@ -83,27 +83,85 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
       
       console.log('[AdminEditSection] Users response:', { data, error });
       
-      if (error) {
-        console.error('[AdminEditSection] API error:', error);
-        throw error;
-      }
+      let mappedUsers: DolibarrUser[] = [];
       
-      if (Array.isArray(data) && data.length > 0) {
-        const mappedUsers = data.map((u: any) => ({
+      if (!error && Array.isArray(data) && data.length > 0) {
+        mappedUsers = data.map((u: any) => ({
           id: parseInt(u.id) || 0,
           name: u.name || u.lastname || u.login || 'Inconnu',
           firstName: u.firstName || u.firstname || '',
           login: u.login || '',
         }));
-        console.log('[AdminEditSection] Mapped users:', mappedUsers);
-        setUsers(mappedUsers);
+        console.log('[AdminEditSection] Mapped users from API:', mappedUsers);
       } else {
-        console.warn('[AdminEditSection] No users returned from API');
-        // Don't show error toast, just leave empty
+        console.warn('[AdminEditSection] No users from API, using fallback');
       }
+      
+      // Fallback: add current assigned user if not in list
+      if (intervention.assignedTo?.id) {
+        const assignedId = intervention.assignedTo.id;
+        const exists = mappedUsers.some(u => u.id === assignedId);
+        if (!exists) {
+          mappedUsers.unshift({
+            id: assignedId,
+            name: intervention.assignedTo.name || '',
+            firstName: intervention.assignedTo.firstName || '',
+            login: '',
+          });
+          console.log('[AdminEditSection] Added assigned user as fallback');
+        }
+      }
+      
+      // Also add current logged-in worker as fallback
+      const currentWorker = getWorkerFromStorage();
+      if (currentWorker?.id) {
+        const workerId = parseInt(currentWorker.id);
+        const exists = mappedUsers.some(u => u.id === workerId);
+        if (!exists && workerId > 0) {
+          mappedUsers.push({
+            id: workerId,
+            name: currentWorker.lastname || currentWorker.name || '',
+            firstName: currentWorker.firstname || currentWorker.firstName || '',
+            login: currentWorker.login || '',
+          });
+          console.log('[AdminEditSection] Added current worker as fallback');
+        }
+      }
+      
+      setUsers(mappedUsers);
     } catch (error) {
       console.error('[AdminEditSection] Error loading users:', error);
-      toast.error('Erreur lors du chargement des utilisateurs');
+      
+      // Even on error, provide fallback options
+      const fallbackUsers: DolibarrUser[] = [];
+      
+      if (intervention.assignedTo?.id) {
+        fallbackUsers.push({
+          id: intervention.assignedTo.id,
+          name: intervention.assignedTo.name || '',
+          firstName: intervention.assignedTo.firstName || '',
+          login: '',
+        });
+      }
+      
+      const currentWorker = getWorkerFromStorage();
+      if (currentWorker?.id) {
+        const workerId = parseInt(currentWorker.id);
+        if (!fallbackUsers.some(u => u.id === workerId) && workerId > 0) {
+          fallbackUsers.push({
+            id: workerId,
+            name: currentWorker.lastname || currentWorker.name || '',
+            firstName: currentWorker.firstname || currentWorker.firstName || '',
+            login: currentWorker.login || '',
+          });
+        }
+      }
+      
+      setUsers(fallbackUsers);
+      
+      if (fallbackUsers.length === 0) {
+        toast.error('Erreur lors du chargement des utilisateurs');
+      }
     } finally {
       setLoadingUsers(false);
     }
@@ -150,8 +208,7 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
               </div>
             ) : users.length === 0 ? (
               <div className="text-sm text-muted-foreground py-2 px-3 bg-muted/50 rounded-md">
-                Aucun utilisateur disponible depuis Dolibarr. 
-                Vérifiez que la clé API a les droits sur les utilisateurs.
+                Aucun utilisateur disponible.
               </div>
             ) : (
               <select
