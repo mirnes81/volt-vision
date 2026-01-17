@@ -41,7 +41,10 @@ serve(async (req) => {
     }
 
     const { action, params } = await req.json();
-    console.log('Dolibarr API request:', action, params);
+    // Log action but mask sensitive data
+    const safeParams = params ? { ...params } : undefined;
+    if (safeParams?.password) safeParams.password = '***';
+    console.log('Dolibarr API request:', action, safeParams);
 
     const baseUrl = DOLIBARR_URL.replace(/\/+$/, '') + '/api/index.php';
     const headers = {
