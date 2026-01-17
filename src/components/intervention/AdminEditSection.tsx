@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Calendar, User, Save, Loader2, X, Settings } from 'lucide-react';
+import { Calendar, User, Save, Loader2, X, Settings, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from '@/components/ui/sheet';
 import { Intervention } from '@/types/intervention';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -66,12 +65,18 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
     });
   }, []);
 
-  // Load users when sheet opens
-  useEffect(() => {
-    if (isOpen && users.length === 0) {
-      loadUsers();
+  const handleOpen = async () => {
+    console.log('[AdminEditSection] Opening panel...');
+    setIsOpen(true);
+    if (users.length === 0) {
+      await loadUsers();
     }
-  }, [isOpen]);
+  };
+
+  const handleClose = () => {
+    console.log('[AdminEditSection] Closing panel...');
+    setIsOpen(false);
+  };
 
   const loadUsers = async () => {
     setLoadingUsers(true);
@@ -92,7 +97,7 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
           firstName: u.firstName || u.firstname || '',
           login: u.login || '',
         }));
-        console.log('[AdminEditSection] Mapped users from API:', mappedUsers);
+        console.log('[AdminEditSection] Mapped users from API:', mappedUsers.length, 'users');
       } else {
         console.warn('[AdminEditSection] No users from API, using fallback');
       }
@@ -129,6 +134,7 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
       }
       
       setUsers(mappedUsers);
+      console.log('[AdminEditSection] Final users count:', mappedUsers.length);
     } catch (error) {
       console.error('[AdminEditSection] Error loading users:', error);
       
@@ -168,105 +174,133 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
   };
 
   const handleSave = async () => {
-    // NOTE: L'API REST Dolibarr v18 ne supporte pas la méthode PUT pour les interventions.
-    toast.error("L'API Dolibarr ne permet pas de modifier les interventions. Veuillez modifier directement dans Dolibarr.");
-    setIsOpen(false);
+    toast.info("L'API Dolibarr ne permet pas de modifier l'assignation. Modifiez directement dans Dolibarr.");
+    handleClose();
   };
 
   if (!isAdmin) return null;
 
   return (
-    <Sheet open={isOpen} onOpenChange={setIsOpen}>
-      <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <User className="w-4 h-4" />
-          Modifier
-        </Button>
-      </SheetTrigger>
-      <SheetContent side="bottom" className="h-auto max-h-[80vh] rounded-t-2xl">
-        <SheetHeader className="text-left">
-          <SheetTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5 text-primary" />
-            Modifier l'intervention
-          </SheetTitle>
-          <SheetDescription>
-            Modifier l'assignation et la date de {intervention.ref}
-          </SheetDescription>
-        </SheetHeader>
-        
-        <div className="space-y-4 py-4">
-          {/* Assignation */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <User className="w-4 h-4 text-primary" />
-              Technicien assigné
-            </label>
-            {loadingUsers ? (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Chargement des techniciens...
+    <div className="relative">
+      {/* Trigger Button */}
+      <Button variant="outline" size="sm" className="gap-2" onClick={handleOpen}>
+        <User className="w-4 h-4" />
+        Modifier
+      </Button>
+
+      {/* Inline Modal Overlay */}
+      {isOpen && (
+        <div 
+          className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+          onClick={handleClose}
+        />
+      )}
+
+      {/* Bottom Sheet Panel */}
+      {isOpen && (
+        <div 
+          className="fixed inset-x-0 bottom-0 z-50 bg-background border-t rounded-t-2xl shadow-2xl animate-in slide-in-from-bottom duration-300"
+          style={{ maxHeight: '80vh' }}
+        >
+          {/* Handle bar */}
+          <div className="flex justify-center py-2">
+            <div className="w-12 h-1.5 bg-muted-foreground/30 rounded-full" />
+          </div>
+
+          {/* Header */}
+          <div className="px-6 pb-4 border-b">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Settings className="w-5 h-5 text-primary" />
+                <h2 className="text-lg font-semibold">Modifier l'intervention</h2>
               </div>
-            ) : users.length === 0 ? (
-              <div className="text-sm text-muted-foreground py-2 px-3 bg-muted/50 rounded-md">
-                Aucun utilisateur disponible.
-              </div>
-            ) : (
-              <select
-                value={selectedUserId}
-                onChange={(e) => setSelectedUserId(e.target.value)}
-                className="w-full h-10 px-3 py-2 text-sm border border-input bg-background rounded-md focus:outline-none focus:ring-2 focus:ring-ring"
-              >
-                <option value="">Non assigné</option>
-                {users.map((user) => (
-                  <option key={user.id} value={user.id.toString()}>
-                    {user.firstName} {user.name} ({user.login})
-                  </option>
-                ))}
-              </select>
-            )}
-            {intervention.assignedTo && (
-              <p className="text-xs text-muted-foreground">
-                Actuellement : {intervention.assignedTo.firstName} {intervention.assignedTo.name}
-              </p>
-            )}
+              <Button variant="ghost" size="icon" onClick={handleClose}>
+                <X className="w-5 h-5" />
+              </Button>
+            </div>
+            <p className="text-sm text-muted-foreground mt-1">
+              Modifier l'assignation et la date de {intervention.ref}
+            </p>
           </div>
           
-          {/* Date */}
-          <div className="space-y-2">
-            <label className="text-sm font-medium flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-primary" />
-              Date et heure d'intervention
-            </label>
-            <Input
-              type="datetime-local"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
-              className="w-full"
-            />
-            {intervention.dateStart && (
-              <p className="text-xs text-muted-foreground">
-                Actuellement : {new Date(intervention.dateStart).toLocaleString('fr-CH')}
-              </p>
-            )}
+          {/* Content */}
+          <div className="px-6 py-4 space-y-4 overflow-y-auto" style={{ maxHeight: 'calc(80vh - 180px)' }}>
+            {/* Assignation */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <User className="w-4 h-4 text-primary" />
+                Technicien assigné
+              </label>
+              {loadingUsers ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-3 px-3 bg-muted/30 rounded-lg">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Chargement des techniciens...
+                </div>
+              ) : users.length === 0 ? (
+                <div className="text-sm text-muted-foreground py-3 px-3 bg-muted/30 rounded-lg">
+                  Aucun utilisateur disponible.
+                </div>
+              ) : (
+                <div className="relative">
+                  <select
+                    value={selectedUserId}
+                    onChange={(e) => setSelectedUserId(e.target.value)}
+                    className="w-full h-12 px-4 py-2 text-base border border-input bg-background rounded-lg appearance-none focus:outline-none focus:ring-2 focus:ring-primary"
+                  >
+                    <option value="">Non assigné</option>
+                    {users.map((user) => (
+                      <option key={user.id} value={user.id.toString()}>
+                        {user.firstName} {user.name} {user.login ? `(${user.login})` : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <ChevronDown className="absolute right-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground pointer-events-none" />
+                </div>
+              )}
+              {intervention.assignedTo && (
+                <p className="text-xs text-muted-foreground">
+                  Actuellement : {intervention.assignedTo.firstName} {intervention.assignedTo.name}
+                </p>
+              )}
+            </div>
+            
+            {/* Date */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                Date et heure d'intervention
+              </label>
+              <Input
+                type="datetime-local"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full h-12 text-base"
+              />
+              {intervention.dateStart && (
+                <p className="text-xs text-muted-foreground">
+                  Actuellement : {new Date(intervention.dateStart).toLocaleString('fr-CH')}
+                </p>
+              )}
+            </div>
+          </div>
+          
+          {/* Actions */}
+          <div className="px-6 py-4 border-t bg-muted/20 flex gap-3">
+            <Button variant="outline" onClick={handleClose} disabled={isLoading} className="flex-1 h-12">
+              <X className="w-4 h-4 mr-2" />
+              Annuler
+            </Button>
+            <Button onClick={handleSave} disabled={isLoading} className="flex-1 h-12">
+              {isLoading ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <Save className="w-4 h-4 mr-2" />
+              )}
+              Enregistrer
+            </Button>
           </div>
         </div>
-        
-        {/* Actions */}
-        <div className="flex gap-2 pt-2 pb-4">
-          <Button variant="outline" onClick={() => setIsOpen(false)} disabled={isLoading} className="flex-1">
-            <X className="w-4 h-4 mr-2" />
-            Annuler
-          </Button>
-          <Button onClick={handleSave} disabled={isLoading} className="flex-1">
-            {isLoading ? (
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            ) : (
-              <Save className="w-4 h-4 mr-2" />
-            )}
-            Enregistrer
-          </Button>
-        </div>
-      </SheetContent>
-    </Sheet>
+      )}
+    </div>
   );
 }
