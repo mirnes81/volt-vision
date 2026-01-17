@@ -146,10 +146,71 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
     setIsOpen(false);
   }, []);
 
-  const handleSave = useCallback(() => {
-    toast.info("Modification non supportée par l'API Dolibarr. Modifiez directement dans Dolibarr.");
-    handleClose();
-  }, [handleClose]);
+  const handleSave = useCallback(async () => {
+    if (!selectedUserId && !selectedDate) {
+      toast.warning("Aucune modification à enregistrer.");
+      handleClose();
+      return;
+    }
+    
+    setIsLoading(true);
+    
+    try {
+      const updateData: Record<string, any> = {};
+      
+      // Prepare user assignment update
+      if (selectedUserId && selectedUserId !== (intervention.assignedTo?.id?.toString() || '')) {
+        updateData.fk_user_author = parseInt(selectedUserId);
+      }
+      
+      // Prepare date update
+      if (selectedDate) {
+        const dateObj = new Date(selectedDate);
+        if (!isNaN(dateObj.getTime())) {
+          // Dolibarr expects Unix timestamp
+          updateData.dateo = Math.floor(dateObj.getTime() / 1000);
+          updateData.date_intervention = Math.floor(dateObj.getTime() / 1000);
+        }
+      }
+      
+      if (Object.keys(updateData).length === 0) {
+        toast.info("Aucune modification détectée.");
+        handleClose();
+        return;
+      }
+      
+      console.log('[AdminEditSection] Updating intervention:', intervention.id, updateData);
+      
+      const { data, error } = await supabase.functions.invoke('dolibarr-api', {
+        body: { 
+          action: 'update-intervention',
+          params: {
+            id: intervention.id,
+            data: updateData
+          }
+        },
+      });
+      
+      if (error) {
+        console.error('[AdminEditSection] Update error:', error);
+        throw new Error(error.message || 'Erreur de mise à jour');
+      }
+      
+      if (data?.error) {
+        console.error('[AdminEditSection] API error:', data.error);
+        throw new Error(data.error);
+      }
+      
+      toast.success("Intervention mise à jour avec succès");
+      handleClose();
+      onUpdate();
+    } catch (error: any) {
+      console.error('[AdminEditSection] Save error:', error);
+      toast.error(`Erreur: ${error.message || 'Impossible de mettre à jour'}`);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedUserId, selectedDate, intervention.id, intervention.assignedTo?.id, handleClose, onUpdate]);
 
   // Don't render if not admin
   if (!isAdmin) {
