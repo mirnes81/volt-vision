@@ -153,13 +153,51 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
       return;
     }
     
-    // Show informative message - Dolibarr API doesn't support direct assignment modification
-    toast.info(
-      "La modification d'assignation n'est pas supportée par l'API Dolibarr. Veuillez modifier directement dans Dolibarr.",
-      { duration: 5000 }
-    );
-    handleClose();
-  }, [selectedUserId, selectedDate, handleClose]);
+    setIsLoading(true);
+    
+    try {
+      const updateData: any = {};
+      
+      // Use fk_user_assigned for technician assignment (NOT fk_user_author which is read-only)
+      if (selectedUserId) {
+        updateData.fk_user_assigned = parseInt(selectedUserId);
+      }
+      
+      // Add date if changed
+      if (selectedDate) {
+        const timestamp = Math.floor(new Date(selectedDate).getTime() / 1000);
+        updateData.dateo = timestamp;
+        updateData.date_intervention = timestamp;
+      }
+      
+      console.log('[AdminEditSection] Sending update:', updateData);
+      
+      const { data, error } = await supabase.functions.invoke('dolibarr-api', {
+        body: { 
+          action: 'update-intervention',
+          params: {
+            id: intervention.id,
+            data: updateData
+          }
+        },
+      });
+      
+      if (error) throw error;
+      
+      if (data?.error) {
+        toast.error(data.error, { duration: 5000 });
+      } else {
+        toast.success("Intervention mise à jour !");
+        onUpdate();
+      }
+    } catch (error: any) {
+      console.error('[AdminEditSection] Update error:', error);
+      toast.error(`Erreur: ${error.message || 'Mise à jour échouée'}`);
+    } finally {
+      setIsLoading(false);
+      handleClose();
+    }
+  }, [selectedUserId, selectedDate, handleClose, intervention.id, onUpdate]);
 
   // Don't render if not admin
   if (!isAdmin) {
