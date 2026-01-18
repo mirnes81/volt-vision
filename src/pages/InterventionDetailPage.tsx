@@ -170,6 +170,15 @@ export default function InterventionDetailPage() {
     }
   };
 
+  // Get assignments from Supabase - MUST be called before any early returns
+  const supabaseAssignments = intervention ? getAssignmentsForIntervention(intervention.id) : [];
+  const primaryAssignment = supabaseAssignments.find(a => a.is_primary) || supabaseAssignments[0];
+  const assigneeName = primaryAssignment 
+    ? primaryAssignment.user_name
+    : intervention?.assignedTo 
+      ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
+      : null;
+
   if (isLoading) {
     return (
       <div>
@@ -193,15 +202,6 @@ export default function InterventionDetailPage() {
   }
 
   const status = statusConfig[intervention.status];
-  
-  // Get assignments from Supabase (priority) or fallback to Dolibarr
-  const supabaseAssignments = getAssignmentsForIntervention(intervention.id);
-  const primaryAssignment = supabaseAssignments.find(a => a.is_primary) || supabaseAssignments[0];
-  const assigneeName = primaryAssignment 
-    ? primaryAssignment.user_name
-    : intervention.assignedTo 
-      ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
-      : null;
 
   return (
     <div className="pb-4">
