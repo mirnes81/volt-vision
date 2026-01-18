@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
-import { useInterventionAssignments } from '@/hooks/useInterventionAssignments';
+import { supabase } from '@/integrations/supabase/client';
+import { InterventionAssignment } from '@/types/assignments';
 import { 
   MapPin, User, AlertTriangle, Clock, Package, CheckSquare, Camera, 
   PenTool, Sparkles, FileCheck, Navigation, Mic, History, Boxes,
@@ -35,6 +36,8 @@ import {
   getReminderSettings
 } from '@/lib/interventionReminders';
 
+const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+
 const typeLabels: Record<string, string> = {
   installation: 'Installation', depannage: 'Dépannage', renovation: 'Rénovation',
   tableau: 'Tableau', cuisine: 'Cuisine', oibt: 'OIBT',
@@ -55,9 +58,7 @@ export default function InterventionDetailPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [hasReminder, setHasReminder] = useState(false);
-  
-  // Get assignments from Supabase
-  const { getAssignmentsForIntervention, refresh: refreshAssignments } = useInterventionAssignments();
+  const [supabaseAssignments, setSupabaseAssignments] = useState<InterventionAssignment[]>([]);
 
   const tabs = [
     { id: 'overview', label: 'Détails', icon: FileText },
@@ -74,10 +75,37 @@ export default function InterventionDetailPage() {
     { id: 'signature', label: t('tab.signature'), icon: PenTool },
   ];
 
+  // Load assignments directly from Supabase for this specific intervention
+  const loadAssignments = async (interventionId: number) => {
+    try {
+      console.log('[InterventionDetail] Loading assignments for intervention:', interventionId);
+      const { data, error } = await supabase
+        .from('intervention_assignments')
+        .select('*')
+        .eq('tenant_id', DEFAULT_TENANT_ID)
+        .eq('intervention_id', interventionId);
+
+      if (error) {
+        console.error('[InterventionDetail] Error loading assignments:', error);
+        return;
+      }
+
+      console.log('[InterventionDetail] Loaded assignments:', data);
+      const typedData = (data || []).map(a => ({
+        ...a,
+        priority: a.priority as 'normal' | 'urgent' | 'critical'
+      }));
+      setSupabaseAssignments(typedData);
+    } catch (err) {
+      console.error('[InterventionDetail] Failed to load assignments:', err);
+    }
+  };
+
   useEffect(() => {
     if (id) {
-      loadIntervention(parseInt(id));
-      refreshAssignments(); // Force refresh assignments on page load
+      const interventionId = parseInt(id);
+      loadIntervention(interventionId);
+      loadAssignments(interventionId);
     }
   }, [id]);
 
@@ -156,22 +184,18 @@ export default function InterventionDetailPage() {
   const handleUpdate = async () => { 
     console.log('[InterventionDetail] handleUpdate called');
     try {
-      // First refresh assignments from cache invalidation
-      await refreshAssignments();
-      console.log('[InterventionDetail] Assignments refreshed');
-      
-      // Then reload intervention data
       if (id) {
-        await loadIntervention(parseInt(id));
-        console.log('[InterventionDetail] Intervention reloaded');
+        const interventionId = parseInt(id);
+        await loadAssignments(interventionId);
+        await loadIntervention(interventionId);
+        console.log('[InterventionDetail] Data refreshed');
       }
     } catch (error) {
       console.error('[InterventionDetail] handleUpdate error:', error);
     }
   };
 
-  // Get assignments from Supabase - MUST be called before any early returns
-  const supabaseAssignments = intervention ? getAssignmentsForIntervention(intervention.id) : [];
+  // Compute assignee name from loaded assignments
   const primaryAssignment = supabaseAssignments.find(a => a.is_primary) || supabaseAssignments[0];
   const assigneeName = primaryAssignment 
     ? primaryAssignment.user_name
