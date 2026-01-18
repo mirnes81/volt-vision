@@ -1,5 +1,5 @@
-// Language Context v2 - Force rebuild
-import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
+// Language Context v3 - Use React namespace to prevent hook binding issues
+import * as React from 'react';
 
 type Language = 'fr' | 'de' | 'it';
 
@@ -194,10 +194,10 @@ interface LanguageContextType {
   t: (key: string) => string;
 }
 
-const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
+const LanguageContext = React.createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [language, setLanguage] = useState<Language>(() => {
+export function LanguageProvider({ children }: { children: React.ReactNode }) {
+  const [language, setLanguage] = React.useState<Language>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mv3_language');
       return (saved as Language) || 'fr';
@@ -205,12 +205,12 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return 'fr';
   });
 
-  const handleSetLanguage = useCallback((lang: Language) => {
+  const handleSetLanguage = React.useCallback((lang: Language) => {
     setLanguage(lang);
     localStorage.setItem('mv3_language', lang);
   }, []);
 
-  const t = useCallback((key: string): string => {
+  const t = React.useCallback((key: string): string => {
     const translation = translations[key];
     if (!translation) {
       console.warn(`Missing translation for key: ${key}`);
@@ -219,7 +219,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
     return translation[language] || translation.fr || key;
   }, [language]);
 
-  const value = useMemo(() => ({ 
+  const value = React.useMemo(() => ({ 
     language, 
     setLanguage: handleSetLanguage, 
     t 
@@ -233,7 +233,7 @@ export function LanguageProvider({ children }: { children: ReactNode }) {
 }
 
 export function useLanguage() {
-  const context = useContext(LanguageContext);
+  const context = React.useContext(LanguageContext);
   if (context === undefined) {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
