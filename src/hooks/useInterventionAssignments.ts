@@ -71,10 +71,11 @@ export function useInterventionAssignments() {
     }
   }, []);
 
-  // Initial fetch
+  // Initial fetch - force on mount to ensure data is loaded
   useEffect(() => {
-    fetchAssignments();
-  }, [fetchAssignments]);
+    console.log('[useInterventionAssignments] Component mounted, starting initial fetch');
+    fetchAssignments(true); // Force fetch on mount
+  }, []);
 
   // Subscribe to cache invalidations
   useEffect(() => {
@@ -115,9 +116,11 @@ export function useInterventionAssignments() {
   }, [assignments]);
 
   // Get assignments for a specific intervention
-  const getAssignmentsForIntervention = (interventionId: number): InterventionAssignment[] => {
-    return assignmentsByInterventionId.get(interventionId) || [];
-  };
+  const getAssignmentsForIntervention = useCallback((interventionId: number): InterventionAssignment[] => {
+    const result = assignmentsByInterventionId.get(interventionId) || [];
+    console.log('[useInterventionAssignments] getAssignmentsForIntervention', interventionId, ':', result.length, 'found');
+    return result;
+  }, [assignmentsByInterventionId]);
 
   // Force refresh - returns Promise for awaiting
   const refresh = useCallback(async () => {
