@@ -42,39 +42,27 @@ export function WorkerHoursSummary({ tenantId = DEFAULT_TENANT_ID }: WorkerHours
       const monthStart = startOfMonth(now);
       const monthEnd = endOfMonth(now);
 
-      // Fetch weekly data
+      // Fetch weekly data with user_name
       const { data: weeklyEntries } = await supabase
         .from('work_time_entries')
-        .select('user_id, duration_minutes, status, is_overtime')
+        .select('user_id, user_name, duration_minutes, status, is_overtime')
         .eq('tenant_id', tenantId)
         .gte('clock_in', weekStart.toISOString())
         .lte('clock_in', weekEnd.toISOString())
         .not('duration_minutes', 'is', null);
 
-      // Fetch monthly data
+      // Fetch monthly data with user_name
       const { data: monthlyEntries } = await supabase
         .from('work_time_entries')
-        .select('user_id, duration_minutes, status, is_overtime')
+        .select('user_id, user_name, duration_minutes, status, is_overtime')
         .eq('tenant_id', tenantId)
         .gte('clock_in', monthStart.toISOString())
         .lte('clock_in', monthEnd.toISOString())
         .not('duration_minutes', 'is', null);
 
-      // Get user names from saas_profiles or use user_id
-      const userIds = [...new Set([
-        ...(weeklyEntries || []).map(e => e.user_id),
-        ...(monthlyEntries || []).map(e => e.user_id)
-      ])];
-
-      // Try to get names from saas_profiles, fall back to constructing name
-      const userNames: Record<string, string> = {};
-      userIds.forEach(id => {
-        userNames[id] = `Employé ${id}`;
-      });
-
-      // Aggregate weekly data by user
-      const weeklyAgg = aggregateByUser(weeklyEntries || [], userNames);
-      const monthlyAgg = aggregateByUser(monthlyEntries || [], userNames);
+      // Aggregate weekly data by user (user_name is now in entries)
+      const weeklyAgg = aggregateByUser(weeklyEntries || []);
+      const monthlyAgg = aggregateByUser(monthlyEntries || []);
 
       setWeeklyData(weeklyAgg);
       setMonthlyData(monthlyAgg);
@@ -90,8 +78,7 @@ export function WorkerHoursSummary({ tenantId = DEFAULT_TENANT_ID }: WorkerHours
   }, [fetchData]);
 
   const aggregateByUser = (
-    entries: Array<{ user_id: string; duration_minutes: number | null; status: string; is_overtime: boolean | null }>,
-    userNames: Record<string, string>
+    entries: Array<{ user_id: string; user_name: string | null; duration_minutes: number | null; status: string; is_overtime: boolean | null }>
   ): WorkerSummary[] => {
     const map = new Map<string, WorkerSummary>();
 
@@ -99,7 +86,7 @@ export function WorkerHoursSummary({ tenantId = DEFAULT_TENANT_ID }: WorkerHours
       const mins = entry.duration_minutes || 0;
       const existing = map.get(entry.user_id) || {
         user_id: entry.user_id,
-        user_name: userNames[entry.user_id] || `Employé ${entry.user_id}`,
+        user_name: entry.user_name || `Employé ${entry.user_id}`,
         total_minutes: 0,
         regular_minutes: 0,
         overtime_minutes: 0,
@@ -107,6 +94,11 @@ export function WorkerHoursSummary({ tenantId = DEFAULT_TENANT_ID }: WorkerHours
         pending_minutes: 0,
         entry_count: 0,
       };
+
+      // Update user_name if we have a better one
+      if (entry.user_name && existing.user_name.startsWith('Employé ')) {
+        existing.user_name = entry.user_name;
+      }
 
       existing.total_minutes += mins;
       existing.entry_count += 1;

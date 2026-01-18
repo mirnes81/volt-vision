@@ -239,6 +239,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
         .insert({
           tenant_id: tenantId,
           user_id: userId,
+          user_name: userName,
           clock_in: clockIn.toISOString(),
           clock_out: clockOut.toISOString(),
           duration_minutes: data.duration_minutes,
