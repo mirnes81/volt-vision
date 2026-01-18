@@ -3,11 +3,8 @@ import { Outlet } from 'react-router-dom';
 import { BottomNav } from './BottomNav';
 import { DesktopSidebar } from './DesktopSidebar';
 import { UrgentNotificationToast } from '@/components/notifications/UrgentNotificationToast';
-import { useWorkerLocationTracking } from '@/hooks/useWorkerLocationTracking';
 
 export function AppLayout() {
-  // Start location tracking when user is logged in
-  useWorkerLocationTracking();
 
   return (
     <div className="min-h-screen bg-background flex">
