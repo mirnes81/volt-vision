@@ -3,7 +3,7 @@ import { useParams } from 'react-router-dom';
 import { 
   MapPin, User, AlertTriangle, Clock, Package, CheckSquare, Camera, 
   PenTool, Sparkles, FileCheck, Navigation, Mic, History, Boxes,
-  Phone, Mail, FileText, Calendar, ExternalLink, ChevronDown, ChevronUp, Bell, BellRing, HandHeart
+  Phone, Mail, FileText, Calendar, ExternalLink, ChevronDown, ChevronUp, Bell, BellRing
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { HoursSection } from '@/components/intervention/HoursSection';
@@ -17,7 +17,7 @@ import { GPSSection } from '@/components/intervention/GPSSection';
 import { VoiceNotesSection } from '@/components/intervention/VoiceNotesSection';
 import { HistorySection } from '@/components/intervention/HistorySection';
 import { StockSection } from '@/components/intervention/StockSection';
-import { ReleaseButton } from '@/components/intervention/ReleaseButton';
+
 import { AdminEditSection } from '@/components/intervention/AdminEditSection';
 import { MultiAssignmentPanel } from '@/components/assignments/MultiAssignmentPanel';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -408,11 +408,6 @@ export default function InterventionDetailPage() {
                 </>
               )}
             </Button>
-            
-            {/* Release Button */}
-            {intervention.status !== 'termine' && intervention.status !== 'facture' && (
-              <ReleaseButton intervention={intervention} />
-            )}
           </div>
         )}
       </div>
