@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import * as React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { InterventionAssignment } from '@/types/assignments';
 
@@ -11,13 +11,13 @@ interface AssignmentsContextType {
   refresh: () => Promise<void>;
 }
 
-const AssignmentsContext = createContext<AssignmentsContextType | undefined>(undefined);
+const AssignmentsContext = React.createContext<AssignmentsContextType | undefined>(undefined);
 
-export function AssignmentsProvider({ children }: { children: ReactNode }) {
-  const [assignments, setAssignments] = useState<InterventionAssignment[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+export function AssignmentsProvider({ children }: { children: React.ReactNode }) {
+  const [assignments, setAssignments] = React.useState<InterventionAssignment[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  const loadAssignments = useCallback(async () => {
+  const loadAssignments = React.useCallback(async () => {
     console.log('[AssignmentsContext] ========== LOADING ASSIGNMENTS ==========');
     setIsLoading(true);
     try {
@@ -35,6 +35,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
 
       if (error) {
         console.error('[AssignmentsContext] Error loading assignments:', error);
+        setIsLoading(false);
         return;
       }
 
@@ -58,12 +59,12 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
   }, []);
 
   // Load on mount
-  useEffect(() => {
+  React.useEffect(() => {
     loadAssignments();
   }, [loadAssignments]);
 
   // Subscribe to realtime changes
-  useEffect(() => {
+  React.useEffect(() => {
     const channel = supabase
       .channel('assignments-changes')
       .on(
@@ -86,7 +87,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
     };
   }, [loadAssignments]);
 
-  const getAssignmentsForIntervention = useCallback((interventionId: number): InterventionAssignment[] => {
+  const getAssignmentsForIntervention = React.useCallback((interventionId: number): InterventionAssignment[] => {
     const result = assignments.filter(a => a.intervention_id === interventionId);
     if (result.length > 0) {
       console.log(`[AssignmentsContext] Found ${result.length} assignments for intervention ${interventionId}:`, result.map(a => a.user_name));
@@ -94,7 +95,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
     return result;
   }, [assignments]);
 
-  const refresh = useCallback(async () => {
+  const refresh = React.useCallback(async () => {
     await loadAssignments();
   }, [loadAssignments]);
 
@@ -106,7 +107,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
 }
 
 export function useAssignments() {
-  const context = useContext(AssignmentsContext);
+  const context = React.useContext(AssignmentsContext);
   if (!context) {
     throw new Error('useAssignments must be used within AssignmentsProvider');
   }
