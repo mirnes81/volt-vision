@@ -1,4 +1,5 @@
-import React from "react";
+// App.tsx - v10 unified React pattern
+import * as React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
