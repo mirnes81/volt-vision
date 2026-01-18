@@ -1,4 +1,4 @@
-// Main entry point - v3.0.0 ENES Électricité - Force rebuild
+// Main entry point - v5.0.0 ENES Électricité - Force complete rebuild
 import * as React from "react";
 import * as ReactDOM from "react-dom/client";
 import App from "./App.tsx";
@@ -67,7 +67,7 @@ async function clearAllCaches() {
 }
 
 // Check if this is a fresh start that needs cache clearing
-const CACHE_VERSION = 'enes-v3';
+const CACHE_VERSION = 'enes-v5';
 const lastVersion = localStorage.getItem('app_cache_version');
 
 if (lastVersion !== CACHE_VERSION) {
