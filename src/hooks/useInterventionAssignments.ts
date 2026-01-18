@@ -102,9 +102,9 @@ export function useInterventionAssignments() {
     return assignmentsByInterventionId.get(interventionId) || [];
   };
 
-  // Force refresh
-  const refresh = useCallback(() => {
-    fetchAssignments(true);
+  // Force refresh - returns Promise for awaiting
+  const refresh = useCallback(async () => {
+    await fetchAssignments(true);
   }, [fetchAssignments]);
 
   return {
