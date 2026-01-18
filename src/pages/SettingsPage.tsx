@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, AlertTriangle, Wifi, WifiOff, Clock, RefreshCw, Smartphone } from 'lucide-react';
+import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, Wifi } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,25 +8,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
-import { NotificationSettings } from '@/components/settings/NotificationSettings';
-import { ReminderSettings } from '@/components/settings/ReminderSettings';
-import { EmployeePermissions } from '@/components/settings/EmployeePermissions';
-import { PWAUpdateButton } from '@/components/pwa/PWAPrompts';
-import { isInstalledPWA } from '@/lib/pwaUtils';
 import { 
   getDolibarrConfig, 
   saveDolibarrConfig, 
   testDolibarrConnection,
   DolibarrConfig 
 } from '@/lib/dolibarrConfig';
-import { 
-  getHoursSettings, 
-  saveHoursSettings, 
-  formatMinutesToHM,
-  HoursSettings 
-} from '@/lib/hoursSettings';
-import { getCurrentWorker } from '@/lib/api';
-import { hasPermission } from '@/lib/permissions';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -38,26 +25,11 @@ export default function SettingsPage() {
   const [isTesting, setIsTesting] = React.useState(false);
   const [testResult, setTestResult] = React.useState<{ success: boolean; message: string; version?: string } | null>(null);
   
-  // Hours settings
-  const [hoursSettings, setHoursSettings] = React.useState<HoursSettings>(getHoursSettings());
-  const [maxHoursInput, setMaxHoursInput] = React.useState('');
-  const [alertMinutesInput, setAlertMinutesInput] = React.useState('');
-  const worker = getCurrentWorker() as any;
-  const isAdmin = worker?.isAdmin || worker?.admin;
-  const canAccessHoursSettings = worker ? hasPermission(worker.id, 'settings.hours', isAdmin) : false;
-  
   React.useEffect(() => {
     const storedConfig = getDolibarrConfig();
     setConfig(storedConfig);
     setUrl(storedConfig.baseUrl);
     setApiKey(storedConfig.apiKey || '');
-    
-    const storedHours = getHoursSettings();
-    setHoursSettings(storedHours);
-    const hours = Math.floor(storedHours.maxDailyHours / 60);
-    const mins = storedHours.maxDailyHours % 60;
-    setMaxHoursInput(`${hours}h${mins.toString().padStart(2, '0')}`);
-    setAlertMinutesInput(storedHours.alertThresholdMinutes.toString());
   }, []);
 
   const handleTest = async () => {
@@ -135,134 +107,14 @@ export default function SettingsPage() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-semibold">Configuration</h1>
+          <h1 className="text-lg font-semibold">Configuration Dolibarr</h1>
         </div>
       </header>
       <div className="hidden lg:block p-4 border-b border-border">
-        <h1 className="text-2xl font-bold">Configuration</h1>
+        <h1 className="text-2xl font-bold">Configuration Dolibarr</h1>
       </div>
 
       <div className="p-4 space-y-4 pb-24">
-        {/* PWA Status & Update */}
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-base flex items-center gap-2">
-              <Smartphone className="h-5 w-5" />
-              Application
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <p className="font-medium">Mode d'exécution</p>
-                <p className="text-muted-foreground">
-                  {isInstalledPWA() ? 'Application installée' : 'Navigateur web'}
-                </p>
-              </div>
-              <Badge variant={isInstalledPWA() ? 'default' : 'secondary'}>
-                {isInstalledPWA() ? 'PWA' : 'Web'}
-              </Badge>
-            </div>
-            <Separator />
-            <div className="flex items-center justify-between">
-              <div className="text-sm">
-                <p className="font-medium">Mise à jour</p>
-                <p className="text-muted-foreground">
-                  Forcer le rechargement des fichiers
-                </p>
-              </div>
-              <PWAUpdateButton />
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Employee Permissions (Admin only) */}
-        {isAdmin && <EmployeePermissions />}
-
-        {/* Hours Settings (Admin or users with permission) */}
-        {canAccessHoursSettings && (
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2">
-                <Clock className="h-5 w-5" />
-                Paramètres des heures
-              </CardTitle>
-              <CardDescription>
-                Configurez les limites d'heures journalières pour les ouvriers
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="max-hours">Heures maximum par jour</Label>
-                <Input
-                  id="max-hours"
-                  type="text"
-                  placeholder="Ex: 8h30"
-                  value={maxHoursInput}
-                  onChange={(e) => setMaxHoursInput(e.target.value)}
-                  className="font-mono"
-                />
-                <p className="text-xs text-muted-foreground">
-                  Format: 8h30 ou 8:30 (actuellement: {formatMinutesToHM(hoursSettings.maxDailyHours)})
-                </p>
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="alert-minutes">Alerte avant dépassement (minutes)</Label>
-                <Input
-                  id="alert-minutes"
-                  type="number"
-                  min="0"
-                  max="120"
-                  value={alertMinutesInput}
-                  onChange={(e) => setAlertMinutesInput(e.target.value)}
-                />
-                <p className="text-xs text-muted-foreground">
-                  L'utilisateur sera averti X minutes avant d'atteindre la limite
-                </p>
-              </div>
-              
-              <Button 
-                onClick={() => {
-                  // Parse max hours
-                  let maxMinutes = hoursSettings.maxDailyHours;
-                  const match = maxHoursInput.match(/^(\d+)[h:](\d+)$/i);
-                  if (match) {
-                    maxMinutes = parseInt(match[1]) * 60 + parseInt(match[2]);
-                  } else {
-                    const decimal = parseFloat(maxHoursInput);
-                    if (!isNaN(decimal)) {
-                      maxMinutes = Math.round(decimal * 60);
-                    }
-                  }
-                  
-                  const alertMins = parseInt(alertMinutesInput) || 30;
-                  
-                  const updated = saveHoursSettings({
-                    maxDailyHours: maxMinutes,
-                    alertThresholdMinutes: alertMins,
-                  });
-                  setHoursSettings(updated);
-                  
-                  toast({
-                    title: 'Paramètres sauvegardés',
-                    description: `Limite: ${formatMinutesToHM(maxMinutes)}/jour, Alerte: ${alertMins} min avant`,
-                  });
-                }}
-                className="w-full"
-              >
-                Sauvegarder les paramètres d'heures
-              </Button>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Notifications */}
-        <NotificationSettings />
-
-        {/* Rappels d'interventions */}
-        <ReminderSettings />
-
         {/* Connection Status */}
         <Card>
           <CardHeader className="pb-3">
