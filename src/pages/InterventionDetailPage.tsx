@@ -19,7 +19,7 @@ import { HistorySection } from '@/components/intervention/HistorySection';
 import { StockSection } from '@/components/intervention/StockSection';
 
 import { AdminEditSection } from '@/components/intervention/AdminEditSection';
-import { MultiAssignmentPanel } from '@/components/assignments/MultiAssignmentPanel';
+import { DolibarrAssignmentPanel } from '@/components/assignments/DolibarrAssignmentPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { getIntervention } from '@/lib/api';
@@ -345,8 +345,8 @@ export default function InterventionDetailPage() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {/* Multi-assignment panel for admins */}
-              <MultiAssignmentPanel
+              {/* Dolibarr assignment panel for admins - uses Supabase for storage */}
+              <DolibarrAssignmentPanel
                 interventionId={intervention.id}
                 interventionRef={intervention.ref}
                 interventionLabel={intervention.label}
