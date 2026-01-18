@@ -75,7 +75,10 @@ export default function InterventionDetailPage() {
   ];
 
   useEffect(() => {
-    if (id) loadIntervention(parseInt(id));
+    if (id) {
+      loadIntervention(parseInt(id));
+      refreshAssignments(); // Force refresh assignments on page load
+    }
   }, [id]);
 
   // Check reminder status when intervention changes
