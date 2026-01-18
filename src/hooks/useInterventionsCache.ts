@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import * as React from 'react';
 import { Intervention } from '@/types/intervention';
 import { getAllInterventions, getMyInterventions } from '@/lib/api';
 import { 
@@ -121,22 +121,22 @@ function setSessionCache(interventions: Intervention[], showOnlyMine: boolean): 
 }
 
 export function useInterventionsCache(showOnlyMine: boolean = false) {
-  const [interventions, setInterventions] = useState<Intervention[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isRefreshing, setIsRefreshing] = useState(false);
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
-  const [cacheSource, setCacheSource] = useState<'memory' | 'session' | 'indexeddb' | 'network' | null>(null);
-  const abortControllerRef = useRef<AbortController | null>(null);
-  const isBackgroundRefreshRef = useRef(false);
+  const [interventions, setInterventions] = React.useState<Intervention[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isRefreshing, setIsRefreshing] = React.useState(false);
+  const [isOffline, setIsOffline] = React.useState(!navigator.onLine);
+  const [cacheSource, setCacheSource] = React.useState<'memory' | 'session' | 'indexeddb' | 'network' | null>(null);
+  const abortControllerRef = React.useRef<AbortController | null>(null);
+  const isBackgroundRefreshRef = React.useRef(false);
 
-  const sortInterventions = useCallback((data: Intervention[]): Intervention[] => {
+  const sortInterventions = React.useCallback((data: Intervention[]): Intervention[] => {
     return [...data].sort((a, b) => 
       new Date(b.dateCreation).getTime() - new Date(a.dateCreation).getTime()
     );
   }, []);
 
   // Filter interventions for "mine" view
-  const filterForUser = useCallback((data: Intervention[], onlyMine: boolean): Intervention[] => {
+  const filterForUser = React.useCallback((data: Intervention[], onlyMine: boolean): Intervention[] => {
     if (!onlyMine) return data;
     
     const worker = JSON.parse(localStorage.getItem('mv3_worker') || '{}');
@@ -146,7 +146,7 @@ export function useInterventionsCache(showOnlyMine: boolean = false) {
   }, []);
 
   // Load from IndexedDB (persistent offline storage)
-  const loadFromIndexedDB = useCallback(async (): Promise<Intervention[] | null> => {
+  const loadFromIndexedDB = React.useCallback(async (): Promise<Intervention[] | null> => {
     try {
       if (!dbInitialized) {
         await initDB();
@@ -164,7 +164,7 @@ export function useInterventionsCache(showOnlyMine: boolean = false) {
   }, []);
 
   // Save to IndexedDB (background, non-blocking)
-  const saveToIndexedDB = useCallback(async (data: Intervention[]): Promise<void> => {
+  const saveToIndexedDB = React.useCallback(async (data: Intervention[]): Promise<void> => {
     try {
       if (!dbInitialized) {
         await initDB();
@@ -177,7 +177,7 @@ export function useInterventionsCache(showOnlyMine: boolean = false) {
     }
   }, []);
 
-  const loadInterventions = useCallback(async (forceRefresh = false) => {
+  const loadInterventions = React.useCallback(async (forceRefresh = false) => {
     // Cancel previous request
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
@@ -315,7 +315,7 @@ export function useInterventionsCache(showOnlyMine: boolean = false) {
     }
   };
 
-  const refresh = useCallback(async () => {
+  const refresh = React.useCallback(async () => {
     if (!navigator.onLine) {
       console.log('[Cache] Cannot refresh while offline');
       return;
@@ -324,7 +324,7 @@ export function useInterventionsCache(showOnlyMine: boolean = false) {
     await loadInterventions(true);
   }, [loadInterventions]);
 
-  const invalidateCache = useCallback(() => {
+  const invalidateCache = React.useCallback(() => {
     sessionStorage.removeItem(CACHE_KEY_ALL);
     sessionStorage.removeItem(CACHE_KEY_MINE);
     sessionStorage.removeItem(getMetadataKey(false));
@@ -333,7 +333,7 @@ export function useInterventionsCache(showOnlyMine: boolean = false) {
   }, []);
 
   // Prefetch the other list in background
-  const prefetchOther = useCallback(() => {
+  const prefetchOther = React.useCallback(() => {
     if (!navigator.onLine) return;
     
     const otherKey = showOnlyMine ? 'all' : 'mine';
@@ -360,7 +360,7 @@ export function useInterventionsCache(showOnlyMine: boolean = false) {
   }, [showOnlyMine, sortInterventions, filterForUser]);
 
   // Listen for online/offline events
-  useEffect(() => {
+  React.useEffect(() => {
     const handleOnline = () => {
       setIsOffline(false);
       console.log('[Cache] Back online, refreshing...');
@@ -387,7 +387,7 @@ export function useInterventionsCache(showOnlyMine: boolean = false) {
     };
   }, [showOnlyMine]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadInterventions();
     
     // Prefetch other list after a short delay

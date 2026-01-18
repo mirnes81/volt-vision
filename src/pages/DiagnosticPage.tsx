@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { CheckCircle, XCircle, Loader2, RefreshCw, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -13,15 +13,15 @@ interface DiagnosticStep {
 }
 
 export default function DiagnosticPage() {
-  const [steps, setSteps] = useState<DiagnosticStep[]>([
+  const [steps, setSteps] = React.useState<DiagnosticStep[]>([
     { id: 'supabase', label: '1. Connexion Supabase', status: 'pending' },
     { id: 'edge-function', label: '2. Edge Function disponible', status: 'pending' },
     { id: 'dolibarr-status', label: '3. API Dolibarr /status', status: 'pending' },
     { id: 'dolibarr-users', label: '4. API Dolibarr /users', status: 'pending' },
     { id: 'find-admin', label: '5. Trouver utilisateur admin', status: 'pending' },
   ]);
-  const [isRunning, setIsRunning] = useState(false);
-  const [logs, setLogs] = useState<string[]>([]);
+  const [isRunning, setIsRunning] = React.useState(false);
+  const [logs, setLogs] = React.useState<string[]>([]);
 
   const addLog = (message: string) => {
     const timestamp = new Date().toLocaleTimeString();

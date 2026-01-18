@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import * as React from 'react';
 import { Zap, ClipboardList, Clock, AlertTriangle, ChevronRight, Wifi, WifiOff, Plus, Calendar, TrendingUp, Users, MapPin, Play, CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
@@ -15,7 +15,7 @@ import { cn } from '@/lib/utils';
 export default function DashboardPage() {
   const { worker } = useAuth();
   const isAdmin = worker?.isAdmin;
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isOnline, setIsOnline] = React.useState(navigator.onLine);
   
   // Use shared cache - this reuses data already loaded elsewhere
   const { interventions: allInterventions, isLoading } = useInterventionsCache(false);
@@ -24,9 +24,9 @@ export default function DashboardPage() {
   const { getAssignmentsForIntervention } = useAssignments();
   
   // Get recent 10 for display
-  const interventions = useMemo(() => allInterventions.slice(0, 10), [allInterventions]);
+  const interventions = React.useMemo(() => allInterventions.slice(0, 10), [allInterventions]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const handleOnline = () => setIsOnline(true);
     const handleOffline = () => setIsOnline(false);
     
@@ -40,7 +40,7 @@ export default function DashboardPage() {
   }, []);
 
   // Today's interventions
-  const todayInterventions = useMemo(() => {
+  const todayInterventions = React.useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const tomorrow = new Date(today);
@@ -57,7 +57,7 @@ export default function DashboardPage() {
   }, [allInterventions]);
 
   // This week's interventions
-  const weekInterventions = useMemo(() => {
+  const weekInterventions = React.useMemo(() => {
     const today = new Date();
     const startOfWeek = new Date(today);
     const day = startOfWeek.getDay();

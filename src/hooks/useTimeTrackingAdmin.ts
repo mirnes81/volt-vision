@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import * as React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { WorkTimeEntry, HoursAlert, DailyWorkSummary } from '@/types/timeTracking';
 import { useToast } from '@/hooks/use-toast';

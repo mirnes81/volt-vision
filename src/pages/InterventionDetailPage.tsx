@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { useParams } from 'react-router-dom';
 import { useAssignments } from '@/contexts/AssignmentsContext';
 import { 
@@ -50,11 +50,11 @@ const statusConfig: Record<string, { label: string; color: string }> = {
 export default function InterventionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useLanguage();
-  const [intervention, setIntervention] = useState<Intervention | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('overview');
-  const [showFullDescription, setShowFullDescription] = useState(false);
-  const [hasReminder, setHasReminder] = useState(false);
+  const [intervention, setIntervention] = React.useState<Intervention | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [activeTab, setActiveTab] = React.useState('overview');
+  const [showFullDescription, setShowFullDescription] = React.useState(false);
+  const [hasReminder, setHasReminder] = React.useState(false);
   
   // Use global assignments context
   const { getAssignmentsForIntervention, refresh: refreshAssignments } = useAssignments();
@@ -77,7 +77,7 @@ export default function InterventionDetailPage() {
     { id: 'signature', label: t('tab.signature'), icon: PenTool },
   ];
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (id) {
       const interventionId = parseInt(id);
       loadIntervention(interventionId);
@@ -85,7 +85,7 @@ export default function InterventionDetailPage() {
   }, [id]);
 
   // Check reminder status when intervention changes
-  useEffect(() => {
+  React.useEffect(() => {
     if (id) {
       setHasReminder(hasReminderScheduled(parseInt(id)));
     }
