@@ -4,7 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 
 // https://vitejs.dev/config/
-// Force rebuild: v3
+// Force rebuild: v4 - clear React cache
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
