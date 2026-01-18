@@ -1,6 +1,6 @@
-// Main entry point - v8.0.0 ENES Électricité - Force complete rebuild
-import React from "react";
-import ReactDOM from "react-dom/client";
+// Main entry point - v10.0.0 ENES Électricité - Complete rebuild
+import * as React from 'react';
+import * as ReactDOM from 'react-dom/client';
 import App from "./App.tsx";
 import "./index.css";
 import { preloadOfflineCache } from "./hooks/useInterventionsCache";
@@ -67,7 +67,7 @@ async function clearAllCaches() {
 }
 
 // Check if this is a fresh start that needs cache clearing
-const CACHE_VERSION = 'enes-v5';
+const CACHE_VERSION = 'enes-v10';
 const lastVersion = localStorage.getItem('app_cache_version');
 
 if (lastVersion !== CACHE_VERSION) {

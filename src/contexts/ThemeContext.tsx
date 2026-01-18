@@ -1,8 +1,7 @@
 /**
- * Theme Context v8 - Unified React import pattern
- * @description Provides theme management with light/dark/system modes
+ * Theme Context v10 - ES6 imports with proper typing
  */
-import React from 'react';
+import * as React from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -14,64 +13,76 @@ interface ThemeContextType {
 
 const ThemeContext = React.createContext<ThemeContextType | undefined>(undefined);
 
-function getInitialTheme(): Theme {
-  if (typeof window === 'undefined') return 'light';
-  const saved = localStorage.getItem('mv3_theme');
-  if (saved === 'light' || saved === 'dark' || saved === 'system') {
-    return saved;
-  }
+function getStoredTheme(): Theme {
+  try {
+    if (typeof window === 'undefined') return 'light';
+    const saved = localStorage.getItem('mv3_theme');
+    if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
+  } catch {}
   return 'light';
 }
 
-function getSystemTheme(): 'light' | 'dark' {
+function resolveTheme(theme: Theme): 'light' | 'dark' {
   if (typeof window === 'undefined') return 'light';
-  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  if (theme === 'system') {
+    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  }
+  return theme;
 }
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = React.useState<Theme>(getInitialTheme);
-  const [actualTheme, setActualTheme] = React.useState<'light' | 'dark'>(() => {
-    const initial = getInitialTheme();
-    return initial === 'system' ? getSystemTheme() : initial;
-  });
+interface ThemeProviderProps {
+  children: React.ReactNode;
+}
+
+export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
+  const storedTheme = getStoredTheme();
+  const [theme, setThemeState] = React.useState<Theme>(storedTheme);
+  const [actualTheme, setActualTheme] = React.useState<'light' | 'dark'>(resolveTheme(storedTheme));
 
   React.useEffect(() => {
     const root = document.documentElement;
+    const resolved = resolveTheme(theme);
     
-    const updateTheme = () => {
-      const resolved = theme === 'system' ? getSystemTheme() : theme;
-      setActualTheme(resolved);
-      root.classList.remove('light', 'dark');
-      root.classList.add(resolved);
+    setActualTheme(resolved);
+    root.classList.remove('light', 'dark');
+    root.classList.add(resolved);
+    
+    try {
+      localStorage.setItem('mv3_theme', theme);
+    } catch {}
+
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onChange = () => {
+      if (theme === 'system') {
+        const newResolved = mq.matches ? 'dark' : 'light';
+        setActualTheme(newResolved);
+        root.classList.remove('light', 'dark');
+        root.classList.add(newResolved);
+      }
     };
-
-    updateTheme();
-    localStorage.setItem('mv3_theme', theme);
-
-    const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
-    const handler = () => updateTheme();
-    mediaQuery.addEventListener('change', handler);
     
-    return () => mediaQuery.removeEventListener('change', handler);
+    mq.addEventListener('change', onChange);
+    return () => mq.removeEventListener('change', onChange);
   }, [theme]);
 
-  const setTheme = React.useCallback((newTheme: Theme) => {
-    setThemeState(newTheme);
-  }, []);
-
-  const value = React.useMemo(() => ({ theme, actualTheme, setTheme }), [theme, actualTheme, setTheme]);
+  const contextValue = React.useMemo<ThemeContextType>(
+    () => ({
+      theme,
+      actualTheme,
+      setTheme: setThemeState,
+    }),
+    [theme, actualTheme]
+  );
 
   return (
-    <ThemeContext.Provider value={value}>
+    <ThemeContext.Provider value={contextValue}>
       {children}
     </ThemeContext.Provider>
   );
-}
+};
 
-export function useTheme() {
-  const context = React.useContext(ThemeContext);
-  if (context === undefined) {
-    throw new Error('useTheme must be used within a ThemeProvider');
-  }
-  return context;
+export function useTheme(): ThemeContextType {
+  const ctx = React.useContext(ThemeContext);
+  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
+  return ctx;
 }
