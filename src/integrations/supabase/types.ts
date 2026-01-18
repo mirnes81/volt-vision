@@ -640,6 +640,44 @@ export type Database = {
         }
         Relationships: []
       }
+      user_permissions: {
+        Row: {
+          created_at: string
+          granted_by: string | null
+          id: string
+          permission: Database["public"]["Enums"]["user_permission"]
+          tenant_id: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          permission: Database["public"]["Enums"]["user_permission"]
+          tenant_id: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          created_at?: string
+          granted_by?: string | null
+          id?: string
+          permission?: Database["public"]["Enums"]["user_permission"]
+          tenant_id?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_permissions_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -1044,6 +1082,10 @@ export type Database = {
           total_minutes: number
         }[]
       }
+      get_user_permissions: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: string[]
+      }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
       get_user_weekly_limit: {
         Args: { _tenant_id: string; _user_id: string }
@@ -1056,6 +1098,14 @@ export type Database = {
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
+          _tenant_id: string
+          _user_id: string
+        }
+        Returns: boolean
+      }
+      has_user_permission: {
+        Args: {
+          _permission: Database["public"]["Enums"]["user_permission"]
           _tenant_id: string
           _user_id: string
         }
@@ -1081,6 +1131,15 @@ export type Database = {
         | "past_due"
         | "cancelled"
         | "expired"
+      user_permission:
+        | "hours.view_own"
+        | "hours.add_own"
+        | "hours.modify_own_limit"
+        | "hours.validate"
+        | "hours.view_all"
+        | "hours.export"
+        | "hours.alerts"
+        | "settings.hours"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1222,6 +1281,16 @@ export const Constants = {
         "past_due",
         "cancelled",
         "expired",
+      ],
+      user_permission: [
+        "hours.view_own",
+        "hours.add_own",
+        "hours.modify_own_limit",
+        "hours.validate",
+        "hours.view_all",
+        "hours.export",
+        "hours.alerts",
+        "settings.hours",
       ],
     },
   },

@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Users, Shield, Check, X, Loader2, Search, RefreshCw } from 'lucide-react';
+import { Users, Shield, Check, Loader2, Search, RefreshCw } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,9 +15,10 @@ import {
   PERMISSION_LABELS, 
   DEFAULT_EMPLOYEE_PERMISSIONS,
   ADMIN_PERMISSIONS,
-  getEmployeePermissions, 
-  setEmployeePermissions,
-  getAllEmployeePermissions,
+  getEmployeePermissionsAsync, 
+  setEmployeePermissionsAsync,
+  getAllEmployeePermissionsAsync,
+  clearPermissionsCache,
 } from '@/lib/permissions';
 import { fetchAllWorkers } from '@/lib/api';
 
@@ -29,12 +30,17 @@ interface Worker {
   isAdmin?: boolean;
 }
 
+interface WorkerWithPermissions extends Worker {
+  permissions: Permission[];
+  permissionsLoaded: boolean;
+}
+
 export function EmployeePermissions() {
   const { toast } = useToast();
-  const [workers, setWorkers] = React.useState<Worker[]>([]);
+  const [workers, setWorkers] = React.useState<WorkerWithPermissions[]>([]);
   const [isLoading, setIsLoading] = React.useState(true);
   const [searchQuery, setSearchQuery] = React.useState('');
-  const [selectedWorker, setSelectedWorker] = React.useState<Worker | null>(null);
+  const [selectedWorker, setSelectedWorker] = React.useState<WorkerWithPermissions | null>(null);
   const [selectedPermissions, setSelectedPermissions] = React.useState<Permission[]>([]);
   const [isSaving, setIsSaving] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
@@ -43,7 +49,21 @@ export function EmployeePermissions() {
     setIsLoading(true);
     try {
       const data = await fetchAllWorkers();
-      setWorkers(data || []);
+      
+      // Get all permissions from database
+      const allPerms = await getAllEmployeePermissionsAsync();
+      const permsMap = new Map(allPerms.map(p => [p.userId, p.permissions]));
+      
+      // Merge workers with their permissions
+      const workersWithPerms: WorkerWithPermissions[] = (data || []).map(worker => ({
+        ...worker,
+        permissions: worker.isAdmin 
+          ? ADMIN_PERMISSIONS 
+          : (permsMap.get(String(worker.id)) || DEFAULT_EMPLOYEE_PERMISSIONS),
+        permissionsLoaded: true,
+      }));
+      
+      setWorkers(workersWithPerms);
     } catch (error) {
       console.error('Error loading workers:', error);
       toast({
@@ -66,12 +86,16 @@ export function EmployeePermissions() {
     return fullName.includes(query) || w.login.toLowerCase().includes(query);
   });
 
-  const openPermissionsDialog = (worker: Worker) => {
+  const openPermissionsDialog = async (worker: WorkerWithPermissions) => {
     setSelectedWorker(worker);
-    const currentPermissions = worker.isAdmin 
-      ? ADMIN_PERMISSIONS 
-      : getEmployeePermissions(worker.id);
-    setSelectedPermissions([...currentPermissions]);
+    
+    if (worker.isAdmin) {
+      setSelectedPermissions([...ADMIN_PERMISSIONS]);
+    } else {
+      // Fetch fresh permissions from DB
+      const perms = await getEmployeePermissionsAsync(worker.id);
+      setSelectedPermissions([...perms]);
+    }
     setDialogOpen(true);
   };
 
@@ -89,11 +113,18 @@ export function EmployeePermissions() {
     setIsSaving(true);
     try {
       const workerName = `${selectedWorker.firstName} ${selectedWorker.name}`.trim();
-      setEmployeePermissions(selectedWorker.id, workerName, selectedPermissions);
+      await setEmployeePermissionsAsync(selectedWorker.id, workerName, selectedPermissions);
+      
+      // Update local state
+      setWorkers(prev => prev.map(w => 
+        w.id === selectedWorker.id 
+          ? { ...w, permissions: selectedPermissions }
+          : w
+      ));
       
       toast({
         title: 'Droits sauvegardés',
-        description: `Les droits de ${workerName} ont été mis à jour`,
+        description: `Les droits de ${workerName} ont été mis à jour en base de données`,
       });
       
       setDialogOpen(false);
@@ -109,9 +140,9 @@ export function EmployeePermissions() {
     }
   };
 
-  const getWorkerPermissionCount = (worker: Worker): number => {
-    if (worker.isAdmin) return ADMIN_PERMISSIONS.length;
-    return getEmployeePermissions(worker.id).length;
+  const handleRefresh = () => {
+    clearPermissionsCache();
+    loadWorkers();
   };
 
   const allPermissions: Permission[] = Object.keys(PERMISSION_LABELS) as Permission[];
@@ -124,7 +155,7 @@ export function EmployeePermissions() {
           Droits des employés
         </CardTitle>
         <CardDescription>
-          Gérez les permissions d'accès aux fonctionnalités de suivi des heures
+          Gérez les permissions d'accès aux fonctionnalités (stockées en base de données)
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -139,7 +170,7 @@ export function EmployeePermissions() {
               className="pl-9"
             />
           </div>
-          <Button variant="outline" size="icon" onClick={loadWorkers} disabled={isLoading}>
+          <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 ${isLoading ? 'animate-spin' : ''}`} />
           </Button>
         </div>
@@ -177,7 +208,7 @@ export function EmployeePermissions() {
                       <Badge className="bg-primary">Admin</Badge>
                     ) : (
                       <Badge variant="secondary">
-                        {getWorkerPermissionCount(worker)} droits
+                        {worker.permissions.length} droits
                       </Badge>
                     )}
                     <Dialog open={dialogOpen && selectedWorker?.id === worker.id} onOpenChange={(open) => {
