@@ -2,12 +2,11 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, ClipboardList, Calendar, User, Settings, ChevronLeft, ChevronRight,
-  Zap, LogOut, Moon, Sun, Plus, Map, HandHeart, Clock
+  Zap, LogOut, Moon, Sun, Plus, Map, Clock
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useAvailableCount } from '@/hooks/useAvailableCount';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
@@ -25,13 +24,11 @@ export function DesktopSidebar() {
   const { worker, logout } = useAuth();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const availableCount = useAvailableCount();
 
   const mainNavItems: NavItem[] = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: t('nav.interventions') },
     { to: '/time-tracking', icon: Clock, label: 'Suivi heures' },
-    { to: '/available', icon: HandHeart, label: 'Disponibles', badge: availableCount },
     { to: '/map', icon: Map, label: 'Carte' },
     { to: '/calendar', icon: Calendar, label: t('nav.calendar') },
     { to: '/profile', icon: User, label: t('nav.profile') },
