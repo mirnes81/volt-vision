@@ -6,6 +6,7 @@ import { InterventionCardCompact } from '@/components/intervention/InterventionC
 import { WeeklyHoursSummary } from '@/components/dashboard/WeeklyHoursSummary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
+import { useInterventionAssignments } from '@/hooks/useInterventionAssignments';
 import { Intervention } from '@/types/intervention';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -18,6 +19,9 @@ export default function DashboardPage() {
   
   // Use shared cache - this reuses data already loaded elsewhere
   const { interventions: allInterventions, isLoading } = useInterventionsCache(false);
+  
+  // Fetch Supabase assignments
+  const { getAssignmentsForIntervention } = useInterventionAssignments();
   
   // Get recent 10 for display
   const interventions = useMemo(() => allInterventions.slice(0, 10), [allInterventions]);
@@ -220,7 +224,11 @@ export default function DashboardPage() {
               ) : (
                 <div className="grid gap-2">
                   {interventions.slice(0, 8).map((intervention) => (
-                    <InterventionCardCompact key={intervention.id} intervention={intervention} />
+                    <InterventionCardCompact 
+                      key={intervention.id} 
+                      intervention={intervention} 
+                      supabaseAssignments={getAssignmentsForIntervention(intervention.id)}
+                    />
                   ))}
                 </div>
               )}

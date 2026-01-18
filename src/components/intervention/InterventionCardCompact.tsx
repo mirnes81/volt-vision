@@ -1,10 +1,12 @@
-import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, Calendar, User, Building, Phone } from 'lucide-react';
+import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, Calendar, User, Building, Phone, Users } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention, InterventionStatus } from '@/types/intervention';
+import { InterventionAssignment } from '@/types/assignments';
 import { cn } from '@/lib/utils';
 
 interface InterventionCardCompactProps {
   intervention: Intervention;
+  supabaseAssignments?: InterventionAssignment[];
 }
 
 const statusConfig: Record<string, { label: string; color: string; bgColor: string; icon: React.ElementType }> = {
@@ -60,7 +62,7 @@ function formatDateTime(dateString?: string): { day: string; date: string; time:
   }
 }
 
-export function InterventionCardCompact({ intervention }: InterventionCardCompactProps) {
+export function InterventionCardCompact({ intervention, supabaseAssignments = [] }: InterventionCardCompactProps) {
   const status = statusConfig[intervention.status] || statusConfig.a_planifier;
   const StatusIcon = status.icon;
   const dateInfo = formatDateTime(intervention.dateStart || intervention.datePlanned);
@@ -173,21 +175,45 @@ export function InterventionCardCompact({ intervention }: InterventionCardCompac
           
           {/* Footer: Assigned worker + Tasks progress */}
           <div className="flex items-center justify-between gap-2 text-[11px]">
-            {/* Assigned worker */}
-            <div className={cn(
-              "flex items-center gap-1",
-              intervention.assignedTo ? "text-muted-foreground" : "text-destructive"
-            )}>
-              <User className="w-3 h-3" />
-              {intervention.assignedTo ? (
-                <span className="font-medium">
-                  {intervention.assignedTo.firstName || intervention.assignedTo.name}
-                  {totalHours > 0 && (
-                    <span className="ml-1 text-primary">({totalHours.toFixed(1)}h)</span>
-                  )}
-                </span>
+            {/* Assigned workers - Priority to Supabase assignments */}
+            <div className="flex items-center gap-1 min-w-0 flex-1">
+              {supabaseAssignments.length > 0 ? (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <Users className="w-3 h-3 text-primary" />
+                  <div className="flex items-center gap-1 truncate">
+                    {supabaseAssignments.slice(0, 2).map((a, idx) => (
+                      <span 
+                        key={a.id} 
+                        className={cn(
+                          "font-medium",
+                          a.is_primary && "text-primary",
+                          a.priority === 'urgent' && "text-warning",
+                          a.priority === 'critical' && "text-destructive"
+                        )}
+                      >
+                        {a.user_name.split(' ')[0]}{idx < Math.min(supabaseAssignments.length - 1, 1) ? ',' : ''}
+                      </span>
+                    ))}
+                    {supabaseAssignments.length > 2 && (
+                      <span className="text-muted-foreground">+{supabaseAssignments.length - 2}</span>
+                    )}
+                  </div>
+                </div>
+              ) : intervention.assignedTo ? (
+                <div className="flex items-center gap-1 text-muted-foreground">
+                  <User className="w-3 h-3" />
+                  <span className="font-medium">
+                    {intervention.assignedTo.firstName || intervention.assignedTo.name}
+                    {totalHours > 0 && (
+                      <span className="ml-1 text-primary">({totalHours.toFixed(1)}h)</span>
+                    )}
+                  </span>
+                </div>
               ) : (
-                <span className="font-semibold">Non assigné</span>
+                <div className="flex items-center gap-1 text-destructive">
+                  <User className="w-3 h-3" />
+                  <span className="font-semibold">Non assigné</span>
+                </div>
               )}
             </div>
             
