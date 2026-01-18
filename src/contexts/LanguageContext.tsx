@@ -1,4 +1,5 @@
-import * as React from 'react';
+// Language Context v2 - Force rebuild
+import { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 
 type Language = 'fr' | 'de' | 'it';
 
@@ -193,10 +194,10 @@ interface LanguageContextType {
   t: (key: string) => string;
 }
 
-const LanguageContext = React.createContext<LanguageContextType | undefined>(undefined);
+const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
-export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [language, setLanguage] = React.useState<Language>(() => {
+export function LanguageProvider({ children }: { children: ReactNode }) {
+  const [language, setLanguage] = useState<Language>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mv3_language');
       return (saved as Language) || 'fr';
@@ -204,12 +205,12 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     return 'fr';
   });
 
-  const handleSetLanguage = React.useCallback((lang: Language) => {
+  const handleSetLanguage = useCallback((lang: Language) => {
     setLanguage(lang);
     localStorage.setItem('mv3_language', lang);
   }, []);
 
-  const t = React.useCallback((key: string): string => {
+  const t = useCallback((key: string): string => {
     const translation = translations[key];
     if (!translation) {
       console.warn(`Missing translation for key: ${key}`);
@@ -218,7 +219,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     return translation[language] || translation.fr || key;
   }, [language]);
 
-  const value = React.useMemo(() => ({ 
+  const value = useMemo(() => ({ 
     language, 
     setLanguage: handleSetLanguage, 
     t 
@@ -232,7 +233,7 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
 }
 
 export function useLanguage() {
-  const context = React.useContext(LanguageContext);
+  const context = useContext(LanguageContext);
   if (context === undefined) {
     throw new Error('useLanguage must be used within a LanguageProvider');
   }
