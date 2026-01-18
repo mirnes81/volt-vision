@@ -123,9 +123,9 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="pb-4">
       {/* Header */}
-      <header className="sticky top-0 z-40 bg-card border-b border-border">
+      <header className="sticky top-0 z-40 bg-card border-b border-border lg:hidden">
         <div className="flex items-center gap-3 p-4">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
@@ -133,6 +133,9 @@ export default function SettingsPage() {
           <h1 className="text-lg font-semibold">Configuration</h1>
         </div>
       </header>
+      <div className="hidden lg:block p-4 border-b border-border">
+        <h1 className="text-2xl font-bold">Configuration</h1>
+      </div>
 
       <div className="p-4 space-y-4 pb-24">
         {/* Hours Settings (Admin only) */}

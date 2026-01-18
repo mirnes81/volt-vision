@@ -48,7 +48,6 @@ const AppRoutes = () => (
     <Route path="/" element={<Index />} />
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
     <Route path="/diagnostic" element={<DiagnosticPage />} />
-    <Route path="/settings" element={<SettingsPage />} />
     <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
       <Route path="/dashboard" element={<DashboardPage />} />
       <Route path="/interventions" element={<InterventionsPage />} />
@@ -59,6 +58,7 @@ const AppRoutes = () => (
       <Route path="/available" element={<AvailableInterventionsPage />} />
       <Route path="/time-tracking" element={<TimeTrackingPage />} />
       <Route path="/profile" element={<ProfilePage />} />
+      <Route path="/settings" element={<SettingsPage />} />
     </Route>
     <Route path="*" element={<NotFound />} />
   </Routes>
