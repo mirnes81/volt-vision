@@ -168,26 +168,30 @@ export async function addManualHours(
   }
   
   // Also insert into Supabase work_time_entries for time tracking page
+  // Note: duration_minutes is a generated column, we only set clock_in/clock_out
   try {
     const { supabase } = await import('@/integrations/supabase/client');
     const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
     
-    await supabase
+    const { error } = await supabase
       .from('work_time_entries')
       .insert({
         tenant_id: DEFAULT_TENANT_ID,
         user_id: String(worker.id),
         clock_in: data.dateStart,
         clock_out: data.dateEnd,
-        duration_minutes: durationMinutes,
         work_type: data.workType,
         intervention_id: interventionId,
         intervention_ref: `INT-${interventionId}`,
         comment: data.comment,
         status: 'pending',
       });
-      
-    console.log('[API] Hours synced to Supabase work_time_entries');
+    
+    if (error) {
+      console.error('[API] Supabase insert error:', error);
+    } else {
+      console.log('[API] Hours synced to Supabase work_time_entries');
+    }
   } catch (error) {
     console.error('[API] Failed to sync hours to Supabase:', error);
     // Continue anyway - local storage is primary
