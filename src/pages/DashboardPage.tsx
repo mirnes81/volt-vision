@@ -3,6 +3,7 @@ import { Zap, ClipboardList, Clock, AlertTriangle, ChevronRight, Wifi, WifiOff, 
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { InterventionCardCompact } from '@/components/intervention/InterventionCardCompact';
+import { WeeklyHoursSummary } from '@/components/dashboard/WeeklyHoursSummary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
 import { Intervention } from '@/types/intervention';
@@ -12,6 +13,7 @@ import { cn } from '@/lib/utils';
 
 export default function DashboardPage() {
   const { worker } = useAuth();
+  const isAdmin = worker?.isAdmin;
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   
   // Use shared cache - this reuses data already loaded elsewhere
@@ -254,6 +256,9 @@ export default function DashboardPage() {
                 </Link>
               </div>
             </div>
+
+            {/* Weekly Hours Summary (Admin only) */}
+            {isAdmin && <WeeklyHoursSummary />}
 
             {/* Today's Schedule */}
             <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
