@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useEffect, useState, useCallback, useMemo } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, useMap, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
@@ -174,7 +173,7 @@ const createWorkerIcon = (name: string) => {
 function MapController({ center, zoom }: { center: [number, number] | null; zoom?: number }) {
   const map = useMap();
   
-  useEffect(() => {
+  React.useEffect(() => {
     if (center) {
       map.flyTo(center, zoom || map.getZoom(), { duration: 1 });
     }
@@ -187,7 +186,7 @@ function MapController({ center, zoom }: { center: [number, number] | null; zoom
 function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {
   const map = useMap();
   
-  useEffect(() => {
+  React.useEffect(() => {
     if (bounds) {
       map.fitBounds(bounds, { padding: [50, 50] });
     }
@@ -198,24 +197,24 @@ function FitBounds({ bounds }: { bounds: L.LatLngBoundsExpression | null }) {
 
 export default function MapPage() {
   const navigate = useNavigate();
-  const [interventions, setInterventions] = useState<Intervention[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
-  const [selectedWorker, setSelectedWorker] = useState<WorkerLocation | null>(null);
-  const [showList, setShowList] = useState(false);
-  const [showWorkers, setShowWorkers] = useState(true);
-  const [filterStatus, setFilterStatus] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
-  const [isLocating, setIsLocating] = useState(false);
-  const [routeInfos, setRouteInfos] = useState<Map<number, RouteInfo>>(new Map());
-  const [flyToCenter, setFlyToCenter] = useState<[number, number] | null>(null);
-  const [flyToZoom, setFlyToZoom] = useState<number | undefined>(undefined);
+  const [interventions, setInterventions] = React.useState<Intervention[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [selectedIntervention, setSelectedIntervention] = React.useState<Intervention | null>(null);
+  const [selectedWorker, setSelectedWorker] = React.useState<WorkerLocation | null>(null);
+  const [showList, setShowList] = React.useState(false);
+  const [showWorkers, setShowWorkers] = React.useState(true);
+  const [filterStatus, setFilterStatus] = React.useState<string | null>(null);
+  const [userLocation, setUserLocation] = React.useState<[number, number] | null>(null);
+  const [isLocating, setIsLocating] = React.useState(false);
+  const [routeInfos, setRouteInfos] = React.useState<Map<number, RouteInfo>>(new Map());
+  const [flyToCenter, setFlyToCenter] = React.useState<[number, number] | null>(null);
+  const [flyToZoom, setFlyToZoom] = React.useState<number | undefined>(undefined);
 
   // Get worker locations
   const { workers: onlineWorkers, isLoading: workersLoading } = useWorkerLocations();
   
   // Load interventions from API
-  useEffect(() => {
+  React.useEffect(() => {
     const loadInterventions = async () => {
       try {
         setIsLoading(true);
@@ -238,7 +237,7 @@ export default function MapPage() {
   const geolocatedInterventions = filteredInterventions.filter(i => i.coordinates);
 
   // Calculate distances
-  const calculateDistances = useCallback((userLat: number, userLng: number) => {
+  const calculateDistances = React.useCallback((userLat: number, userLng: number) => {
     const newRouteInfos = new Map<number, RouteInfo>();
     
     geolocatedInterventions.forEach(intervention => {
@@ -261,7 +260,7 @@ export default function MapPage() {
   }, [geolocatedInterventions]);
 
   // Sort by distance
-  const sortedInterventions = useMemo(() => {
+  const sortedInterventions = React.useMemo(() => {
     return [...geolocatedInterventions].sort((a, b) => {
       const infoA = routeInfos.get(a.id);
       const infoB = routeInfos.get(b.id);
@@ -273,7 +272,7 @@ export default function MapPage() {
   }, [geolocatedInterventions, routeInfos]);
 
   // Calculate bounds
-  const bounds = useMemo(() => {
+  const bounds = React.useMemo(() => {
     if (geolocatedInterventions.length === 0) return null;
     
     const coords = geolocatedInterventions
@@ -364,7 +363,7 @@ export default function MapPage() {
   const selectedRouteInfo = selectedIntervention ? routeInfos.get(selectedIntervention.id) : null;
 
   // Route line between user and selected intervention
-  const routeLine = useMemo(() => {
+  const routeLine = React.useMemo(() => {
     if (!userLocation || !selectedIntervention?.coordinates) return null;
     return [
       userLocation,

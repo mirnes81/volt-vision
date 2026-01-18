@@ -1,13 +1,13 @@
-import { useState, useEffect, ComponentProps } from "react";
+import * as React from "react";
 import { Toaster as Sonner } from "sonner";
 
-type ToasterProps = ComponentProps<typeof Sonner>;
+type ToasterProps = React.ComponentProps<typeof Sonner>;
 
 const Toaster = ({ ...props }: ToasterProps) => {
   // Get theme from document class instead of context to avoid conflicts
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
+  const [theme, setTheme] = React.useState<'light' | 'dark'>('light');
 
-  useEffect(() => {
+  React.useEffect(() => {
     const root = document.documentElement;
     const updateTheme = () => {
       setTheme(root.classList.contains('dark') ? 'dark' : 'light');
