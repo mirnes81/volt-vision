@@ -14,6 +14,7 @@ type CacheSubscriber = () => void;
 const subscribers = new Set<CacheSubscriber>();
 
 function notifySubscribers() {
+  console.log('[useInterventionAssignments] Notifying', subscribers.size, 'subscribers');
   subscribers.forEach(callback => callback());
 }
 
@@ -117,6 +118,7 @@ export function useInterventionAssignments() {
 
 // Global function to invalidate cache and notify all subscribers
 export function invalidateAssignmentsCache() {
+  console.log('[useInterventionAssignments] Invalidating cache');
   assignmentsCache = null;
   cacheTimestamp = null;
   notifySubscribers();
