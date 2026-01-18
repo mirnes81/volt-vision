@@ -1,5 +1,6 @@
 /**
- * Theme Context v10 - ES6 imports with proper typing
+ * Theme Context v11 - Minimal implementation
+ * Uses simple state without complex initialization
  */
 import * as React from 'react';
 
@@ -11,78 +12,74 @@ interface ThemeContextType {
   setTheme: (theme: Theme) => void;
 }
 
-const ThemeContext = React.createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = React.createContext<ThemeContextType>({
+  theme: 'light',
+  actualTheme: 'light',
+  setTheme: () => {},
+});
 
-function getStoredTheme(): Theme {
-  try {
-    if (typeof window === 'undefined') return 'light';
-    const saved = localStorage.getItem('mv3_theme');
-    if (saved === 'light' || saved === 'dark' || saved === 'system') return saved;
-  } catch {}
-  return 'light';
-}
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = React.useState<Theme>('light');
+  const [actualTheme, setActualTheme] = React.useState<'light' | 'dark'>('light');
+  const [mounted, setMounted] = React.useState(false);
 
-function resolveTheme(theme: Theme): 'light' | 'dark' {
-  if (typeof window === 'undefined') return 'light';
-  if (theme === 'system') {
-    return window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-  }
-  return theme;
-}
-
-interface ThemeProviderProps {
-  children: React.ReactNode;
-}
-
-export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
-  const storedTheme = getStoredTheme();
-  const [theme, setThemeState] = React.useState<Theme>(storedTheme);
-  const [actualTheme, setActualTheme] = React.useState<'light' | 'dark'>(resolveTheme(storedTheme));
-
+  // Initialize theme after mount to avoid hydration issues
   React.useEffect(() => {
+    const saved = localStorage.getItem('mv3_theme') as Theme | null;
+    if (saved === 'light' || saved === 'dark' || saved === 'system') {
+      setTheme(saved);
+    }
+    setMounted(true);
+  }, []);
+
+  // Update actual theme when theme changes
+  React.useEffect(() => {
+    if (!mounted) return;
+    
     const root = document.documentElement;
-    const resolved = resolveTheme(theme);
+    let resolved: 'light' | 'dark' = 'light';
+    
+    if (theme === 'system') {
+      resolved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    } else {
+      resolved = theme;
+    }
     
     setActualTheme(resolved);
     root.classList.remove('light', 'dark');
     root.classList.add(resolved);
-    
-    try {
-      localStorage.setItem('mv3_theme', theme);
-    } catch {}
+    localStorage.setItem('mv3_theme', theme);
+  }, [theme, mounted]);
 
+  // Listen for system theme changes
+  React.useEffect(() => {
+    if (!mounted || theme !== 'system') return;
+    
     const mq = window.matchMedia('(prefers-color-scheme: dark)');
-    const onChange = () => {
-      if (theme === 'system') {
-        const newResolved = mq.matches ? 'dark' : 'light';
-        setActualTheme(newResolved);
-        root.classList.remove('light', 'dark');
-        root.classList.add(newResolved);
-      }
+    const handler = (e: MediaQueryListEvent) => {
+      const resolved = e.matches ? 'dark' : 'light';
+      setActualTheme(resolved);
+      document.documentElement.classList.remove('light', 'dark');
+      document.documentElement.classList.add(resolved);
     };
     
-    mq.addEventListener('change', onChange);
-    return () => mq.removeEventListener('change', onChange);
-  }, [theme]);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, [theme, mounted]);
 
-  const contextValue = React.useMemo<ThemeContextType>(
-    () => ({
-      theme,
-      actualTheme,
-      setTheme: setThemeState,
-    }),
-    [theme, actualTheme]
-  );
+  const value = React.useMemo(() => ({
+    theme,
+    actualTheme,
+    setTheme,
+  }), [theme, actualTheme]);
 
   return (
-    <ThemeContext.Provider value={contextValue}>
+    <ThemeContext.Provider value={value}>
       {children}
     </ThemeContext.Provider>
   );
-};
+}
 
 export function useTheme(): ThemeContextType {
-  const ctx = React.useContext(ThemeContext);
-  if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
-  return ctx;
+  return React.useContext(ThemeContext);
 }
