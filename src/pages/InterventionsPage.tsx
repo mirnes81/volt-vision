@@ -5,7 +5,7 @@ import { InterventionCard } from '@/components/intervention/InterventionCard';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
-import { useInterventionAssignments } from '@/hooks/useInterventionAssignments';
+import { useAssignments } from '@/contexts/AssignmentsContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/sonner';
@@ -75,8 +75,8 @@ export default function InterventionsPage() {
   // Use cached interventions with offline support
   const { interventions, isLoading, isRefreshing, isOffline, cacheSource, refresh } = useInterventionsCache(showOnlyMine);
   
-  // Fetch Supabase assignments
-  const { getAssignmentsForIntervention } = useInterventionAssignments();
+  // Use global assignments context
+  const { getAssignmentsForIntervention } = useAssignments();
 
   const handleRefresh = async () => {
     if (isOffline) {
