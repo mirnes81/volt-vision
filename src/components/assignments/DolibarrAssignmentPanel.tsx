@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
+import { invalidateAssignmentsCache } from '@/hooks/useInterventionAssignments';
 
 // Default tenant UUID for Dolibarr integration mode
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
@@ -223,6 +224,9 @@ export function DolibarrAssignmentPanel({
         { duration: 4000 }
       );
 
+      // Invalidate cache to refresh all views
+      invalidateAssignmentsCache();
+      
       setIsOpen(false);
       onAssignmentsChange?.();
 
