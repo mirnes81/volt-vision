@@ -53,10 +53,12 @@ export function TimeEntryList({ entries, onDelete, showUser = false }: TimeEntry
             {/* Header */}
             <div className="flex items-start justify-between">
               <div className="flex-1 min-w-0">
-                {showUser && entry.user_name && (
-                  <p className="font-semibold text-sm mb-1">{entry.user_name}</p>
-                )}
                 <div className="flex items-center gap-2 flex-wrap">
+                  {showUser && entry.user_name && (
+                    <Badge variant="default" className="text-xs bg-primary/90">
+                      {entry.user_name}
+                    </Badge>
+                  )}
                   <Badge variant="secondary" className="text-xs">
                     {workTypeLabel}
                   </Badge>

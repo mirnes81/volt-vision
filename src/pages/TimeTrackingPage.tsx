@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Clock, Calendar, ChevronLeft, ChevronRight, AlertTriangle, TrendingUp, Loader2 } from 'lucide-react';
+import { Clock, Calendar, ChevronLeft, ChevronRight, AlertTriangle, TrendingUp, Loader2, Users } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { ManualTimeEntry } from '@/components/timeTracking/ManualTimeEntry';
 import { TimeEntryList } from '@/components/timeTracking/TimeEntryList';
@@ -11,6 +11,7 @@ import { UserWeeklyLimitSetting } from '@/components/timeTracking/UserWeeklyLimi
 import { AdminValidationPanel } from '@/components/timeTracking/AdminValidationPanel';
 import { HoursAlertsPanel } from '@/components/timeTracking/HoursAlertsPanel';
 import { TimeExportButton } from '@/components/timeTracking/TimeExportButton';
+import { WorkerHoursSummary } from '@/components/timeTracking/WorkerHoursSummary';
 import { useTimeTracking } from '@/hooks/useTimeTracking';
 import { useTimeTrackingAdmin } from '@/hooks/useTimeTrackingAdmin';
 import { useAuth } from '@/contexts/AuthContext';
@@ -48,9 +49,10 @@ export default function TimeTrackingPage() {
   const canValidate = hasPermission('hours.validate');
   const canExport = hasPermission('hours.export');
   const canViewAlerts = hasPermission('hours.alerts');
+  const canViewAll = hasPermission('hours.view_all');
   
   // Show admin tabs if user has any admin-level permission
-  const showAdminTabs = canValidate || canViewAlerts;
+  const showAdminTabs = canValidate || canViewAlerts || canViewAll;
   const [selectedDate, setSelectedDate] = React.useState(new Date());
   
   const { 
@@ -96,27 +98,36 @@ export default function TimeTrackingPage() {
         
         {showAdminTabs ? (
           <Tabs defaultValue="my-time" className="space-y-4">
-            <TabsList className={`w-full grid ${canValidate && canViewAlerts ? 'grid-cols-3' : 'grid-cols-2'}`}>
-              <TabsTrigger value="my-time" className="gap-2">
+            <TabsList className="w-full grid grid-cols-2 md:grid-cols-4 gap-1">
+              <TabsTrigger value="my-time" className="gap-2 text-xs md:text-sm">
                 <Clock className="w-4 h-4" />
-                Mes heures
+                <span className="hidden sm:inline">Mes heures</span>
+                <span className="sm:hidden">Mes h.</span>
               </TabsTrigger>
+              {canViewAll && (
+                <TabsTrigger value="workers" className="gap-2 text-xs md:text-sm">
+                  <Users className="w-4 h-4" />
+                  <span className="hidden sm:inline">Par ouvrier</span>
+                  <span className="sm:hidden">Ouvriers</span>
+                </TabsTrigger>
+              )}
               {canValidate && (
-                <TabsTrigger value="validation" className="gap-2">
-                  Validation
+                <TabsTrigger value="validation" className="gap-2 text-xs md:text-sm">
+                  <span className="hidden sm:inline">Validation</span>
+                  <span className="sm:hidden">Valid.</span>
                   {adminHook.entries.filter(e => e.status === 'pending' && e.clock_out).length > 0 && (
-                    <Badge variant="destructive" className="ml-1">
+                    <Badge variant="destructive" className="ml-1 text-xs">
                       {adminHook.entries.filter(e => e.status === 'pending' && e.clock_out).length}
                     </Badge>
                   )}
                 </TabsTrigger>
               )}
               {canViewAlerts && (
-                <TabsTrigger value="alerts" className="gap-2">
+                <TabsTrigger value="alerts" className="gap-2 text-xs md:text-sm">
                   <AlertTriangle className="w-4 h-4" />
-                  Alertes
+                  <span className="hidden sm:inline">Alertes</span>
                   {adminHook.alerts.length > 0 && (
-                    <Badge variant="destructive" className="ml-1">{adminHook.alerts.length}</Badge>
+                    <Badge variant="destructive" className="ml-1 text-xs">{adminHook.alerts.length}</Badge>
                   )}
                 </TabsTrigger>
               )}
@@ -182,6 +193,13 @@ export default function TimeTrackingPage() {
                 <TimeEntryList entries={entries} onDelete={deleteEntry} />
               </div>
             </TabsContent>
+
+            {canViewAll && (
+              <TabsContent value="workers" className="space-y-4">
+                <h3 className="font-semibold">Heures par ouvrier</h3>
+                <WorkerHoursSummary tenantId={currentUser?.tenant_id} />
+              </TabsContent>
+            )}
 
             {canValidate && (
               <TabsContent value="validation" className="space-y-4">
