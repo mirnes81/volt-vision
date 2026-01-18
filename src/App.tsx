@@ -1,4 +1,4 @@
-// App.tsx - v10 unified React pattern
+// App.tsx - v12 - ThemeProvider restored with minimal implementation
 import * as React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -19,7 +19,6 @@ import NewInterventionPage from "./pages/NewInterventionPage";
 import CalendarPage from "./pages/CalendarPage";
 import MapPage from "./pages/MapPage";
 import TimeTrackingPage from "./pages/TimeTrackingPage";
-
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import DiagnosticPage from "./pages/DiagnosticPage";
@@ -57,7 +56,6 @@ const AppRoutes = () => (
       <Route path="/intervention/:id" element={<InterventionDetailPage />} />
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/map" element={<MapPage />} />
-      
       <Route path="/time-tracking" element={<TimeTrackingPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/settings" element={<SettingsPage />} />
