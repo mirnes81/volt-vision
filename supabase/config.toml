@@ -1,1 +1,10 @@
 project_id = "aknufkonvdzorrnhvhhs"
+
+[functions.dolibarr-api]
+verify_jwt = false
+
+[functions.transcribe-audio]
+verify_jwt = true
+
+[functions.send-reminders]
+verify_jwt = false
