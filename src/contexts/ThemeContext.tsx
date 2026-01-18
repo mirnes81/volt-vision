@@ -1,4 +1,4 @@
-// Theme Context v3 - Fix React import for proper hook binding
+// Theme Context v4 - Force cache invalidation
 import * as React from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
