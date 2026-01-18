@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { AssignmentsProvider } from "@/contexts/AssignmentsContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
@@ -70,11 +71,13 @@ const App = () => (
       <LanguageProvider>
         <BrowserRouter>
           <AuthProvider>
-            <TooltipProvider>
-              <AppRoutes />
-              <Toaster />
-              <SonnerToaster position="top-center" />
-            </TooltipProvider>
+            <AssignmentsProvider>
+              <TooltipProvider>
+                <AppRoutes />
+                <Toaster />
+                <SonnerToaster position="top-center" />
+              </TooltipProvider>
+            </AssignmentsProvider>
           </AuthProvider>
         </BrowserRouter>
       </LanguageProvider>
