@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Clock, Calendar, ChevronLeft, ChevronRight, AlertTriangle, TrendingUp } from 'lucide-react';
+import { Clock, Calendar, ChevronLeft, ChevronRight, AlertTriangle, TrendingUp, Loader2 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { ManualTimeEntry } from '@/components/timeTracking/ManualTimeEntry';
 import { TimeEntryList } from '@/components/timeTracking/TimeEntryList';
@@ -17,19 +17,37 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { hasPermission } from '@/lib/permissions';
+import { getEmployeePermissionsAsync, Permission } from '@/lib/permissions';
 
 export default function TimeTrackingPage() {
   const { worker } = useAuth();
   const isAdmin = worker?.isAdmin;
   
-  // Check permissions
-  const canViewOwn = worker ? hasPermission(worker.id, 'hours.view_own', isAdmin) : false;
-  const canAddOwn = worker ? hasPermission(worker.id, 'hours.add_own', isAdmin) : false;
-  const canModifyOwnLimit = worker ? hasPermission(worker.id, 'hours.modify_own_limit', isAdmin) : false;
-  const canValidate = worker ? hasPermission(worker.id, 'hours.validate', isAdmin) : false;
-  const canExport = worker ? hasPermission(worker.id, 'hours.export', isAdmin) : false;
-  const canViewAlerts = worker ? hasPermission(worker.id, 'hours.alerts', isAdmin) : false;
+  // Permissions state (loaded from database)
+  const [permissions, setPermissions] = React.useState<Permission[]>([]);
+  const [permissionsLoaded, setPermissionsLoaded] = React.useState(false);
+  
+  // Load permissions from database
+  React.useEffect(() => {
+    async function loadPermissions() {
+      if (worker) {
+        const perms = await getEmployeePermissionsAsync(worker.id);
+        setPermissions(perms);
+        setPermissionsLoaded(true);
+      }
+    }
+    loadPermissions();
+  }, [worker]);
+  
+  // Check permissions (admins have all permissions)
+  const hasPermission = (perm: Permission) => isAdmin || permissions.includes(perm);
+  
+  const canViewOwn = hasPermission('hours.view_own');
+  const canAddOwn = hasPermission('hours.add_own');
+  const canModifyOwnLimit = hasPermission('hours.modify_own_limit');
+  const canValidate = hasPermission('hours.validate');
+  const canExport = hasPermission('hours.export');
+  const canViewAlerts = hasPermission('hours.alerts');
   
   // Show admin tabs if user has any admin-level permission
   const showAdminTabs = canValidate || canViewAlerts;
@@ -55,6 +73,20 @@ export default function TimeTrackingPage() {
   };
 
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+
+  // Show loading while permissions are being fetched
+  if (!permissionsLoaded) {
+    return (
+      <div className="pb-24">
+        <Header title="Suivi des heures" />
+        <main className="container max-w-4xl mx-auto px-4 py-6">
+          <div className="flex items-center justify-center py-12">
+            <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="pb-24">
