@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { InterventionAssignment } from '@/types/assignments';
 
@@ -22,11 +22,13 @@ export function useInterventionAssignments() {
   const [assignments, setAssignments] = useState<InterventionAssignment[]>(assignmentsCache || []);
   const [isLoading, setIsLoading] = useState(!assignmentsCache);
   const [refreshKey, setRefreshKey] = useState(0);
+  const hasFetchedOnce = useRef(false);
 
   const fetchAssignments = useCallback(async (force = false) => {
-    console.log('[useInterventionAssignments] fetchAssignments called, force:', force);
+    console.log('[useInterventionAssignments] fetchAssignments called, force:', force, 'hasFetchedOnce:', hasFetchedOnce.current);
     console.log('[useInterventionAssignments] Cache status:', { 
       hasCache: !!assignmentsCache, 
+      cacheLength: assignmentsCache?.length,
       cacheTimestamp,
       age: cacheTimestamp ? Date.now() - cacheTimestamp : null 
     });
@@ -41,10 +43,10 @@ export function useInterventionAssignments() {
 
     setIsLoading(true);
     try {
-      console.log('[useInterventionAssignments] Fetching from Supabase...');
-      const { data, error } = await supabase
+      console.log('[useInterventionAssignments] Fetching from Supabase for tenant:', DEFAULT_TENANT_ID);
+      const { data, error, count } = await supabase
         .from('intervention_assignments')
-        .select('*')
+        .select('*', { count: 'exact' })
         .eq('tenant_id', DEFAULT_TENANT_ID)
         .order('assigned_at', { ascending: false });
 
@@ -53,7 +55,8 @@ export function useInterventionAssignments() {
         return;
       }
 
-      console.log('[useInterventionAssignments] Fetched', data?.length || 0, 'assignments from DB');
+      console.log('[useInterventionAssignments] Fetched', data?.length || 0, 'assignments from DB, count:', count);
+      console.log('[useInterventionAssignments] Raw data:', JSON.stringify(data, null, 2));
       
       // Update cache - cast priority to union type
       assignmentsCache = (data || []).map(a => ({
@@ -61,9 +64,14 @@ export function useInterventionAssignments() {
         priority: a.priority as 'normal' | 'urgent' | 'critical'
       }));
       cacheTimestamp = Date.now();
+      hasFetchedOnce.current = true;
       setAssignments(assignmentsCache);
       
       console.log('[useInterventionAssignments] State updated with', assignmentsCache.length, 'assignments');
+      
+      // Log intervention IDs for debugging
+      const interventionIds = assignmentsCache.map(a => a.intervention_id);
+      console.log('[useInterventionAssignments] Intervention IDs in cache:', interventionIds);
     } catch (err) {
       console.error('[useInterventionAssignments] Failed to fetch assignments:', err);
     } finally {
@@ -74,8 +82,11 @@ export function useInterventionAssignments() {
   // Initial fetch - force on mount to ensure data is loaded
   useEffect(() => {
     console.log('[useInterventionAssignments] Component mounted, starting initial fetch');
-    fetchAssignments(true); // Force fetch on mount
-  }, []);
+    // Clear cache on mount to ensure fresh data
+    assignmentsCache = null;
+    cacheTimestamp = null;
+    fetchAssignments(true);
+  }, [fetchAssignments]);
 
   // Subscribe to cache invalidations
   useEffect(() => {
@@ -104,6 +115,8 @@ export function useInterventionAssignments() {
   const assignmentsByInterventionId = useMemo(() => {
     const map = new Map<number, InterventionAssignment[]>();
     
+    console.log('[useInterventionAssignments] Building lookup map from', assignments.length, 'assignments');
+    
     assignments.forEach(a => {
       if (a.intervention_id !== null) {
         const existing = map.get(a.intervention_id) || [];
@@ -112,20 +125,22 @@ export function useInterventionAssignments() {
       }
     });
 
+    console.log('[useInterventionAssignments] Lookup map has', map.size, 'interventions');
     return map;
   }, [assignments]);
 
   // Get assignments for a specific intervention (NOT a hook - regular function)
   const getAssignmentsForIntervention = (interventionId: number): InterventionAssignment[] => {
     const result = assignmentsByInterventionId.get(interventionId) || [];
-    if (result.length > 0) {
-      console.log('[useInterventionAssignments] getAssignmentsForIntervention', interventionId, ':', result.length, 'found');
-    }
+    console.log('[useInterventionAssignments] getAssignmentsForIntervention', interventionId, ':', result.length, 'found, map size:', assignmentsByInterventionId.size);
     return result;
   };
 
   // Force refresh - returns Promise for awaiting
   const refresh = useCallback(async () => {
+    console.log('[useInterventionAssignments] Manual refresh requested');
+    assignmentsCache = null;
+    cacheTimestamp = null;
     await fetchAssignments(true);
   }, [fetchAssignments]);
 
@@ -140,7 +155,7 @@ export function useInterventionAssignments() {
 
 // Global function to invalidate cache and notify all subscribers
 export function invalidateAssignmentsCache() {
-  console.log('[useInterventionAssignments] Invalidating cache');
+  console.log('[useInterventionAssignments] Invalidating cache globally');
   assignmentsCache = null;
   cacheTimestamp = null;
   notifySubscribers();
