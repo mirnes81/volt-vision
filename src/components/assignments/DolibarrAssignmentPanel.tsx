@@ -168,6 +168,9 @@ export function DolibarrAssignmentPanel({
   };
 
   const handleSave = async () => {
+    console.log('[DolibarrAssignmentPanel] handleSave called');
+    console.log('[DolibarrAssignmentPanel] selectedUsers:', [...selectedUsers]);
+    
     if (selectedUsers.size === 0) {
       toast.warning('Sélectionnez au moins un technicien');
       return;
@@ -176,13 +179,19 @@ export function DolibarrAssignmentPanel({
     setIsSaving(true);
     try {
       const currentWorker = getWorkerFromStorage();
+      console.log('[DolibarrAssignmentPanel] Current worker:', currentWorker?.id);
       
       // Delete existing assignments for this intervention
-      await supabase
+      console.log('[DolibarrAssignmentPanel] Deleting existing assignments for intervention:', interventionId);
+      const { error: deleteError } = await supabase
         .from('intervention_assignments')
         .delete()
         .eq('intervention_id', interventionId)
         .eq('tenant_id', DEFAULT_TENANT_ID);
+
+      if (deleteError) {
+        console.error('[DolibarrAssignmentPanel] Delete error:', deleteError);
+      }
 
       // Create new assignments
       const newAssignments = [...selectedUsers].map(userId => {
@@ -207,9 +216,14 @@ export function DolibarrAssignmentPanel({
         };
       });
 
-      const { error } = await supabase
+      console.log('[DolibarrAssignmentPanel] Inserting assignments:', newAssignments);
+
+      const { data, error } = await supabase
         .from('intervention_assignments')
-        .insert(newAssignments);
+        .insert(newAssignments)
+        .select();
+
+      console.log('[DolibarrAssignmentPanel] Insert result:', { data, error });
 
       if (error) throw error;
 
