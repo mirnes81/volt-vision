@@ -17,11 +17,12 @@ import {
   AlertTriangle,
   Loader2,
   Car,
-  Timer
+  Timer,
+  Users
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
-import { format, parseISO } from 'date-fns';
+import { format, parseISO, formatDistanceToNow } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import {
   Sheet,
@@ -30,6 +31,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { toast } from '@/components/ui/sonner';
+import { useWorkerLocations, WorkerLocation } from '@/hooks/useWorkerLocationTracking';
 
 const typeColors: Record<string, string> = {
   installation: '#10B981',
@@ -128,6 +130,46 @@ const userIcon = L.divIcon({
   iconAnchor: [10, 10],
 });
 
+// Worker marker icon
+const createWorkerIcon = (name: string) => {
+  const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+  return L.divIcon({
+    className: 'worker-marker',
+    html: `
+      <div style="position: relative;">
+        <div style="
+          width: 36px;
+          height: 36px;
+          border-radius: 50%;
+          background: linear-gradient(135deg, #22C55E, #16A34A);
+          border: 3px solid white;
+          box-shadow: 0 3px 10px rgba(0,0,0,0.3);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: white;
+          font-size: 12px;
+          font-weight: bold;
+        ">${initials}</div>
+        <div style="
+          position: absolute;
+          bottom: -2px;
+          right: -2px;
+          width: 12px;
+          height: 12px;
+          background: #22C55E;
+          border-radius: 50%;
+          border: 2px solid white;
+          animation: pulse 2s infinite;
+        "></div>
+      </div>
+    `,
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36],
+  });
+};
+
 // Component to handle map center updates
 function MapController({ center, zoom }: { center: [number, number] | null; zoom?: number }) {
   const map = useMap();
@@ -159,13 +201,18 @@ export default function MapPage() {
   const [interventions, setInterventions] = useState<Intervention[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [selectedIntervention, setSelectedIntervention] = useState<Intervention | null>(null);
+  const [selectedWorker, setSelectedWorker] = useState<WorkerLocation | null>(null);
   const [showList, setShowList] = useState(false);
+  const [showWorkers, setShowWorkers] = useState(true);
   const [filterStatus, setFilterStatus] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
   const [isLocating, setIsLocating] = useState(false);
   const [routeInfos, setRouteInfos] = useState<Map<number, RouteInfo>>(new Map());
   const [flyToCenter, setFlyToCenter] = useState<[number, number] | null>(null);
   const [flyToZoom, setFlyToZoom] = useState<number | undefined>(undefined);
+
+  // Get worker locations
+  const { workers: onlineWorkers, isLoading: workersLoading } = useWorkerLocations();
   
   // Load interventions from API
   useEffect(() => {
@@ -386,6 +433,7 @@ export default function MapPage() {
               eventHandlers={{
                 click: () => {
                   setSelectedIntervention(intervention);
+                  setSelectedWorker(null);
                   setFlyToCenter([intervention.coordinates!.lat, intervention.coordinates!.lng]);
                   setFlyToZoom(15);
                 }
@@ -405,6 +453,38 @@ export default function MapPage() {
             </Marker>
           );
         })}
+
+        {/* Worker markers */}
+        {showWorkers && onlineWorkers.map(worker => (
+          <Marker
+            key={worker.id}
+            position={[worker.latitude, worker.longitude]}
+            icon={createWorkerIcon(worker.user_name)}
+            eventHandlers={{
+              click: () => {
+                setSelectedWorker(worker);
+                setSelectedIntervention(null);
+                setFlyToCenter([worker.latitude, worker.longitude]);
+                setFlyToZoom(15);
+              }
+            }}
+          >
+            <Popup>
+              <div className="min-w-[150px]">
+                <p className="font-semibold">{worker.user_name}</p>
+                <p className="text-xs text-green-600">🟢 En ligne</p>
+                <p className="text-xs text-gray-500 mt-1">
+                  Mis à jour {formatDistanceToNow(new Date(worker.updated_at), { locale: fr, addSuffix: true })}
+                </p>
+                {worker.current_intervention_ref && (
+                  <p className="text-xs text-blue-600 mt-1">
+                    📍 {worker.current_intervention_ref}
+                  </p>
+                )}
+              </div>
+            </Popup>
+          </Marker>
+        ))}
       </MapContainer>
 
       {/* Top Controls */}
@@ -417,6 +497,20 @@ export default function MapPage() {
         >
           <List className="w-4 h-4 mr-2" />
           Liste ({geolocatedInterventions.length})
+        </Button>
+
+        {/* Workers toggle */}
+        <Button
+          variant="secondary"
+          size="sm"
+          className={cn(
+            "bg-background/95 backdrop-blur shadow-lg",
+            showWorkers && "ring-2 ring-green-500"
+          )}
+          onClick={() => setShowWorkers(!showWorkers)}
+        >
+          <Users className="w-4 h-4 mr-2" />
+          Équipe ({onlineWorkers.length})
         </Button>
 
         <div className="flex gap-1 bg-background/95 backdrop-blur rounded-lg shadow-lg p-1">
@@ -459,9 +553,9 @@ export default function MapPage() {
       </div>
 
       {/* Legend */}
-      <div className="absolute bottom-24 lg:bottom-8 left-4 z-[1000] bg-background/95 backdrop-blur rounded-lg shadow-lg p-3 max-w-[180px]">
-        <p className="text-xs font-medium mb-2">Types</p>
-        <div className="grid grid-cols-2 gap-x-3 gap-y-1">
+      <div className="absolute bottom-24 lg:bottom-8 left-4 z-[1000] bg-background/95 backdrop-blur rounded-lg shadow-lg p-3 max-w-[200px]">
+        <p className="text-xs font-medium mb-2">Légende</p>
+        <div className="grid grid-cols-2 gap-x-3 gap-y-1 mb-2">
           {Object.entries(typeColors).map(([type, color]) => (
             <div key={type} className="flex items-center gap-1.5">
               <div 
@@ -472,6 +566,18 @@ export default function MapPage() {
             </div>
           ))}
         </div>
+        {showWorkers && onlineWorkers.length > 0 && (
+          <>
+            <div className="border-t border-border my-2" />
+            <p className="text-xs font-medium mb-1">Équipe en ligne</p>
+            {onlineWorkers.map(w => (
+              <div key={w.id} className="flex items-center gap-1.5 mb-0.5">
+                <div className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />
+                <span className="text-[10px] truncate">{w.user_name}</span>
+              </div>
+            ))}
+          </>
+        )}
       </div>
 
       {/* Selected Intervention Card */}
@@ -554,7 +660,55 @@ export default function MapPage() {
         </div>
       )}
 
-      {/* List Sheet */}
+      {/* Selected Worker Card */}
+      {selectedWorker && (
+        <div className="absolute bottom-24 lg:bottom-8 left-1/2 -translate-x-1/2 z-[1000] w-[calc(100%-2rem)] max-w-md">
+          <div className="bg-background rounded-2xl shadow-2xl border p-4">
+            <div className="flex items-start justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-green-500 to-green-600 flex items-center justify-center text-white font-bold">
+                  {selectedWorker.user_name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="font-semibold">{selectedWorker.user_name}</h3>
+                  <div className="flex items-center gap-1 text-xs text-green-600">
+                    <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+                    En ligne
+                  </div>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 -mr-2 -mt-2"
+                onClick={() => setSelectedWorker(null)}
+              >
+                <X className="w-4 h-4" />
+              </Button>
+            </div>
+
+            <div className="flex items-center gap-1 text-sm text-muted-foreground mb-2">
+              <Clock className="w-4 h-4 shrink-0" />
+              <span>
+                Mis à jour {formatDistanceToNow(new Date(selectedWorker.updated_at), { locale: fr, addSuffix: true })}
+              </span>
+            </div>
+
+            {selectedWorker.current_intervention_ref && (
+              <div className="flex items-center gap-1 text-sm text-blue-600 mb-3">
+                <MapPin className="w-4 h-4 shrink-0" />
+                <span>Intervention: {selectedWorker.current_intervention_ref}</span>
+              </div>
+            )}
+
+            <div className="p-2 bg-muted rounded-lg text-xs text-muted-foreground">
+              📍 Position: {selectedWorker.latitude.toFixed(5)}, {selectedWorker.longitude.toFixed(5)}
+              {selectedWorker.accuracy && ` (±${Math.round(selectedWorker.accuracy)}m)`}
+            </div>
+          </div>
+        </div>
+      )}
+
       <Sheet open={showList} onOpenChange={setShowList}>
         <SheetContent side="left" className="w-full sm:max-w-md p-0">
           <SheetHeader className="p-4 border-b">
