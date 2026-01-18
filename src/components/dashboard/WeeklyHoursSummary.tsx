@@ -36,14 +36,14 @@ export function WeeklyHoursSummary() {
         endOfWeek.setDate(startOfWeek.getDate() + 6);
         endOfWeek.setHours(23, 59, 59, 999);
 
-        // Fetch all entries for the week
+        // Fetch all entries for the week (manual entries have duration_minutes but may not have clock_out)
         const { data: entries, error } = await supabase
           .from('work_time_entries')
           .select('user_id, duration_minutes, status')
           .eq('tenant_id', DEFAULT_TENANT_ID)
           .gte('clock_in', startOfWeek.toISOString())
           .lte('clock_in', endOfWeek.toISOString())
-          .not('clock_out', 'is', null);
+          .not('duration_minutes', 'is', null);
 
         if (error) throw error;
 
