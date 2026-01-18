@@ -1,4 +1,4 @@
-// Theme Context v4 - Force cache invalidation
+// Theme Context v5 - Force complete cache invalidation
 import * as React from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
