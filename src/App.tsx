@@ -17,7 +17,6 @@ import InterventionsPage from "./pages/InterventionsPage";
 import InterventionDetailPage from "./pages/InterventionDetailPage";
 import NewInterventionPage from "./pages/NewInterventionPage";
 import CalendarPage from "./pages/CalendarPage";
-import MapPage from "./pages/MapPage";
 import TimeTrackingPage from "./pages/TimeTrackingPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
@@ -55,7 +54,6 @@ const AppRoutes = () => (
       <Route path="/intervention/new" element={<NewInterventionPage />} />
       <Route path="/intervention/:id" element={<InterventionDetailPage />} />
       <Route path="/calendar" element={<CalendarPage />} />
-      <Route path="/map" element={<MapPage />} />
       <Route path="/time-tracking" element={<TimeTrackingPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/settings" element={<SettingsPage />} />

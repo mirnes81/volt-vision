@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, ClipboardList, Calendar, User, Settings, ChevronLeft, ChevronRight,
-  Zap, LogOut, Moon, Sun, Plus, Map, Clock
+  Zap, LogOut, Moon, Sun, Plus, Clock
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -29,7 +29,6 @@ export function DesktopSidebar() {
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: t('nav.interventions') },
     { to: '/time-tracking', icon: Clock, label: 'Suivi heures' },
-    { to: '/map', icon: Map, label: 'Carte' },
     { to: '/calendar', icon: Calendar, label: t('nav.calendar') },
     { to: '/profile', icon: User, label: t('nav.profile') },
   ];
