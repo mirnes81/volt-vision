@@ -30,17 +30,21 @@ export default function DashboardPage() {
   // Load assignments directly from Supabase (same fix as InterventionDetailPage)
   useEffect(() => {
     const loadAssignments = async () => {
+      console.log('[DashboardPage] Loading assignments directly from Supabase...');
       const { data, error } = await supabase
         .from('intervention_assignments')
         .select('*')
         .eq('tenant_id', DEFAULT_TENANT_ID)
         .order('assigned_at', { ascending: false });
 
+      console.log('[DashboardPage] Supabase response:', { data, error });
+
       if (!error && data) {
         const mapped = data.map(a => ({
           ...a,
           priority: a.priority as 'normal' | 'urgent' | 'critical'
         }));
+        console.log('[DashboardPage] Mapped assignments:', mapped);
         setSupabaseAssignments(mapped);
       }
     };
@@ -49,7 +53,9 @@ export default function DashboardPage() {
 
   // Helper to get assignments for a specific intervention
   const getAssignmentsForIntervention = (interventionId: number): InterventionAssignment[] => {
-    return supabaseAssignments.filter(a => a.intervention_id === interventionId);
+    const result = supabaseAssignments.filter(a => a.intervention_id === interventionId);
+    console.log('[DashboardPage] getAssignmentsForIntervention', interventionId, ':', result);
+    return result;
   };
 
   useEffect(() => {
