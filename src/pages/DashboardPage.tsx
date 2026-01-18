@@ -6,25 +6,51 @@ import { InterventionCardCompact } from '@/components/intervention/InterventionC
 import { WeeklyHoursSummary } from '@/components/dashboard/WeeklyHoursSummary';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
-import { useInterventionAssignments } from '@/hooks/useInterventionAssignments';
 import { Intervention } from '@/types/intervention';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
+import { InterventionAssignment } from '@/types/assignments';
+
+const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
 export default function DashboardPage() {
   const { worker } = useAuth();
   const isAdmin = worker?.isAdmin;
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [supabaseAssignments, setSupabaseAssignments] = useState<InterventionAssignment[]>([]);
   
   // Use shared cache - this reuses data already loaded elsewhere
   const { interventions: allInterventions, isLoading } = useInterventionsCache(false);
   
-  // Fetch Supabase assignments
-  const { getAssignmentsForIntervention } = useInterventionAssignments();
-  
   // Get recent 10 for display
   const interventions = useMemo(() => allInterventions.slice(0, 10), [allInterventions]);
+
+  // Load assignments directly from Supabase (same fix as InterventionDetailPage)
+  useEffect(() => {
+    const loadAssignments = async () => {
+      const { data, error } = await supabase
+        .from('intervention_assignments')
+        .select('*')
+        .eq('tenant_id', DEFAULT_TENANT_ID)
+        .order('assigned_at', { ascending: false });
+
+      if (!error && data) {
+        const mapped = data.map(a => ({
+          ...a,
+          priority: a.priority as 'normal' | 'urgent' | 'critical'
+        }));
+        setSupabaseAssignments(mapped);
+      }
+    };
+    loadAssignments();
+  }, []);
+
+  // Helper to get assignments for a specific intervention
+  const getAssignmentsForIntervention = (interventionId: number): InterventionAssignment[] => {
+    return supabaseAssignments.filter(a => a.intervention_id === interventionId);
+  };
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
