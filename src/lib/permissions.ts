@@ -3,6 +3,10 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
+const LEGACY_PERMISSIONS_KEY = 'mv3_employee_permissions';
+const MIGRATION_DONE_KEY = 'mv3_permissions_migrated_to_db';
+const DOLIBARR_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+
 export type Permission = 
   | 'hours.view_own'           // Voir ses propres heures
   | 'hours.add_own'            // Ajouter ses propres heures
@@ -20,7 +24,7 @@ export interface EmployeePermissions {
   updatedAt?: string;
 }
 
-const DOLIBARR_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+// Duplicate removed - DOLIBARR_TENANT_ID is defined above
 
 // Default permissions for regular employees
 export const DEFAULT_EMPLOYEE_PERMISSIONS: Permission[] = [
@@ -274,4 +278,117 @@ export function clearPermissionsCache(): void {
 // Preload permissions for a user
 export async function preloadPermissions(userId: number | string): Promise<void> {
   await getEmployeePermissionsAsync(userId);
+}
+
+// ============ MIGRATION FROM LOCALSTORAGE ============
+
+interface LegacyPermissionEntry {
+  userId: number | string;
+  userName: string;
+  permissions: Permission[];
+  updatedAt: string;
+}
+
+// Check if migration has already been done
+export function isMigrationDone(): boolean {
+  return localStorage.getItem(MIGRATION_DONE_KEY) === 'true';
+}
+
+// Get legacy permissions from localStorage
+export function getLegacyPermissions(): LegacyPermissionEntry[] {
+  try {
+    const stored = localStorage.getItem(LEGACY_PERMISSIONS_KEY);
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Check if there are permissions to migrate
+export function hasLegacyPermissions(): boolean {
+  const legacy = getLegacyPermissions();
+  return legacy.length > 0 && !isMigrationDone();
+}
+
+// Migrate permissions from localStorage to database
+export async function migratePermissionsToDatabase(): Promise<{
+  success: boolean;
+  migrated: number;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  let migrated = 0;
+
+  try {
+    const legacyPermissions = getLegacyPermissions();
+    
+    if (legacyPermissions.length === 0) {
+      localStorage.setItem(MIGRATION_DONE_KEY, 'true');
+      return { success: true, migrated: 0, errors: [] };
+    }
+
+    console.log(`Migrating ${legacyPermissions.length} employee permissions to database...`);
+
+    for (const entry of legacyPermissions) {
+      try {
+        // Skip if no permissions
+        if (!entry.permissions || entry.permissions.length === 0) {
+          continue;
+        }
+
+        // Check if this user already has permissions in database
+        const { data: existing } = await supabase
+          .from('user_permissions')
+          .select('id')
+          .eq('tenant_id', DOLIBARR_TENANT_ID)
+          .eq('user_id', String(entry.userId))
+          .limit(1);
+
+        if (existing && existing.length > 0) {
+          console.log(`User ${entry.userId} already has permissions in DB, skipping`);
+          continue;
+        }
+
+        // Insert permissions
+        const permissionRows = entry.permissions.map(permission => ({
+          tenant_id: DOLIBARR_TENANT_ID,
+          user_id: String(entry.userId),
+          user_name: entry.userName,
+          permission,
+        }));
+
+        const { error } = await supabase
+          .from('user_permissions')
+          .insert(permissionRows);
+
+        if (error) {
+          errors.push(`User ${entry.userName}: ${error.message}`);
+        } else {
+          migrated++;
+          console.log(`Migrated permissions for ${entry.userName}`);
+        }
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Unknown error';
+        errors.push(`User ${entry.userName}: ${message}`);
+      }
+    }
+
+    // Mark migration as done even if some errors occurred
+    localStorage.setItem(MIGRATION_DONE_KEY, 'true');
+    
+    // Optionally clear legacy storage after successful migration
+    if (errors.length === 0 && migrated > 0) {
+      localStorage.removeItem(LEGACY_PERMISSIONS_KEY);
+    }
+
+    return { success: errors.length === 0, migrated, errors };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    return { success: false, migrated, errors: [message] };
+  }
+}
+
+// Reset migration flag (for debugging/re-migration)
+export function resetMigrationFlag(): void {
+  localStorage.removeItem(MIGRATION_DONE_KEY);
 }

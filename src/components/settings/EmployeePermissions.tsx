@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Users, Shield, Check, Loader2, Search, RefreshCw } from 'lucide-react';
+import { Users, Shield, Check, Loader2, Search, RefreshCw, Database, AlertCircle } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { 
   Permission, 
@@ -19,6 +20,9 @@ import {
   setEmployeePermissionsAsync,
   getAllEmployeePermissionsAsync,
   clearPermissionsCache,
+  hasLegacyPermissions,
+  migratePermissionsToDatabase,
+  getLegacyPermissions,
 } from '@/lib/permissions';
 import { fetchAllWorkers } from '@/lib/api';
 
@@ -44,6 +48,55 @@ export function EmployeePermissions() {
   const [selectedPermissions, setSelectedPermissions] = React.useState<Permission[]>([]);
   const [isSaving, setIsSaving] = React.useState(false);
   const [dialogOpen, setDialogOpen] = React.useState(false);
+  
+  // Migration state
+  const [showMigrationBanner, setShowMigrationBanner] = React.useState(false);
+  const [isMigrating, setIsMigrating] = React.useState(false);
+  const [legacyCount, setLegacyCount] = React.useState(0);
+
+  // Check for legacy permissions on mount
+  React.useEffect(() => {
+    if (hasLegacyPermissions()) {
+      const legacy = getLegacyPermissions();
+      setLegacyCount(legacy.length);
+      setShowMigrationBanner(true);
+    }
+  }, []);
+
+  const handleMigration = async () => {
+    setIsMigrating(true);
+    try {
+      const result = await migratePermissionsToDatabase();
+      
+      if (result.success) {
+        toast({
+          title: 'Migration réussie',
+          description: `${result.migrated} employé(s) migrés vers la base de données`,
+        });
+        setShowMigrationBanner(false);
+        // Reload workers to show updated permissions
+        loadWorkers();
+      } else {
+        toast({
+          title: 'Migration partielle',
+          description: `${result.migrated} migrés, ${result.errors.length} erreur(s)`,
+          variant: 'destructive',
+        });
+        if (result.errors.length > 0) {
+          console.error('Migration errors:', result.errors);
+        }
+      }
+    } catch (error) {
+      console.error('Migration error:', error);
+      toast({
+        title: 'Erreur de migration',
+        description: 'Impossible de migrer les permissions',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsMigrating(false);
+    }
+  };
 
   const loadWorkers = React.useCallback(async () => {
     setIsLoading(true);
@@ -159,6 +212,38 @@ export function EmployeePermissions() {
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Migration Banner */}
+        {showMigrationBanner && (
+          <Alert className="border-amber-500/50 bg-amber-500/10">
+            <Database className="h-4 w-4 text-amber-500" />
+            <AlertTitle className="text-amber-500">Migration disponible</AlertTitle>
+            <AlertDescription className="space-y-3">
+              <p>
+                {legacyCount} employé(s) ont des permissions stockées localement. 
+                Migrez-les vers la base de données pour un accès multi-appareils sécurisé.
+              </p>
+              <Button 
+                onClick={handleMigration} 
+                disabled={isMigrating}
+                size="sm"
+                className="gap-2"
+              >
+                {isMigrating ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Migration en cours...
+                  </>
+                ) : (
+                  <>
+                    <Database className="h-4 w-4" />
+                    Migrer vers la base de données
+                  </>
+                )}
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Search and refresh */}
         <div className="flex gap-2">
           <div className="relative flex-1">
