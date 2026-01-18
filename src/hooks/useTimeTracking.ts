@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { WorkTimeEntry, DailyLimitCheck } from '@/types/timeTracking';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface UseTimeTrackingOptions {
   userId?: string;
@@ -9,38 +10,28 @@ interface UseTimeTrackingOptions {
   date?: Date;
 }
 
+// Default tenant ID for non-SaaS mode (Dolibarr integration)
+const DEFAULT_TENANT_ID = 'dolibarr-default';
+
 export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
   const { toast } = useToast();
+  const { worker } = useAuth();
   const [entries, setEntries] = useState<WorkTimeEntry[]>([]);
   const [activeEntry, setActiveEntry] = useState<WorkTimeEntry | null>(null);
   const [dailyLimit, setDailyLimit] = useState<DailyLimitCheck | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isClockedIn, setIsClockedIn] = useState(false);
 
-  // Get current user and tenant
-  const [currentUser, setCurrentUser] = useState<{ id: string; tenant_id: string } | null>(null);
-
-  useEffect(() => {
-    async function fetchUserInfo() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('saas_profiles')
-          .select('id, tenant_id')
-          .eq('id', user.id)
-          .maybeSingle();
-        
-        if (profile?.tenant_id) {
-          setCurrentUser({ id: profile.id, tenant_id: profile.tenant_id });
-        }
-      }
-    }
-    fetchUserInfo();
-  }, []);
+  // Use worker from AuthContext (Dolibarr) instead of Supabase auth
+  const userId = worker ? String(worker.id) : null;
+  const tenantId = options.tenantId || DEFAULT_TENANT_ID;
 
   // Fetch entries
   const fetchEntries = useCallback(async () => {
-    if (!currentUser) return;
+    if (!userId) {
+      setIsLoading(false);
+      return;
+    }
 
     setIsLoading(true);
     try {
@@ -53,7 +44,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
       let query = supabase
         .from('work_time_entries')
         .select('*')
-        .eq('tenant_id', currentUser.tenant_id)
+        .eq('tenant_id', tenantId)
         .gte('clock_in', startOfDay.toISOString())
         .lte('clock_in', endOfDay.toISOString())
         .order('clock_in', { ascending: false });
@@ -61,7 +52,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
       if (options.userId) {
         query = query.eq('user_id', options.userId);
       } else {
-        query = query.eq('user_id', currentUser.id);
+        query = query.eq('user_id', userId);
       }
 
       const { data, error } = await query;
@@ -90,11 +81,11 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
     } finally {
       setIsLoading(false);
     }
-  }, [currentUser, options.userId, options.date, toast]);
+  }, [userId, tenantId, options.userId, options.date, toast]);
 
   // Fetch daily limit
   const fetchDailyLimit = useCallback(async () => {
-    if (!currentUser) return;
+    if (!userId) return;
 
     try {
       const targetDate = options.date || new Date();
@@ -102,8 +93,8 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
 
       const { data, error } = await supabase
         .rpc('check_daily_hours_limit', {
-          _user_id: options.userId || currentUser.id,
-          _tenant_id: currentUser.tenant_id,
+          _user_id: options.userId || userId,
+          _tenant_id: tenantId,
           _date: dateStr,
         });
 
@@ -115,14 +106,14 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
     } catch (error) {
       console.error('Error fetching daily limit:', error);
     }
-  }, [currentUser, options.userId, options.date]);
+  }, [userId, tenantId, options.userId, options.date]);
 
   useEffect(() => {
-    if (currentUser) {
+    if (userId) {
       fetchEntries();
       fetchDailyLimit();
     }
-  }, [currentUser, fetchEntries, fetchDailyLimit]);
+  }, [userId, fetchEntries, fetchDailyLimit]);
 
   // Clock in
   const clockIn = async (data: {
@@ -133,7 +124,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
     latitude?: number;
     longitude?: number;
   } = {}) => {
-    if (!currentUser) {
+    if (!userId) {
       toast({
         title: 'Erreur',
         description: 'Utilisateur non connecté',
@@ -155,8 +146,8 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
       const { data: entry, error } = await supabase
         .from('work_time_entries')
         .insert({
-          tenant_id: currentUser.tenant_id,
-          user_id: currentUser.id,
+          tenant_id: tenantId,
+          user_id: userId,
           work_type: data.work_type || 'intervention',
           intervention_id: data.intervention_id,
           intervention_ref: data.intervention_ref,
@@ -205,13 +196,18 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
     }
 
     try {
+      const clockOutTime = new Date();
+      const clockInTime = new Date(activeEntry.clock_in);
+      const durationMinutes = Math.round((clockOutTime.getTime() - clockInTime.getTime()) / 60000);
+
       const { data: entry, error } = await supabase
         .from('work_time_entries')
         .update({
-          clock_out: new Date().toISOString(),
+          clock_out: clockOutTime.toISOString(),
           clock_out_latitude: data.latitude,
           clock_out_longitude: data.longitude,
           comment: data.comment || activeEntry.comment,
+          duration_minutes: durationMinutes,
         })
         .eq('id', activeEntry.id)
         .select()
@@ -221,7 +217,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
 
       toast({
         title: 'Dépointé !',
-        description: 'Votre pointage de sortie a été enregistré',
+        description: `Durée: ${Math.floor(durationMinutes / 60)}h${(durationMinutes % 60).toString().padStart(2, '0')}`,
       });
 
       await fetchEntries();
@@ -298,7 +294,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
     dailyLimit,
     isLoading,
     isClockedIn,
-    currentUser,
+    currentUser: userId ? { id: userId, tenant_id: tenantId } : null,
     clockIn,
     clockOut,
     updateEntry,
