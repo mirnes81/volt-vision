@@ -1,4 +1,4 @@
-// App.tsx - v12 - ThemeProvider restored with minimal implementation
+// App.tsx - v13 - PWA avec auto-update
 import * as React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -10,6 +10,7 @@ import { ThemeProvider } from "@/contexts/ThemeContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AssignmentsProvider } from "@/contexts/AssignmentsContext";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PWAInstallPrompt } from "@/components/pwa/PWAPrompts";
 import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -71,6 +72,7 @@ const App = () => (
             <AssignmentsProvider>
               <TooltipProvider>
                 <AppRoutes />
+                <PWAInstallPrompt />
                 <Toaster />
                 <SonnerToaster position="top-center" />
               </TooltipProvider>
