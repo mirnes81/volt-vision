@@ -11,14 +11,14 @@ interface UseTimeTrackingAdminOptions {
 
 export function useTimeTrackingAdmin(options: UseTimeTrackingAdminOptions = {}) {
   const { toast } = useToast();
-  const [entries, setEntries] = useState<WorkTimeEntry[]>([]);
-  const [alerts, setAlerts] = useState<HoursAlert[]>([]);
-  const [summaries, setSummaries] = useState<DailyWorkSummary[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [entries, setEntries] = React.useState<WorkTimeEntry[]>([]);
+  const [alerts, setAlerts] = React.useState<HoursAlert[]>([]);
+  const [summaries, setSummaries] = React.useState<DailyWorkSummary[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [tenantId, setTenantId] = React.useState<string | null>(null);
 
   // Get tenant ID
-  useEffect(() => {
+  React.useEffect(() => {
     async function fetchTenantId() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
@@ -37,7 +37,7 @@ export function useTimeTrackingAdmin(options: UseTimeTrackingAdminOptions = {}) 
   }, []);
 
   // Fetch all entries for the tenant
-  const fetchEntries = useCallback(async () => {
+  const fetchEntries = React.useCallback(async () => {
     if (!tenantId) return;
 
     setIsLoading(true);
@@ -97,7 +97,7 @@ export function useTimeTrackingAdmin(options: UseTimeTrackingAdminOptions = {}) 
   }, [tenantId, options.startDate, options.endDate, options.statusFilter, toast]);
 
   // Fetch alerts
-  const fetchAlerts = useCallback(async () => {
+  const fetchAlerts = React.useCallback(async () => {
     if (!tenantId) return;
 
     try {
@@ -132,7 +132,7 @@ export function useTimeTrackingAdmin(options: UseTimeTrackingAdminOptions = {}) 
   }, [tenantId]);
 
   // Fetch daily summaries
-  const fetchSummaries = useCallback(async () => {
+  const fetchSummaries = React.useCallback(async () => {
     if (!tenantId) return;
 
     try {
@@ -152,7 +152,7 @@ export function useTimeTrackingAdmin(options: UseTimeTrackingAdminOptions = {}) 
     }
   }, [tenantId]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (tenantId) {
       fetchEntries();
       fetchAlerts();

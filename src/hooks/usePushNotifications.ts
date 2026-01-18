@@ -19,14 +19,14 @@ export interface UsePushNotificationsReturn {
 }
 
 export function usePushNotifications(): UsePushNotificationsReturn {
-  const [isSupported] = useState(() => isPushSupported());
-  const [permission, setPermission] = useState<NotificationPermission>(() => getNotificationPermission());
-  const [isSubscribed, setIsSubscribed] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [isSupported] = React.useState(() => isPushSupported());
+  const [permission, setPermission] = React.useState<NotificationPermission>(() => getNotificationPermission());
+  const [isSubscribed, setIsSubscribed] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [error, setError] = React.useState<string | null>(null);
 
   // Check subscription status on mount
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isSupported) return;
 
     const checkSubscription = async () => {
@@ -43,7 +43,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   }, [isSupported]);
 
   // Listen for permission changes
-  useEffect(() => {
+  React.useEffect(() => {
     if (!isSupported) return;
 
     const handleVisibilityChange = () => {
@@ -54,7 +54,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, [isSupported]);
 
-  const requestPermission = useCallback(async (): Promise<boolean> => {
+  const requestPermission = React.useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
       setError('Notifications non supportées sur cet appareil');
       return false;
@@ -75,7 +75,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
   }, [isSupported]);
 
-  const subscribe = useCallback(async (): Promise<boolean> => {
+  const subscribe = React.useCallback(async (): Promise<boolean> => {
     if (!isSupported) {
       setError('Notifications non supportées');
       return false;
@@ -105,7 +105,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
   }, [isSupported, permission, requestPermission]);
 
-  const unsubscribe = useCallback(async (): Promise<boolean> => {
+  const unsubscribe = React.useCallback(async (): Promise<boolean> => {
     setIsLoading(true);
     setError(null);
 
