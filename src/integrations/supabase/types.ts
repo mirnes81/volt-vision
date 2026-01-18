@@ -760,6 +760,7 @@ export type Database = {
           tenant_id: string
           updated_at: string
           user_id: string
+          user_name: string | null
           validated_at: string | null
           validated_by: string | null
           work_type: string | null
@@ -786,6 +787,7 @@ export type Database = {
           tenant_id: string
           updated_at?: string
           user_id: string
+          user_name?: string | null
           validated_at?: string | null
           validated_by?: string | null
           work_type?: string | null
@@ -812,6 +814,7 @@ export type Database = {
           tenant_id?: string
           updated_at?: string
           user_id?: string
+          user_name?: string | null
           validated_at?: string | null
           validated_by?: string | null
           work_type?: string | null
