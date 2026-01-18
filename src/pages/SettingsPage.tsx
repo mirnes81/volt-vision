@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, AlertTriangle, Wifi, WifiOff, Clock } from 'lucide-react';
+import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, AlertTriangle, Wifi, WifiOff, Clock, RefreshCw, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -10,6 +10,8 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
 import { ReminderSettings } from '@/components/settings/ReminderSettings';
+import { PWAUpdateButton } from '@/components/pwa/PWAPrompts';
+import { isInstalledPWA } from '@/lib/pwaUtils';
 import { 
   getDolibarrConfig, 
   saveDolibarrConfig, 
@@ -138,6 +140,39 @@ export default function SettingsPage() {
       </div>
 
       <div className="p-4 space-y-4 pb-24">
+        {/* PWA Status & Update */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Smartphone className="h-5 w-5" />
+              Application
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                <p className="font-medium">Mode d'exécution</p>
+                <p className="text-muted-foreground">
+                  {isInstalledPWA() ? 'Application installée' : 'Navigateur web'}
+                </p>
+              </div>
+              <Badge variant={isInstalledPWA() ? 'default' : 'secondary'}>
+                {isInstalledPWA() ? 'PWA' : 'Web'}
+              </Badge>
+            </div>
+            <Separator />
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                <p className="font-medium">Mise à jour</p>
+                <p className="text-muted-foreground">
+                  Forcer le rechargement des fichiers
+                </p>
+              </div>
+              <PWAUpdateButton />
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Hours Settings (Admin only) */}
         {isAdmin && (
           <Card>
