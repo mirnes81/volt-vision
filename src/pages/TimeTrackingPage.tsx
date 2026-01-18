@@ -32,8 +32,8 @@ export default function TimeTrackingPage() {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-background pb-24">
-      <Header title="Suivi des heures" showBack />
+    <div className="pb-24">
+      <Header title="Suivi des heures" />
 
       <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
         {/* Date navigation */}
