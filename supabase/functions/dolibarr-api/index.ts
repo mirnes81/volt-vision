@@ -551,9 +551,14 @@ serve(async (req) => {
         // Build minimal update payload - only include fields we want to change
         const minimalUpdate: any = {};
         
-        // Handle user assignment - Dolibarr uses fk_user_author for the assigned technician
-        if (params.data.fk_user_author !== undefined) {
-          minimalUpdate.fk_user_author = params.data.fk_user_author;
+        // Handle user assignment - Use fk_user_assigned (the actual assignment field)
+        // NOT fk_user_author which is the creator and read-only
+        if (params.data.fk_user_assigned !== undefined) {
+          minimalUpdate.fk_user_assigned = params.data.fk_user_assigned;
+        }
+        // Legacy support: also check for userId in case frontend sends it differently
+        if (params.data.userId !== undefined && !minimalUpdate.fk_user_assigned) {
+          minimalUpdate.fk_user_assigned = params.data.userId;
         }
         
         // Handle date updates
@@ -564,9 +569,15 @@ serve(async (req) => {
           minimalUpdate.date_intervention = params.data.date_intervention;
         }
         
-        // Apply any other fields from params.data
+        // Handle status updates
+        if (params.data.status !== undefined) {
+          minimalUpdate.fk_statut = params.data.status;
+        }
+        
+        // Apply any other fields from params.data (except the ones we already handled)
+        const handledKeys = ['fk_user_assigned', 'userId', 'dateo', 'date_intervention', 'status', 'fk_user_author'];
         Object.keys(params.data).forEach(key => {
-          if (minimalUpdate[key] === undefined) {
+          if (!handledKeys.includes(key) && minimalUpdate[key] === undefined) {
             minimalUpdate[key] = params.data[key];
           }
         });
