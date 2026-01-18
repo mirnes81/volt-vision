@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { NotificationSettings } from '@/components/settings/NotificationSettings';
 import { ReminderSettings } from '@/components/settings/ReminderSettings';
+import { EmployeePermissions } from '@/components/settings/EmployeePermissions';
 import { PWAUpdateButton } from '@/components/pwa/PWAPrompts';
 import { isInstalledPWA } from '@/lib/pwaUtils';
 import { 
@@ -25,6 +26,7 @@ import {
   HoursSettings 
 } from '@/lib/hoursSettings';
 import { getCurrentWorker } from '@/lib/api';
+import { hasPermission } from '@/lib/permissions';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -42,6 +44,7 @@ export default function SettingsPage() {
   const [alertMinutesInput, setAlertMinutesInput] = React.useState('');
   const worker = getCurrentWorker() as any;
   const isAdmin = worker?.isAdmin || worker?.admin;
+  const canAccessHoursSettings = worker ? hasPermission(worker.id, 'settings.hours', isAdmin) : false;
   
   React.useEffect(() => {
     const storedConfig = getDolibarrConfig();
@@ -173,8 +176,11 @@ export default function SettingsPage() {
           </CardContent>
         </Card>
 
-        {/* Hours Settings (Admin only) */}
-        {isAdmin && (
+        {/* Employee Permissions (Admin only) */}
+        {isAdmin && <EmployeePermissions />}
+
+        {/* Hours Settings (Admin or users with permission) */}
+        {canAccessHoursSettings && (
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2">
