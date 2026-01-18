@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Clock, Users, TrendingUp, AlertTriangle, Loader2 } from 'lucide-react';
+import { Clock, Users, AlertTriangle, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+
+// Default tenant ID for Dolibarr integration mode
+const DEFAULT_TENANT_ID = 'dolibarr-default';
 
 interface TechnicianHours {
   user_id: string;
@@ -17,29 +20,8 @@ interface TechnicianHours {
 export function WeeklyHoursSummary() {
   const [technicianHours, setTechnicianHours] = useState<TechnicianHours[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [tenantId, setTenantId] = useState<string | null>(null);
 
   useEffect(() => {
-    async function fetchTenantId() {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        const { data: profile } = await supabase
-          .from('saas_profiles')
-          .select('tenant_id')
-          .eq('id', user.id)
-          .maybeSingle();
-        
-        if (profile?.tenant_id) {
-          setTenantId(profile.tenant_id);
-        }
-      }
-    }
-    fetchTenantId();
-  }, []);
-
-  useEffect(() => {
-    if (!tenantId) return;
-
     async function fetchWeeklyHours() {
       setIsLoading(true);
       try {
@@ -58,31 +40,20 @@ export function WeeklyHoursSummary() {
         const { data: entries, error } = await supabase
           .from('work_time_entries')
           .select('user_id, duration_minutes, status')
-          .eq('tenant_id', tenantId)
+          .eq('tenant_id', DEFAULT_TENANT_ID)
           .gte('clock_in', startOfWeek.toISOString())
           .lte('clock_in', endOfWeek.toISOString())
           .not('clock_out', 'is', null);
 
         if (error) throw error;
 
-        // Get unique user IDs
-        const userIds = [...new Set((entries || []).map(e => e.user_id))];
-        
-        // Fetch user names
-        const { data: profiles } = await supabase
-          .from('saas_profiles')
-          .select('id, full_name')
-          .in('id', userIds);
-
-        const profileMap = new Map(profiles?.map(p => [p.id, p.full_name || 'Inconnu']) || []);
-
-        // Aggregate hours per technician
+        // Aggregate hours per technician (user_id is Dolibarr user ID as string)
         const hoursMap = new Map<string, TechnicianHours>();
         
         (entries || []).forEach(entry => {
           const existing = hoursMap.get(entry.user_id) || {
             user_id: entry.user_id,
-            user_name: profileMap.get(entry.user_id) || 'Inconnu',
+            user_name: `Technicien ${entry.user_id}`,
             total_minutes: 0,
             approved_minutes: 0,
             pending_minutes: 0,
@@ -113,7 +84,7 @@ export function WeeklyHoursSummary() {
     }
 
     fetchWeeklyHours();
-  }, [tenantId]);
+  }, []);
 
   const formatHours = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -175,6 +146,7 @@ export function WeeklyHoursSummary() {
         <div className="text-center py-6 text-muted-foreground">
           <Users className="w-10 h-10 mx-auto mb-2 opacity-30" />
           <p className="text-sm">Aucun pointage cette semaine</p>
+          <p className="text-xs mt-1">Utilisez le bouton "Pointer" sur la page Heures</p>
         </div>
       ) : (
         <div className="space-y-2 max-h-64 overflow-y-auto">
