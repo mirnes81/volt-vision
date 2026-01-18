@@ -133,6 +133,7 @@ export async function addManualHours(
   const start = new Date(data.dateStart);
   const end = new Date(data.dateEnd);
   const durationHours = Math.round((end.getTime() - start.getTime()) / (1000 * 60 * 60) * 100) / 100;
+  const durationMinutes = Math.round(durationHours * 60);
   
   const newHour: WorkerHour = {
     id: Date.now(),
@@ -164,6 +165,32 @@ export async function addManualHours(
     localStorage.setItem(hoursKey, JSON.stringify(existingHours));
     
     return newHour;
+  }
+  
+  // Also insert into Supabase work_time_entries for time tracking page
+  try {
+    const { supabase } = await import('@/integrations/supabase/client');
+    const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+    
+    await supabase
+      .from('work_time_entries')
+      .insert({
+        tenant_id: DEFAULT_TENANT_ID,
+        user_id: String(worker.id),
+        clock_in: data.dateStart,
+        clock_out: data.dateEnd,
+        duration_minutes: durationMinutes,
+        work_type: data.workType,
+        intervention_id: interventionId,
+        intervention_ref: `INT-${interventionId}`,
+        comment: data.comment,
+        status: 'pending',
+      });
+      
+    console.log('[API] Hours synced to Supabase work_time_entries');
+  } catch (error) {
+    console.error('[API] Failed to sync hours to Supabase:', error);
+    // Continue anyway - local storage is primary
   }
   
   return dolibarrApi.dolibarrAddManualHours(interventionId, data);
