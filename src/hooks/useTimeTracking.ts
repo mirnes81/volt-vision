@@ -113,7 +113,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
       const weekStart = startOfWeek(now, { weekStartsOn: 1 });
       const weekEnd = endOfWeek(now, { weekStartsOn: 1 });
 
-      // Get weekly entries
+      // Get weekly entries (filter by duration_minutes for manual entries support)
       const { data: weeklyData, error: weeklyError } = await supabase
         .from('work_time_entries')
         .select('duration_minutes, status, is_overtime')
@@ -121,7 +121,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
         .eq('user_id', userId)
         .gte('clock_in', weekStart.toISOString())
         .lte('clock_in', weekEnd.toISOString())
-        .not('clock_out', 'is', null);
+        .not('duration_minutes', 'is', null);
 
       if (weeklyError) throw weeklyError;
 
@@ -166,6 +166,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
       const monthStart = startOfMonth(now);
       const monthEnd = endOfMonth(now);
 
+      // Filter by duration_minutes for manual entries support
       const { data, error } = await supabase
         .from('work_time_entries')
         .select('duration_minutes, status, is_overtime')
@@ -173,7 +174,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
         .eq('user_id', userId)
         .gte('clock_in', monthStart.toISOString())
         .lte('clock_in', monthEnd.toISOString())
-        .not('clock_out', 'is', null);
+        .not('duration_minutes', 'is', null);
 
       if (error) throw error;
 
