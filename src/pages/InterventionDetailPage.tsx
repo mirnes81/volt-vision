@@ -153,9 +153,21 @@ export default function InterventionDetailPage() {
     }
   };
 
-  const handleUpdate = () => { 
-    if (id) loadIntervention(parseInt(id)); 
-    refreshAssignments();
+  const handleUpdate = async () => { 
+    console.log('[InterventionDetail] handleUpdate called');
+    try {
+      // First refresh assignments from cache invalidation
+      await refreshAssignments();
+      console.log('[InterventionDetail] Assignments refreshed');
+      
+      // Then reload intervention data
+      if (id) {
+        await loadIntervention(parseInt(id));
+        console.log('[InterventionDetail] Intervention reloaded');
+      }
+    } catch (error) {
+      console.error('[InterventionDetail] handleUpdate error:', error);
+    }
   };
 
   if (isLoading) {
