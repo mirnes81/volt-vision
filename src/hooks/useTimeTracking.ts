@@ -10,8 +10,8 @@ interface UseTimeTrackingOptions {
   date?: Date;
 }
 
-// Default tenant ID for non-SaaS mode (Dolibarr integration)
-const DEFAULT_TENANT_ID = 'dolibarr-default';
+// Default tenant UUID for Dolibarr integration mode
+const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
 export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
   const { toast } = useToast();
