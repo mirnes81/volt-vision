@@ -758,6 +758,48 @@ export type Database = {
           },
         ]
       }
+      worker_locations: {
+        Row: {
+          accuracy: number | null
+          current_intervention_id: number | null
+          current_intervention_ref: string | null
+          id: string
+          is_online: boolean | null
+          latitude: number
+          longitude: number
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          accuracy?: number | null
+          current_intervention_id?: number | null
+          current_intervention_ref?: string | null
+          id?: string
+          is_online?: boolean | null
+          latitude: number
+          longitude: number
+          tenant_id?: string
+          updated_at?: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          accuracy?: number | null
+          current_intervention_id?: number | null
+          current_intervention_ref?: string | null
+          id?: string
+          is_online?: boolean | null
+          latitude?: number
+          longitude?: number
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       autonomous_clients_limited: {
