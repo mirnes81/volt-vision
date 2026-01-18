@@ -115,12 +115,14 @@ export function useInterventionAssignments() {
     return map;
   }, [assignments]);
 
-  // Get assignments for a specific intervention
-  const getAssignmentsForIntervention = useCallback((interventionId: number): InterventionAssignment[] => {
+  // Get assignments for a specific intervention (NOT a hook - regular function)
+  const getAssignmentsForIntervention = (interventionId: number): InterventionAssignment[] => {
     const result = assignmentsByInterventionId.get(interventionId) || [];
-    console.log('[useInterventionAssignments] getAssignmentsForIntervention', interventionId, ':', result.length, 'found');
+    if (result.length > 0) {
+      console.log('[useInterventionAssignments] getAssignmentsForIntervention', interventionId, ':', result.length, 'found');
+    }
     return result;
-  }, [assignmentsByInterventionId]);
+  };
 
   // Force refresh - returns Promise for awaiting
   const refresh = useCallback(async () => {
