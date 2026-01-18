@@ -632,3 +632,38 @@ export async function dolibarrLogin(login: string, password: string): Promise<{ 
     throw new Error('Identifiants incorrects. Vérifiez votre login et mot de passe.');
   }
 }
+
+// Fetch all Dolibarr users
+export async function fetchAllDolibarrUsers(): Promise<Worker[]> {
+  try {
+    const { data, error } = await supabase.functions.invoke('dolibarr-api', {
+      body: { action: 'get-users' },
+    });
+    
+    if (error) throw error;
+    
+    if (!Array.isArray(data)) {
+      console.error('[fetchAllDolibarrUsers] Invalid response:', data);
+      return [];
+    }
+    
+    return data.map((u: any) => {
+      const isAdmin = u.admin === '1' || u.admin === 1 || u.admin === true ||
+                      u.superadmin === '1' || u.superadmin === 1 || u.superadmin === true;
+      
+      return {
+        id: parseInt(u.id) || 0,
+        login: u.login || '',
+        name: u.name || u.lastname || u.login || '',
+        firstName: u.firstName || u.firstname || '',
+        email: u.email || '',
+        phone: u.office_phone || '',
+        isAdmin,
+        admin: isAdmin ? '1' : '0',
+      };
+    });
+  } catch (error) {
+    console.error('[fetchAllDolibarrUsers] Error:', error);
+    throw error;
+  }
+}

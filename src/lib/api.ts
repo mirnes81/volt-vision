@@ -314,3 +314,8 @@ export async function generateAiSummary(interventionId: number): Promise<string>
 export async function generateAiDiagnostic(interventionId: number): Promise<string> {
   return dolibarrApi.dolibarrGenerateAiDiagnostic(interventionId);
 }
+
+// Workers
+export async function fetchAllWorkers(): Promise<Worker[]> {
+  return dolibarrApi.fetchAllDolibarrUsers();
+}

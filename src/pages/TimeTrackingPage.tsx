@@ -17,10 +17,22 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { hasPermission } from '@/lib/permissions';
 
 export default function TimeTrackingPage() {
   const { worker } = useAuth();
   const isAdmin = worker?.isAdmin;
+  
+  // Check permissions
+  const canViewOwn = worker ? hasPermission(worker.id, 'hours.view_own', isAdmin) : false;
+  const canAddOwn = worker ? hasPermission(worker.id, 'hours.add_own', isAdmin) : false;
+  const canModifyOwnLimit = worker ? hasPermission(worker.id, 'hours.modify_own_limit', isAdmin) : false;
+  const canValidate = worker ? hasPermission(worker.id, 'hours.validate', isAdmin) : false;
+  const canExport = worker ? hasPermission(worker.id, 'hours.export', isAdmin) : false;
+  const canViewAlerts = worker ? hasPermission(worker.id, 'hours.alerts', isAdmin) : false;
+  
+  // Show admin tabs if user has any admin-level permission
+  const showAdminTabs = canValidate || canViewAlerts;
   const [selectedDate, setSelectedDate] = React.useState(new Date());
   
   const { 
@@ -50,28 +62,32 @@ export default function TimeTrackingPage() {
 
       <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
         
-        {isAdmin ? (
+        {showAdminTabs ? (
           <Tabs defaultValue="my-time" className="space-y-4">
-            <TabsList className="w-full grid grid-cols-3">
+            <TabsList className={`w-full grid ${canValidate && canViewAlerts ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <TabsTrigger value="my-time" className="gap-2">
                 <Clock className="w-4 h-4" />
                 Mes heures
               </TabsTrigger>
-              <TabsTrigger value="validation" className="gap-2">
-                Validation
-                {adminHook.entries.filter(e => e.status === 'pending' && e.clock_out).length > 0 && (
-                  <Badge variant="destructive" className="ml-1">
-                    {adminHook.entries.filter(e => e.status === 'pending' && e.clock_out).length}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger value="alerts" className="gap-2">
-                <AlertTriangle className="w-4 h-4" />
-                Alertes
-                {adminHook.alerts.length > 0 && (
-                  <Badge variant="destructive" className="ml-1">{adminHook.alerts.length}</Badge>
-                )}
-              </TabsTrigger>
+              {canValidate && (
+                <TabsTrigger value="validation" className="gap-2">
+                  Validation
+                  {adminHook.entries.filter(e => e.status === 'pending' && e.clock_out).length > 0 && (
+                    <Badge variant="destructive" className="ml-1">
+                      {adminHook.entries.filter(e => e.status === 'pending' && e.clock_out).length}
+                    </Badge>
+                  )}
+                </TabsTrigger>
+              )}
+              {canViewAlerts && (
+                <TabsTrigger value="alerts" className="gap-2">
+                  <AlertTriangle className="w-4 h-4" />
+                  Alertes
+                  {adminHook.alerts.length > 0 && (
+                    <Badge variant="destructive" className="ml-1">{adminHook.alerts.length}</Badge>
+                  )}
+                </TabsTrigger>
+              )}
             </TabsList>
 
             <TabsContent value="my-time" className="space-y-6">
@@ -94,12 +110,14 @@ export default function TimeTrackingPage() {
 
               {/* Actions */}
               <div className="flex flex-wrap items-center gap-3">
-                <ManualTimeEntry
-                  onSubmit={addManualEntry}
-                  weeklyLimit={weeklySummary.limitMinutes}
-                  currentWeekMinutes={weeklySummary.totalMinutes}
-                />
-                {currentUser && (
+                {canAddOwn && (
+                  <ManualTimeEntry
+                    onSubmit={addManualEntry}
+                    weeklyLimit={weeklySummary.limitMinutes}
+                    currentWeekMinutes={weeklySummary.totalMinutes}
+                  />
+                )}
+                {canModifyOwnLimit && currentUser && (
                   <UserWeeklyLimitSetting
                     userId={currentUser.id}
                     userName={worker?.name}
@@ -133,25 +151,29 @@ export default function TimeTrackingPage() {
               </div>
             </TabsContent>
 
-            <TabsContent value="validation" className="space-y-4">
-              <div className="flex justify-end">
-                <TimeExportButton entries={adminHook.entries} />
-              </div>
-              <AdminValidationPanel
-                entries={adminHook.entries}
-                onApprove={adminHook.approveEntry}
-                onReject={adminHook.rejectEntry}
-                onBulkApprove={adminHook.bulkApprove}
-                isLoading={adminHook.isLoading}
-              />
-            </TabsContent>
+            {canValidate && (
+              <TabsContent value="validation" className="space-y-4">
+                <div className="flex justify-end">
+                  {canExport && <TimeExportButton entries={adminHook.entries} />}
+                </div>
+                <AdminValidationPanel
+                  entries={adminHook.entries}
+                  onApprove={adminHook.approveEntry}
+                  onReject={adminHook.rejectEntry}
+                  onBulkApprove={adminHook.bulkApprove}
+                  isLoading={adminHook.isLoading}
+                />
+              </TabsContent>
+            )}
 
-            <TabsContent value="alerts">
-              <HoursAlertsPanel
-                alerts={adminHook.alerts}
-                onAcknowledge={adminHook.acknowledgeAlert}
-              />
-            </TabsContent>
+            {canViewAlerts && (
+              <TabsContent value="alerts">
+                <HoursAlertsPanel
+                  alerts={adminHook.alerts}
+                  onAcknowledge={adminHook.acknowledgeAlert}
+                />
+              </TabsContent>
+            )}
           </Tabs>
         ) : (
           <div className="space-y-6">
@@ -174,11 +196,13 @@ export default function TimeTrackingPage() {
 
             {/* Actions */}
             <div className="flex flex-wrap items-center gap-3">
-              <ManualTimeEntry
-                onSubmit={addManualEntry}
-                weeklyLimit={weeklySummary.limitMinutes}
-                currentWeekMinutes={weeklySummary.totalMinutes}
-              />
+              {canAddOwn && (
+                <ManualTimeEntry
+                  onSubmit={addManualEntry}
+                  weeklyLimit={weeklySummary.limitMinutes}
+                  currentWeekMinutes={weeklySummary.totalMinutes}
+                />
+              )}
             </div>
 
             {/* Date navigation */}
