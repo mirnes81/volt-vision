@@ -1,4 +1,8 @@
-// Theme Context v5 - Force complete cache invalidation
+/**
+ * Theme Context v6 - Fixed React hook binding
+ * @description Provides theme management with light/dark/system modes
+ * Last update: Force rebuild for cache invalidation
+ */
 import * as React from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
@@ -11,7 +15,9 @@ interface ThemeContextType {
 
 const ThemeContext = React.createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: React.ReactNode }) {
+export function ThemeProvider(props: { children: React.ReactNode }) {
+  const { children } = props;
+  
   const [theme, setTheme] = React.useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mv3_theme');
