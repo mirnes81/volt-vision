@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, FileText, Hash, Calendar, Building2, Key, Lock, Home, Gauge, ChevronDown } from 'lucide-react';
+import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, Users, FileText, Hash, Calendar, Building2, Key, Lock, Home, Gauge, ChevronDown, Crown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention, InterventionStatus } from '@/types/intervention';
+import { InterventionAssignment } from '@/types/assignments';
 import { cn } from '@/lib/utils';
 import { updateInterventionStatus } from '@/lib/dolibarrApi';
 import { toast } from '@/components/ui/sonner';
 
 interface InterventionCardProps {
   intervention: Intervention;
+  supabaseAssignments?: InterventionAssignment[];
   onStatusChange?: (interventionId: number, newStatus: InterventionStatus) => void;
 }
 
@@ -91,7 +93,7 @@ function isUserAdmin(): boolean {
   }
 }
 
-export function InterventionCard({ intervention, onStatusChange }: InterventionCardProps) {
+export function InterventionCard({ intervention, supabaseAssignments = [], onStatusChange }: InterventionCardProps) {
   const [currentStatus, setCurrentStatus] = useState<InterventionStatus>(intervention.status);
   const [isUpdating, setIsUpdating] = useState(false);
   const [showDropdown, setShowDropdown] = useState(false);
@@ -329,13 +331,40 @@ export function InterventionCard({ intervention, onStatusChange }: InterventionC
           </div>
         )}
 
-        {/* Assigned to - Display only (Dolibarr API doesn't support PUT for interventions) */}
+        {/* Assigned to - Priority to Supabase assignments */}
         <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-          <User className="w-4 h-4 shrink-0" />
-          {assigneeName ? (
-            <span className="truncate">Assigné à : <span className="font-medium text-foreground">{assigneeName}</span></span>
+          {supabaseAssignments.length > 0 ? (
+            <>
+              <Users className="w-4 h-4 shrink-0 text-primary" />
+              <span className="truncate">
+                Assigné à :{' '}
+                {supabaseAssignments.map((a, idx) => (
+                  <span 
+                    key={a.id} 
+                    className={cn(
+                      "font-medium",
+                      a.is_primary && "text-primary",
+                      a.priority === 'urgent' && "text-warning",
+                      a.priority === 'critical' && "text-destructive"
+                    )}
+                  >
+                    {a.is_primary && <Crown className="w-3 h-3 inline mr-0.5 text-yellow-500" />}
+                    {a.user_name}
+                    {idx < supabaseAssignments.length - 1 ? ', ' : ''}
+                  </span>
+                ))}
+              </span>
+            </>
+          ) : assigneeName ? (
+            <>
+              <User className="w-4 h-4 shrink-0" />
+              <span className="truncate">Assigné à : <span className="font-medium text-foreground">{assigneeName}</span></span>
+            </>
           ) : (
-            <span className="truncate text-amber-600 dark:text-amber-400 font-medium">Non assigné</span>
+            <>
+              <User className="w-4 h-4 shrink-0" />
+              <span className="truncate text-amber-600 dark:text-amber-400 font-medium">Non assigné</span>
+            </>
           )}
         </div>
 

@@ -5,6 +5,7 @@ import { InterventionCard } from '@/components/intervention/InterventionCard';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
+import { useInterventionAssignments } from '@/hooks/useInterventionAssignments';
 import { Skeleton } from '@/components/ui/skeleton';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/sonner';
@@ -73,6 +74,9 @@ export default function InterventionsPage() {
 
   // Use cached interventions with offline support
   const { interventions, isLoading, isRefreshing, isOffline, cacheSource, refresh } = useInterventionsCache(showOnlyMine);
+  
+  // Fetch Supabase assignments
+  const { getAssignmentsForIntervention } = useInterventionAssignments();
 
   const handleRefresh = async () => {
     if (isOffline) {
@@ -257,7 +261,11 @@ export default function InterventionsPage() {
           <>
             <div className="space-y-3 stagger-children">
               {displayedInterventions.map((intervention) => (
-                <InterventionCard key={intervention.id} intervention={intervention} />
+                <InterventionCard 
+                  key={intervention.id} 
+                  intervention={intervention}
+                  supabaseAssignments={getAssignmentsForIntervention(intervention.id)}
+                />
               ))}
             </div>
             
