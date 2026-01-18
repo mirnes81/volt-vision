@@ -22,6 +22,7 @@ import TimeTrackingPage from "./pages/TimeTrackingPage";
 import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import DiagnosticPage from "./pages/DiagnosticPage";
+import InstallPage from "./pages/InstallPage";
 import NotFound from "./pages/NotFound";
 import { rescheduleRemindersOnStart } from "@/lib/interventionReminders";
 
@@ -48,6 +49,7 @@ const AppRoutes = () => (
   <Routes>
     <Route path="/" element={<Index />} />
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
+    <Route path="/install" element={<InstallPage />} />
     <Route path="/diagnostic" element={<DiagnosticPage />} />
     <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
       <Route path="/dashboard" element={<DashboardPage />} />
