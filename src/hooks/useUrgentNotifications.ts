@@ -1,27 +1,27 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import * as React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { InterventionAssignment, UrgentNotification } from '@/types/assignments';
 import { RealtimePostgresChangesPayload } from '@supabase/supabase-js';
 
 // Notification sound (base64 encoded short beep)
-const NOTIFICATION_SOUND = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1eW11ncH2Km5yYkIJ1bWRkaXB8i5yamI+DdWxkZGlwfIuampiPg3VsZGRpcHyLmpqYj4N1bGRkaXB8i5qamI+DdWxkZGlwfIuampiPg3VsZGRpcHyLmpqYj4N1bGRkaXB8i5qamI+DdWxkZGlwfIuampiPg3VsZGRpcHyLmpqYj4N1bGRkaXB8i5qamI+DdWxkZGlwfIuampiPg3VsZGRpcHyLmpqYj4N1bGRkaXB8i5qamI+DdWxkZGlwfIuampiPg3VsZGQ=';
+const NOTIFICATION_SOUND = 'data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1eW11ncH2Km5yYkIJ1bWRkaXB8i5yamI+DdWxkZGlwfIuampiPg3VsZGRpcHyLmpqYj4N1bGRkaXB8i5qamI+DdWxkZGlwfIuampiPg3VsZGRpcHyLmpqYj4N1bGRkaXB8i5qamI+DdWxkZGlwfIuampiPg3VsZGRpcHyLmpqYj4N1bGRkaXB8i5qamI+DdWxkZGlwfIuampiPg3VsZGRpcHyLmpqYj4N1bGRkaXB8i5qamI+DdWxkZGQ=';
 
 export function useUrgentNotifications() {
-  const [urgentAssignments, setUrgentAssignments] = useState<InterventionAssignment[]>([]);
-  const [notifications, setNotifications] = useState<UrgentNotification[]>([]);
-  const [unacknowledgedCount, setUnacknowledgedCount] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const lastPlayedRef = useRef<number>(0);
+  const [urgentAssignments, setUrgentAssignments] = React.useState<InterventionAssignment[]>([]);
+  const [notifications, setNotifications] = React.useState<UrgentNotification[]>([]);
+  const [unacknowledgedCount, setUnacknowledgedCount] = React.useState(0);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const lastPlayedRef = React.useRef<number>(0);
 
   // Initialize audio
-  useEffect(() => {
+  React.useEffect(() => {
     audioRef.current = new Audio(NOTIFICATION_SOUND);
     audioRef.current.volume = 0.7;
   }, []);
 
   // Play notification sound (with debounce)
-  const playSound = useCallback(() => {
+  const playSound = React.useCallback(() => {
     const now = Date.now();
     if (now - lastPlayedRef.current > 3000) { // 3 second debounce
       audioRef.current?.play().catch(console.warn);
@@ -30,7 +30,7 @@ export function useUrgentNotifications() {
   }, []);
 
   // Fetch urgent assignments
-  const fetchUrgentAssignments = useCallback(async () => {
+  const fetchUrgentAssignments = React.useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
@@ -75,7 +75,7 @@ export function useUrgentNotifications() {
   }, [playSound]);
 
   // Subscribe to realtime changes
-  useEffect(() => {
+  React.useEffect(() => {
     fetchUrgentAssignments();
 
     const setupSubscription = async () => {
@@ -122,7 +122,7 @@ export function useUrgentNotifications() {
   }, [fetchUrgentAssignments, playSound]);
 
   // Acknowledge notification
-  const acknowledgeNotification = useCallback(async (assignmentId: string) => {
+  const acknowledgeNotification = React.useCallback(async (assignmentId: string) => {
     try {
       const { error } = await supabase
         .from('intervention_assignments')
@@ -143,7 +143,7 @@ export function useUrgentNotifications() {
   }, []);
 
   // Acknowledge all notifications
-  const acknowledgeAll = useCallback(async () => {
+  const acknowledgeAll = React.useCallback(async () => {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
