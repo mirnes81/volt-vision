@@ -1,5 +1,5 @@
-// Theme Context v2 - Force rebuild
-import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+// Theme Context v3 - Fix React import for proper hook binding
+import * as React from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -9,10 +9,10 @@ interface ThemeContextType {
   setTheme: (theme: Theme) => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = React.createContext<ThemeContextType | undefined>(undefined);
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>(() => {
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setTheme] = React.useState<Theme>(() => {
     if (typeof window !== 'undefined') {
       const saved = localStorage.getItem('mv3_theme');
       return (saved as Theme) || 'light';
@@ -20,9 +20,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return 'light';
   });
 
-  const [actualTheme, setActualTheme] = useState<'light' | 'dark'>('light');
+  const [actualTheme, setActualTheme] = React.useState<'light' | 'dark'>('light');
 
-  useEffect(() => {
+  React.useEffect(() => {
     const root = document.documentElement;
     
     const updateTheme = () => {
@@ -48,7 +48,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mediaQuery.removeEventListener('change', updateTheme);
   }, [theme]);
 
-  const value = useMemo(() => ({ theme, actualTheme, setTheme }), [theme, actualTheme]);
+  const value = React.useMemo(() => ({ theme, actualTheme, setTheme }), [theme, actualTheme]);
 
   return (
     <ThemeContext.Provider value={value}>
@@ -58,7 +58,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext);
+  const context = React.useContext(ThemeContext);
   if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
