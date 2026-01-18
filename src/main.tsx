@@ -1,6 +1,6 @@
-// Main entry point - v2.0.0 ENES Électricité
+// Main entry point - v3.0.0 ENES Électricité - Force rebuild
 import * as React from "react";
-import { createRoot } from "react-dom/client";
+import * as ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import { preloadOfflineCache } from "./hooks/useInterventionsCache";
@@ -67,7 +67,7 @@ async function clearAllCaches() {
 }
 
 // Check if this is a fresh start that needs cache clearing
-const CACHE_VERSION = 'enes-v2';
+const CACHE_VERSION = 'enes-v3';
 const lastVersion = localStorage.getItem('app_cache_version');
 
 if (lastVersion !== CACHE_VERSION) {
@@ -99,7 +99,7 @@ if ('serviceWorker' in navigator) {
   });
 }
 
-createRoot(document.getElementById("root")!).render(
+ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <App />
   </React.StrictMode>
