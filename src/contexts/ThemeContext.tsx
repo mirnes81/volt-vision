@@ -1,3 +1,4 @@
+import * as React from 'react';
 import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
