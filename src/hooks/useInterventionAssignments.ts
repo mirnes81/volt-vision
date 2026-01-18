@@ -25,13 +25,7 @@ export function useInterventionAssignments() {
   const hasFetchedOnce = useRef(false);
 
   const fetchAssignments = useCallback(async (force = false) => {
-    console.log('[useInterventionAssignments] fetchAssignments called, force:', force, 'hasFetchedOnce:', hasFetchedOnce.current);
-    console.log('[useInterventionAssignments] Cache status:', { 
-      hasCache: !!assignmentsCache, 
-      cacheLength: assignmentsCache?.length,
-      cacheTimestamp,
-      age: cacheTimestamp ? Date.now() - cacheTimestamp : null 
-    });
+    console.log('[useInterventionAssignments] fetchAssignments called, force:', force);
     
     // Use cache if fresh and not forced
     if (!force && assignmentsCache && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_DURATION) {
@@ -43,41 +37,24 @@ export function useInterventionAssignments() {
 
     setIsLoading(true);
     try {
-      // Use direct fetch with cache-busting headers to bypass Supabase CDN cache
-      const cacheBuster = Date.now();
-      console.log('[useInterventionAssignments] Fetching from Supabase for tenant:', DEFAULT_TENANT_ID, 'cacheBuster:', cacheBuster);
+      console.log('[useInterventionAssignments] Fetching from Supabase for tenant:', DEFAULT_TENANT_ID);
       
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      
-      const response = await fetch(
-        `${supabaseUrl}/rest/v1/intervention_assignments?select=*&tenant_id=eq.${DEFAULT_TENANT_ID}&order=assigned_at.desc&_=${cacheBuster}`,
-        {
-          method: 'GET',
-          headers: {
-            'apikey': supabaseKey,
-            'Authorization': `Bearer ${supabaseKey}`,
-            'Content-Type': 'application/json',
-            'Accept': 'application/json',
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-          },
-          cache: 'no-store',
-        }
-      );
+      // Use the standard Supabase SDK - it works correctly as proven in InterventionDetailPage
+      const { data, error } = await supabase
+        .from('intervention_assignments')
+        .select('*')
+        .eq('tenant_id', DEFAULT_TENANT_ID)
+        .order('assigned_at', { ascending: false });
 
-      if (!response.ok) {
-        console.error('[useInterventionAssignments] Fetch error:', response.status, response.statusText);
+      if (error) {
+        console.error('[useInterventionAssignments] Fetch error:', error);
         return;
       }
 
-      const data = await response.json();
-
       console.log('[useInterventionAssignments] Fetched', data?.length || 0, 'assignments from DB');
-      console.log('[useInterventionAssignments] Raw data:', JSON.stringify(data, null, 2));
       
       // Update cache - cast priority to union type
-      assignmentsCache = (data || []).map((a: any) => ({
+      assignmentsCache = (data || []).map(a => ({
         ...a,
         priority: a.priority as 'normal' | 'urgent' | 'critical'
       }));
@@ -114,17 +91,14 @@ export function useInterventionAssignments() {
     };
     
     subscribers.add(handleInvalidation);
-    console.log('[useInterventionAssignments] Subscribed, total subscribers:', subscribers.size);
     return () => {
       subscribers.delete(handleInvalidation);
-      console.log('[useInterventionAssignments] Unsubscribed, remaining subscribers:', subscribers.size);
     };
   }, []);
 
   // Refetch when refreshKey changes
   useEffect(() => {
     if (refreshKey > 0) {
-      console.log('[useInterventionAssignments] RefreshKey changed to', refreshKey, ', refetching...');
       fetchAssignments(true);
     }
   }, [refreshKey, fetchAssignments]);
@@ -132,8 +106,6 @@ export function useInterventionAssignments() {
   // Create a lookup map by intervention_id for quick access
   const assignmentsByInterventionId = useMemo(() => {
     const map = new Map<number, InterventionAssignment[]>();
-    
-    console.log('[useInterventionAssignments] Building lookup map from', assignments.length, 'assignments');
     
     assignments.forEach(a => {
       if (a.intervention_id !== null) {
@@ -143,15 +115,12 @@ export function useInterventionAssignments() {
       }
     });
 
-    console.log('[useInterventionAssignments] Lookup map has', map.size, 'interventions');
     return map;
   }, [assignments]);
 
   // Get assignments for a specific intervention (NOT a hook - regular function)
   const getAssignmentsForIntervention = (interventionId: number): InterventionAssignment[] => {
-    const result = assignmentsByInterventionId.get(interventionId) || [];
-    console.log('[useInterventionAssignments] getAssignmentsForIntervention', interventionId, ':', result.length, 'found, map size:', assignmentsByInterventionId.size);
-    return result;
+    return assignmentsByInterventionId.get(interventionId) || [];
   };
 
   // Force refresh - returns Promise for awaiting
