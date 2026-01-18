@@ -18,6 +18,7 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const loadAssignments = useCallback(async () => {
+    console.log('[AssignmentsContext] ========== LOADING ASSIGNMENTS ==========');
     setIsLoading(true);
     try {
       const { data, error } = await supabase
@@ -25,6 +26,12 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
         .select('*')
         .eq('tenant_id', DEFAULT_TENANT_ID)
         .order('assigned_at', { ascending: false });
+
+      console.log('[AssignmentsContext] Supabase response:', { 
+        dataCount: data?.length || 0, 
+        error,
+        firstItem: data?.[0] 
+      });
 
       if (error) {
         console.error('[AssignmentsContext] Error loading assignments:', error);
@@ -36,7 +43,12 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
         priority: a.priority as 'normal' | 'urgent' | 'critical'
       }));
       
-      console.log('[AssignmentsContext] Loaded', mapped.length, 'assignments');
+      console.log('[AssignmentsContext] Mapped assignments:', mapped.map(a => ({
+        id: a.id,
+        intervention_id: a.intervention_id,
+        user_name: a.user_name,
+        user_id: a.user_id
+      })));
       setAssignments(mapped);
     } catch (err) {
       console.error('[AssignmentsContext] Unexpected error:', err);
@@ -75,7 +87,11 @@ export function AssignmentsProvider({ children }: { children: ReactNode }) {
   }, [loadAssignments]);
 
   const getAssignmentsForIntervention = useCallback((interventionId: number): InterventionAssignment[] => {
-    return assignments.filter(a => a.intervention_id === interventionId);
+    const result = assignments.filter(a => a.intervention_id === interventionId);
+    if (result.length > 0) {
+      console.log(`[AssignmentsContext] Found ${result.length} assignments for intervention ${interventionId}:`, result.map(a => a.user_name));
+    }
+    return result;
   }, [assignments]);
 
   const refresh = useCallback(async () => {
