@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import * as React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AlertTriangle, X, MapPin, Calendar, Check, Bell, Volume2 } from 'lucide-react';
@@ -10,11 +10,11 @@ import { Link } from 'react-router-dom';
 
 export function UrgentNotificationToast() {
   const { notifications, unacknowledgedCount, acknowledgeNotification, acknowledgeAll } = useUrgentNotifications();
-  const [isExpanded, setIsExpanded] = useState(false);
-  const [hasInteracted, setHasInteracted] = useState(false);
+  const [isExpanded, setIsExpanded] = React.useState(false);
+  const [hasInteracted, setHasInteracted] = React.useState(false);
 
   // Auto-expand when new notifications arrive
-  useEffect(() => {
+  React.useEffect(() => {
     if (notifications.length > 0 && !hasInteracted) {
       setIsExpanded(true);
     }
