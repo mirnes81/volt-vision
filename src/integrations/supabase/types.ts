@@ -672,6 +672,33 @@ export type Database = {
           },
         ]
       }
+      user_weekly_limits: {
+        Row: {
+          created_at: string
+          id: string
+          tenant_id: string
+          updated_at: string
+          user_id: string
+          weekly_hours_limit: number
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tenant_id: string
+          updated_at?: string
+          user_id: string
+          weekly_hours_limit?: number
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tenant_id?: string
+          updated_at?: string
+          user_id?: string
+          weekly_hours_limit?: number
+        }
+        Relationships: []
+      }
       work_time_entries: {
         Row: {
           clock_in: string
@@ -688,6 +715,7 @@ export type Database = {
           id: string
           intervention_id: number | null
           intervention_ref: string | null
+          is_overtime: boolean | null
           rejection_reason: string | null
           status: string
           synced_to_dolibarr: boolean | null
@@ -713,6 +741,7 @@ export type Database = {
           id?: string
           intervention_id?: number | null
           intervention_ref?: string | null
+          is_overtime?: boolean | null
           rejection_reason?: string | null
           status?: string
           synced_to_dolibarr?: boolean | null
@@ -738,6 +767,7 @@ export type Database = {
           id?: string
           intervention_id?: number | null
           intervention_ref?: string | null
+          is_overtime?: boolean | null
           rejection_reason?: string | null
           status?: string
           synced_to_dolibarr?: boolean | null
@@ -871,6 +901,27 @@ export type Database = {
           },
         ]
       }
+      monthly_work_summary: {
+        Row: {
+          approved_minutes: number | null
+          entry_count: number | null
+          month_start: string | null
+          overtime_minutes: number | null
+          regular_minutes: number | null
+          tenant_id: string | null
+          total_minutes: number | null
+          user_id: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_time_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       saas_profiles_limited: {
         Row: {
           avatar_url: string | null
@@ -959,6 +1010,29 @@ export type Database = {
           },
         ]
       }
+      weekly_work_summary: {
+        Row: {
+          approved_minutes: number | null
+          entry_count: number | null
+          first_clock_in: string | null
+          last_clock_out: string | null
+          overtime_minutes: number | null
+          pending_minutes: number | null
+          tenant_id: string | null
+          total_minutes: number | null
+          user_id: string | null
+          week_start: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "work_time_entries_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Functions: {
       check_daily_hours_limit: {
@@ -971,6 +1045,10 @@ export type Database = {
         }[]
       }
       get_user_tenant_id: { Args: { _user_id: string }; Returns: string }
+      get_user_weekly_limit: {
+        Args: { _tenant_id: string; _user_id: string }
+        Returns: number
+      }
       has_management_role: {
         Args: { _tenant_id: string; _user_id: string }
         Returns: boolean
