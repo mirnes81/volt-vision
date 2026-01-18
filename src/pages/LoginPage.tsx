@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Loader2, CheckCircle, RefreshCw, User, Lock, Eye, EyeOff, Wrench, AlertCircle, Zap, Shield } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -10,18 +10,18 @@ import { toast } from '@/components/ui/sonner';
 import { testDolibarrConnection, dolibarrLogin } from '@/lib/dolibarrApi';
 
 export default function LoginPage() {
-  const [login, setLogin] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isTestingConnection, setIsTestingConnection] = useState(true);
-  const [connectionStatus, setConnectionStatus] = useState<'testing' | 'success' | 'error'>('testing');
-  const [dolibarrVersion, setDolibarrVersion] = useState<string>('');
-  const [loginError, setLoginError] = useState<string | null>(null);
+  const [login, setLogin] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [showPassword, setShowPassword] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [isTestingConnection, setIsTestingConnection] = React.useState(true);
+  const [connectionStatus, setConnectionStatus] = React.useState<'testing' | 'success' | 'error'>('testing');
+  const [dolibarrVersion, setDolibarrVersion] = React.useState<string>('');
+  const [loginError, setLoginError] = React.useState<string | null>(null);
   const { login: authLogin } = useAuth();
   const navigate = useNavigate();
 
-  useEffect(() => {
+  React.useEffect(() => {
     testConnection();
   }, []);
 

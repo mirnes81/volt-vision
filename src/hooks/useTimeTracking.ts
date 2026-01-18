@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import * as React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { WorkTimeEntry, DailyLimitCheck } from '@/types/timeTracking';
 import { useToast } from '@/hooks/use-toast';
@@ -16,18 +16,18 @@ const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
   const { toast } = useToast();
   const { worker } = useAuth();
-  const [entries, setEntries] = useState<WorkTimeEntry[]>([]);
-  const [activeEntry, setActiveEntry] = useState<WorkTimeEntry | null>(null);
-  const [dailyLimit, setDailyLimit] = useState<DailyLimitCheck | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isClockedIn, setIsClockedIn] = useState(false);
+  const [entries, setEntries] = React.useState<WorkTimeEntry[]>([]);
+  const [activeEntry, setActiveEntry] = React.useState<WorkTimeEntry | null>(null);
+  const [dailyLimit, setDailyLimit] = React.useState<DailyLimitCheck | null>(null);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [isClockedIn, setIsClockedIn] = React.useState(false);
 
   // Use worker from AuthContext (Dolibarr) instead of Supabase auth
   const userId = worker ? String(worker.id) : null;
   const tenantId = options.tenantId || DEFAULT_TENANT_ID;
 
   // Fetch entries
-  const fetchEntries = useCallback(async () => {
+  const fetchEntries = React.useCallback(async () => {
     if (!userId) {
       setIsLoading(false);
       return;
@@ -84,7 +84,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
   }, [userId, tenantId, options.userId, options.date, toast]);
 
   // Fetch daily limit
-  const fetchDailyLimit = useCallback(async () => {
+  const fetchDailyLimit = React.useCallback(async () => {
     if (!userId) return;
 
     try {
@@ -108,7 +108,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
     }
   }, [userId, tenantId, options.userId, options.date]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (userId) {
       fetchEntries();
       fetchDailyLimit();

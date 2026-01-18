@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import * as React from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { InterventionAssignment } from '@/types/assignments';
 
@@ -19,12 +19,12 @@ function notifySubscribers() {
 }
 
 export function useInterventionAssignments() {
-  const [assignments, setAssignments] = useState<InterventionAssignment[]>(assignmentsCache || []);
-  const [isLoading, setIsLoading] = useState(!assignmentsCache);
-  const [refreshKey, setRefreshKey] = useState(0);
-  const hasFetchedOnce = useRef(false);
+  const [assignments, setAssignments] = React.useState<InterventionAssignment[]>(assignmentsCache || []);
+  const [isLoading, setIsLoading] = React.useState(!assignmentsCache);
+  const [refreshKey, setRefreshKey] = React.useState(0);
+  const hasFetchedOnce = React.useRef(false);
 
-  const fetchAssignments = useCallback(async (force = false) => {
+  const fetchAssignments = React.useCallback(async (force = false) => {
     console.log('[useInterventionAssignments] fetchAssignments called, force:', force);
     
     // Use cache if fresh and not forced
@@ -75,7 +75,7 @@ export function useInterventionAssignments() {
   }, []);
 
   // Initial fetch - force on mount to ensure data is loaded
-  useEffect(() => {
+  React.useEffect(() => {
     console.log('[useInterventionAssignments] Component mounted, starting initial fetch');
     // Clear cache on mount to ensure fresh data
     assignmentsCache = null;
@@ -84,7 +84,7 @@ export function useInterventionAssignments() {
   }, [fetchAssignments]);
 
   // Subscribe to cache invalidations
-  useEffect(() => {
+  React.useEffect(() => {
     const handleInvalidation = () => {
       console.log('[useInterventionAssignments] Cache invalidated, triggering refresh');
       setRefreshKey(k => k + 1);
@@ -97,14 +97,14 @@ export function useInterventionAssignments() {
   }, []);
 
   // Refetch when refreshKey changes
-  useEffect(() => {
+  React.useEffect(() => {
     if (refreshKey > 0) {
       fetchAssignments(true);
     }
   }, [refreshKey, fetchAssignments]);
 
   // Create a lookup map by intervention_id for quick access
-  const assignmentsByInterventionId = useMemo(() => {
+  const assignmentsByInterventionId = React.useMemo(() => {
     const map = new Map<number, InterventionAssignment[]>();
     
     assignments.forEach(a => {
@@ -124,7 +124,7 @@ export function useInterventionAssignments() {
   };
 
   // Force refresh - returns Promise for awaiting
-  const refresh = useCallback(async () => {
+  const refresh = React.useCallback(async () => {
     console.log('[useInterventionAssignments] Manual refresh requested');
     assignmentsCache = null;
     cacheTimestamp = null;

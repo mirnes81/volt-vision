@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, AlertTriangle, Wifi, WifiOff, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -28,20 +28,20 @@ export default function SettingsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
   
-  const [config, setConfig] = useState<DolibarrConfig>(getDolibarrConfig());
-  const [url, setUrl] = useState(config.baseUrl);
-  const [apiKey, setApiKey] = useState(config.apiKey || '');
-  const [isTesting, setIsTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ success: boolean; message: string; version?: string } | null>(null);
+  const [config, setConfig] = React.useState<DolibarrConfig>(getDolibarrConfig());
+  const [url, setUrl] = React.useState(config.baseUrl);
+  const [apiKey, setApiKey] = React.useState(config.apiKey || '');
+  const [isTesting, setIsTesting] = React.useState(false);
+  const [testResult, setTestResult] = React.useState<{ success: boolean; message: string; version?: string } | null>(null);
   
   // Hours settings
-  const [hoursSettings, setHoursSettings] = useState<HoursSettings>(getHoursSettings());
-  const [maxHoursInput, setMaxHoursInput] = useState('');
-  const [alertMinutesInput, setAlertMinutesInput] = useState('');
+  const [hoursSettings, setHoursSettings] = React.useState<HoursSettings>(getHoursSettings());
+  const [maxHoursInput, setMaxHoursInput] = React.useState('');
+  const [alertMinutesInput, setAlertMinutesInput] = React.useState('');
   const worker = getCurrentWorker() as any;
   const isAdmin = worker?.isAdmin || worker?.admin;
   
-  useEffect(() => {
+  React.useEffect(() => {
     const storedConfig = getDolibarrConfig();
     setConfig(storedConfig);
     setUrl(storedConfig.baseUrl);

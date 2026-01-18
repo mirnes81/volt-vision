@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import * as React from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, User, AlertTriangle, Plus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
@@ -39,16 +39,16 @@ const statusLabels: Record<string, string> = {
 
 export default function CalendarPage() {
   const { t, language } = useLanguage();
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [viewMode, setViewMode] = useState<ViewMode>('week');
-  const [interventions, setInterventions] = useState<Intervention[]>([]);
-  const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [isLoading, setIsLoading] = useState(true);
+  const [currentDate, setCurrentDate] = React.useState(new Date());
+  const [viewMode, setViewMode] = React.useState<ViewMode>('week');
+  const [interventions, setInterventions] = React.useState<Intervention[]>([]);
+  const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
+  const [isLoading, setIsLoading] = React.useState(true);
 
   const days = language === 'de' ? DAYS_DE : language === 'it' ? DAYS_IT : DAYS_FR;
   const months = language === 'de' ? MONTHS_DE : language === 'it' ? MONTHS_IT : MONTHS_FR;
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadInterventions();
   }, []);
 
@@ -147,7 +147,7 @@ export default function CalendarPage() {
 
   const weekDates = getWeekDates();
   const monthDates = getMonthDates();
-  const selectedInterventions = useMemo(() => {
+  const selectedInterventions = React.useMemo(() => {
     return getInterventionsForDate(selectedDate).sort((a, b) => {
       if (!a.dateStart) return 1;
       if (!b.dateStart) return -1;

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, ArrowRight, Building2, MapPin, FileText, Camera, CheckSquare, PenTool, Send, Loader2, Plus, Trash2 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
@@ -30,32 +30,32 @@ const interventionTypes = [
 
 export default function NewInterventionPage() {
   const navigate = useNavigate();
-  const [step, setStep] = useState(1);
-  const [isLoading, setIsLoading] = useState(false);
-  const [createdInterventionId, setCreatedInterventionId] = useState<number | null>(null);
+  const [step, setStep] = React.useState(1);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [createdInterventionId, setCreatedInterventionId] = React.useState<number | null>(null);
 
   // Step 1: Client + Location
-  const [clients, setClients] = useState<Client[]>([]);
-  const [clientSearch, setClientSearch] = useState('');
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [location, setLocation] = useState('');
-  const [interventionType, setInterventionType] = useState('depannage');
-  const [priority, setPriority] = useState<'normal' | 'urgent'>('normal');
+  const [clients, setClients] = React.useState<Client[]>([]);
+  const [clientSearch, setClientSearch] = React.useState('');
+  const [selectedClient, setSelectedClient] = React.useState<Client | null>(null);
+  const [location, setLocation] = React.useState('');
+  const [interventionType, setInterventionType] = React.useState('depannage');
+  const [priority, setPriority] = React.useState<'normal' | 'urgent'>('normal');
 
   // Step 2: Description + Checklist + Photos
-  const [label, setLabel] = useState('');
-  const [description, setDescription] = useState('');
-  const [checklist, setChecklist] = useState<string[]>(['']);
-  const [photos, setPhotos] = useState<File[]>([]);
-  const [photosPreviews, setPhotosPreviews] = useState<string[]>([]);
+  const [label, setLabel] = React.useState('');
+  const [description, setDescription] = React.useState('');
+  const [checklist, setChecklist] = React.useState<string[]>(['']);
+  const [photos, setPhotos] = React.useState<File[]>([]);
+  const [photosPreviews, setPhotosPreviews] = React.useState<string[]>([]);
 
   // Step 3: Signature
-  const [signatureData, setSignatureData] = useState<string | null>(null);
-  const [signerName, setSignerName] = useState('');
-  const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
+  const [signatureData, setSignatureData] = React.useState<string | null>(null);
+  const [signerName, setSignerName] = React.useState('');
+  const [canvasRef, setCanvasRef] = React.useState<HTMLCanvasElement | null>(null);
+  const [isDrawing, setIsDrawing] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadClients();
   }, []);
 
@@ -68,7 +68,7 @@ export default function NewInterventionPage() {
     }
   };
 
-  useEffect(() => {
+  React.useEffect(() => {
     const debounce = setTimeout(() => {
       if (clientSearch.length >= 2) {
         loadClients(clientSearch);

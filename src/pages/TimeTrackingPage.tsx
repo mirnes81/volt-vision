@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Clock, Calendar, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
@@ -18,7 +18,7 @@ import { Badge } from '@/components/ui/badge';
 export default function TimeTrackingPage() {
   const { worker } = useAuth();
   const isAdmin = worker?.isAdmin;
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const [selectedDate, setSelectedDate] = React.useState(new Date());
   
   const { entries, deleteEntry, isLoading } = useTimeTracking({ date: selectedDate });
   const adminHook = useTimeTrackingAdmin();

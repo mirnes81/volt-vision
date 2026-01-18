@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import * as React from 'react';
 import { Search, ClipboardList, RefreshCw, WifiOff, Database, Cloud, Zap } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { InterventionCard } from '@/components/intervention/InterventionCard';
@@ -59,9 +59,9 @@ const CacheIndicator = ({ source, isOffline }: { source: string | null; isOfflin
 };
 
 export default function InterventionsPage() {
-  const [search, setSearch] = useState('');
-  const [activeFilter, setActiveFilter] = useState('all');
-  const [currentPage, setCurrentPage] = useState(1);
+  const [search, setSearch] = React.useState('');
+  const [activeFilter, setActiveFilter] = React.useState('all');
+  const [currentPage, setCurrentPage] = React.useState(1);
   
   // Check if user is admin
   const workerData = localStorage.getItem('mv3_worker');
@@ -70,7 +70,7 @@ export default function InterventionsPage() {
   
   // Non-admins always see only their interventions
   // Admins can toggle between all and their own
-  const [showOnlyMine, setShowOnlyMine] = useState(!isAdmin);
+  const [showOnlyMine, setShowOnlyMine] = React.useState(!isAdmin);
 
   // Use cached interventions with offline support
   const { interventions, isLoading, isRefreshing, isOffline, cacheSource, refresh } = useInterventionsCache(showOnlyMine);
@@ -88,7 +88,7 @@ export default function InterventionsPage() {
   };
 
   // Memoized filtering
-  const filteredInterventions = useMemo(() => {
+  const filteredInterventions = React.useMemo(() => {
     return interventions.filter((i) => {
       // Search filter
       const searchLower = search.toLowerCase();
@@ -117,12 +117,12 @@ export default function InterventionsPage() {
   }, [interventions, search, activeFilter]);
 
   // Reset to page 1 when filter or search changes
-  useEffect(() => {
+  React.useEffect(() => {
     setCurrentPage(1);
   }, [search, activeFilter, showOnlyMine]);
 
   // Memoized pagination
-  const { displayedInterventions, totalPages } = useMemo(() => {
+  const { displayedInterventions, totalPages } = React.useMemo(() => {
     const total = Math.ceil(filteredInterventions.length / PAGE_SIZE);
     const startIndex = (currentPage - 1) * PAGE_SIZE;
     const displayed = filteredInterventions.slice(startIndex, startIndex + PAGE_SIZE);
@@ -130,7 +130,7 @@ export default function InterventionsPage() {
   }, [filteredInterventions, currentPage]);
 
   // Memoized counts
-  const counts = useMemo(() => ({
+  const counts = React.useMemo(() => ({
     all: interventions.length,
     en_cours: interventions.filter(i => i.status === 'en_cours').length,
     a_planifier: interventions.filter(i => i.status === 'a_planifier').length,

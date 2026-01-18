@@ -1,6 +1,6 @@
+import * as React from 'react';
 import { LogOut, User, Phone, Mail, Shield, HelpCircle, Moon, Sun, Globe, Wifi, WifiOff, Settings, Users, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useState, useEffect } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -26,11 +26,11 @@ export default function ProfilePage() {
   const { language, setLanguage, t } = useLanguage();
   const navigate = useNavigate();
   
-  const [dolibarrUsers, setDolibarrUsers] = useState<DolibarrUser[]>([]);
-  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [dolibarrUsers, setDolibarrUsers] = React.useState<DolibarrUser[]>([]);
+  const [loadingUsers, setLoadingUsers] = React.useState(false);
 
   // Fetch all Dolibarr users on mount
-  useEffect(() => {
+  React.useEffect(() => {
     async function fetchDolibarrUsers() {
       setLoadingUsers(true);
       try {

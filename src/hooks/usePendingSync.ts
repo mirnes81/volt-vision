@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import * as React from 'react';
 import { 
   getPendingSync, 
   clearPendingSync, 
@@ -16,17 +16,17 @@ interface SyncState {
 }
 
 export function usePendingSync() {
-  const [state, setState] = useState<SyncState>({
+  const [state, setState] = React.useState<SyncState>({
     pendingCount: 0,
     isSyncing: false,
     lastSyncAt: null,
     errors: [],
   });
-  const syncInProgress = useRef(false);
-  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const syncInProgress = React.useRef(false);
+  const intervalRef = React.useRef<NodeJS.Timeout | null>(null);
 
   // Load pending count on mount
-  const loadPendingCount = useCallback(async () => {
+  const loadPendingCount = React.useCallback(async () => {
     try {
       const pending = await getPendingSync();
       setState(prev => ({ ...prev, pendingCount: pending.length }));
@@ -36,7 +36,7 @@ export function usePendingSync() {
   }, []);
 
   // Sync all pending items
-  const syncAll = useCallback(async (): Promise<{ success: number; failed: number }> => {
+  const syncAll = React.useCallback(async (): Promise<{ success: number; failed: number }> => {
     if (syncInProgress.current || !navigator.onLine) {
       return { success: 0, failed: 0 };
     }
@@ -94,7 +94,7 @@ export function usePendingSync() {
   }, []);
 
   // Auto-sync when coming back online
-  useEffect(() => {
+  React.useEffect(() => {
     const handleOnline = () => {
       console.log('[Sync] Back online, triggering sync...');
       // Small delay to ensure connection is stable
@@ -108,7 +108,7 @@ export function usePendingSync() {
   }, [syncAll]);
 
   // Periodic check for pending items
-  useEffect(() => {
+  React.useEffect(() => {
     loadPendingCount();
 
     // Check every 30 seconds
@@ -128,7 +128,7 @@ export function usePendingSync() {
   }, [loadPendingCount, syncAll, state.pendingCount]);
 
   // Manual trigger to update pending count (call after adding items)
-  const refreshPendingCount = useCallback(() => {
+  const refreshPendingCount = React.useCallback(() => {
     loadPendingCount();
   }, [loadPendingCount]);
 
