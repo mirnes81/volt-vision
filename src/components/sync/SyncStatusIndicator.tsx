@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { Cloud, CloudOff, RefreshCw, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -13,9 +13,9 @@ interface SyncStatusIndicatorProps {
 
 export function SyncStatusIndicator({ className, showLabel = false }: SyncStatusIndicatorProps) {
   const { pendingCount, isSyncing, lastSyncAt, errors, syncAll } = usePendingSync();
-  const [isOffline, setIsOffline] = useState(!navigator.onLine);
+  const [isOffline, setIsOffline] = React.useState(!navigator.onLine);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const handleOnline = () => setIsOffline(false);
     const handleOffline = () => setIsOffline(true);
 

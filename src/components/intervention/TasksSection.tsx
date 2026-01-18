@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { Check, Circle } from 'lucide-react';
 import { Intervention, Task } from '@/types/intervention';
 import { updateTaskStatus } from '@/lib/api';
@@ -11,7 +11,7 @@ interface TasksSectionProps {
 }
 
 export function TasksSection({ intervention, onUpdate }: TasksSectionProps) {
-  const [loadingTask, setLoadingTask] = useState<number | null>(null);
+  const [loadingTask, setLoadingTask] = React.useState<number | null>(null);
 
   const handleToggle = async (task: Task) => {
     setLoadingTask(task.id);

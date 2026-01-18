@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { Users, Plus, X, Search, Loader2, AlertTriangle, User, Crown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { InterventionAssignment } from '@/types/assignments';
@@ -39,18 +39,18 @@ export function MultiAssignmentPanel({
   onAssignmentsChange,
 }: MultiAssignmentPanelProps) {
   const { toast } = useToast();
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [assignments, setAssignments] = useState<InterventionAssignment[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [selectedMembers, setSelectedMembers] = useState<Set<string>>(new Set());
-  const [primaryMember, setPrimaryMember] = useState<string | null>(null);
-  const [selectedPriority, setSelectedPriority] = useState(priority);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [tenantId, setTenantId] = useState<string | null>(null);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [assignments, setAssignments] = React.useState<InterventionAssignment[]>([]);
+  const [teamMembers, setTeamMembers] = React.useState<TeamMember[]>([]);
+  const [selectedMembers, setSelectedMembers] = React.useState<Set<string>>(new Set());
+  const [primaryMember, setPrimaryMember] = React.useState<string | null>(null);
+  const [selectedPriority, setSelectedPriority] = React.useState(priority);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [tenantId, setTenantId] = React.useState<string | null>(null);
 
   // Fetch tenant ID and team members
-  useEffect(() => {
+  React.useEffect(() => {
     async function fetchData() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;

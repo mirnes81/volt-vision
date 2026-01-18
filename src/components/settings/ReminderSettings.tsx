@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { Clock, Bell, Calendar, Loader2 } from 'lucide-react';
 import { Switch } from '@/components/ui/switch';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -33,11 +33,11 @@ const dailySummaryTimeOptions = [
 
 export function ReminderSettings() {
   const { isSupported, isSubscribed, permission } = usePushNotifications();
-  const [settings, setSettings] = useState<ReminderSettingsType>(getReminderSettings);
-  const [scheduledCount, setScheduledCount] = useState(0);
-  const [isSaving, setIsSaving] = useState(false);
+  const [settings, setSettings] = React.useState<ReminderSettingsType>(getReminderSettings);
+  const [scheduledCount, setScheduledCount] = React.useState(0);
+  const [isSaving, setIsSaving] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     setScheduledCount(getScheduledReminders().length);
   }, []);
 

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import * as React from 'react';
 import { QrCode, X, CheckCircle, Flashlight, FlashlightOff, History, Camera, Barcode } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -24,19 +24,19 @@ let productsCache: Product[] | null = null;
 
 export function QRScannerSection({ onProductScanned }: QRScannerSectionProps) {
   const { t } = useLanguage();
-  const [isScanning, setIsScanning] = useState(false);
-  const [scannedProduct, setScannedProduct] = useState<Product | null>(null);
-  const [quantity, setQuantity] = useState('1');
-  const [flashEnabled, setFlashEnabled] = useState(false);
-  const [scanHistory, setScanHistory] = useState<ScanHistoryItem[]>([]);
-  const [showHistory, setShowHistory] = useState(false);
-  const [scanMode, setScanMode] = useState<'qr' | 'barcode'>('qr');
-  const [lastScannedCode, setLastScannedCode] = useState<string>('');
-  const [products, setProducts] = useState<Product[]>([]);
-  const scannerRef = useRef<Html5Qrcode | null>(null);
-  const videoTrackRef = useRef<MediaStreamTrack | null>(null);
+  const [isScanning, setIsScanning] = React.useState(false);
+  const [scannedProduct, setScannedProduct] = React.useState<Product | null>(null);
+  const [quantity, setQuantity] = React.useState('1');
+  const [flashEnabled, setFlashEnabled] = React.useState(false);
+  const [scanHistory, setScanHistory] = React.useState<ScanHistoryItem[]>([]);
+  const [showHistory, setShowHistory] = React.useState(false);
+  const [scanMode, setScanMode] = React.useState<'qr' | 'barcode'>('qr');
+  const [lastScannedCode, setLastScannedCode] = React.useState<string>('');
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const scannerRef = React.useRef<Html5Qrcode | null>(null);
+  const videoTrackRef = React.useRef<MediaStreamTrack | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     // Load products from API
     const loadProducts = async () => {
       try {
@@ -75,13 +75,13 @@ export function QRScannerSection({ onProductScanned }: QRScannerSectionProps) {
   }, []);
 
   // Save history to localStorage
-  useEffect(() => {
+  React.useEffect(() => {
     if (scanHistory.length > 0) {
       localStorage.setItem('qr_scan_history', JSON.stringify(scanHistory.slice(0, 20)));
     }
   }, [scanHistory]);
 
-  const findProduct = useCallback((code: string): Product | null => {
+  const findProduct = React.useCallback((code: string): Product | null => {
     // Try exact match first
     let product = products.find(
       p => p.ref.toLowerCase() === code.toLowerCase()
@@ -101,7 +101,7 @@ export function QRScannerSection({ onProductScanned }: QRScannerSectionProps) {
     return product || null;
   }, [products]);
 
-  const handleScanSuccess = useCallback((decodedText: string) => {
+  const handleScanSuccess = React.useCallback((decodedText: string) => {
     // Prevent duplicate scans
     if (decodedText === lastScannedCode) return;
     setLastScannedCode(decodedText);

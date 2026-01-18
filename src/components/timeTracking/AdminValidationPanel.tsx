@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { Check, X, Clock, User, AlertTriangle, CheckCircle2, Loader2 } from 'lucide-react';
@@ -25,10 +25,10 @@ export function AdminValidationPanel({
   onBulkApprove,
   isLoading,
 }: AdminValidationPanelProps) {
-  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
-  const [rejectingEntry, setRejectingEntry] = useState<WorkTimeEntry | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [isActing, setIsActing] = useState(false);
+  const [selectedIds, setSelectedIds] = React.useState<Set<string>>(new Set());
+  const [rejectingEntry, setRejectingEntry] = React.useState<WorkTimeEntry | null>(null);
+  const [rejectReason, setRejectReason] = React.useState('');
+  const [isActing, setIsActing] = React.useState(false);
 
   const pendingEntries = entries.filter(e => e.status === 'pending' && e.clock_out);
 

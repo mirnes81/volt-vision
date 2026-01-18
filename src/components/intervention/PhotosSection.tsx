@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import * as React from 'react';
 import { Camera, ImagePlus, X, WifiOff, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
@@ -22,11 +22,11 @@ const photoTypes: { value: PhotoType; label: string; color: string }[] = [
 ];
 
 export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
-  const [selectedType, setSelectedType] = useState<PhotoType>('pendant');
-  const [isLoading, setIsLoading] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [offlinePhotos, setOfflinePhotos] = useState<Array<{ id: number; type: PhotoType; filePath: string }>>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedType, setSelectedType] = React.useState<PhotoType>('pendant');
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+  const [offlinePhotos, setOfflinePhotos] = React.useState<Array<{ id: number; type: PhotoType; filePath: string }>>([]);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];

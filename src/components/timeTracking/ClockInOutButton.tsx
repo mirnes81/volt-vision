@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { Play, Square, MapPin, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -22,12 +22,12 @@ export function ClockInOutButton({
   compact = false,
 }: ClockInOutButtonProps) {
   const { isClockedIn, activeEntry, dailyLimit, clockIn, clockOut, isLoading } = useTimeTracking();
-  const [isActing, setIsActing] = useState(false);
-  const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [elapsedTime, setElapsedTime] = useState('00:00:00');
+  const [isActing, setIsActing] = React.useState(false);
+  const [location, setLocation] = React.useState<{ lat: number; lng: number } | null>(null);
+  const [elapsedTime, setElapsedTime] = React.useState('00:00:00');
 
   // Get current location
-  useEffect(() => {
+  React.useEffect(() => {
     if ('geolocation' in navigator) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -42,7 +42,7 @@ export function ClockInOutButton({
   }, []);
 
   // Update elapsed time
-  useEffect(() => {
+  React.useEffect(() => {
     if (!activeEntry) {
       setElapsedTime('00:00:00');
       return;

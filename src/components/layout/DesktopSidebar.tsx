@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, ClipboardList, Calendar, User, Settings, ChevronLeft, ChevronRight,
@@ -23,7 +23,7 @@ export function DesktopSidebar() {
   const { theme, setTheme } = useTheme();
   const { worker, logout } = useAuth();
   const location = useLocation();
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = React.useState(false);
 
   const mainNavItems: NavItem[] = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { History, MapPin, Calendar, ChevronRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention } from '@/types/intervention';
@@ -12,10 +12,10 @@ interface HistorySectionProps {
 
 export function HistorySection({ intervention }: HistorySectionProps) {
   const { t } = useLanguage();
-  const [previousInterventions, setPreviousInterventions] = useState<Intervention[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [previousInterventions, setPreviousInterventions] = React.useState<Intervention[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadHistory();
   }, [intervention.location, intervention.clientId]);
 
