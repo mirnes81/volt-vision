@@ -1,4 +1,4 @@
-import { Home, ClipboardList, Calendar, User, Map } from 'lucide-react';
+import { Home, ClipboardList, Calendar, User, Clock } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -9,7 +9,7 @@ export function BottomNav() {
   const navItems = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: 'Mes Int.' },
-    { to: '/map', icon: Map, label: 'Carte' },
+    { to: '/time-tracking', icon: Clock, label: 'Heures' },
     { to: '/calendar', icon: Calendar, label: t('nav.calendar') },
     { to: '/profile', icon: User, label: t('nav.profile') },
   ];
