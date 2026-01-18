@@ -1,9 +1,8 @@
 /**
- * Theme Context v7 - Simplified React-safe implementation
+ * Theme Context v8 - Unified React import pattern
  * @description Provides theme management with light/dark/system modes
  */
-
-import { createContext, useContext, useState, useEffect, useMemo, ReactNode } from 'react';
+import React from 'react';
 
 type Theme = 'light' | 'dark' | 'system';
 
@@ -13,7 +12,7 @@ interface ThemeContextType {
   setTheme: (theme: Theme) => void;
 }
 
-const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
+const ThemeContext = React.createContext<ThemeContextType | undefined>(undefined);
 
 function getInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'light';
@@ -29,14 +28,14 @@ function getSystemTheme(): 'light' | 'dark' {
   return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
 }
 
-export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>(getInitialTheme);
-  const [actualTheme, setActualTheme] = useState<'light' | 'dark'>(() => {
+export function ThemeProvider({ children }: { children: React.ReactNode }) {
+  const [theme, setThemeState] = React.useState<Theme>(getInitialTheme);
+  const [actualTheme, setActualTheme] = React.useState<'light' | 'dark'>(() => {
     const initial = getInitialTheme();
     return initial === 'system' ? getSystemTheme() : initial;
   });
 
-  useEffect(() => {
+  React.useEffect(() => {
     const root = document.documentElement;
     
     const updateTheme = () => {
@@ -56,11 +55,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return () => mediaQuery.removeEventListener('change', handler);
   }, [theme]);
 
-  const setTheme = (newTheme: Theme) => {
+  const setTheme = React.useCallback((newTheme: Theme) => {
     setThemeState(newTheme);
-  };
+  }, []);
 
-  const value = useMemo(() => ({ theme, actualTheme, setTheme }), [theme, actualTheme]);
+  const value = React.useMemo(() => ({ theme, actualTheme, setTheme }), [theme, actualTheme, setTheme]);
 
   return (
     <ThemeContext.Provider value={value}>
@@ -70,7 +69,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 }
 
 export function useTheme() {
-  const context = useContext(ThemeContext);
+  const context = React.useContext(ThemeContext);
   if (context === undefined) {
     throw new Error('useTheme must be used within a ThemeProvider');
   }
