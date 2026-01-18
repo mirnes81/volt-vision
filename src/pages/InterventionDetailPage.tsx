@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
+import { useInterventionAssignments } from '@/hooks/useInterventionAssignments';
 import { 
   MapPin, User, AlertTriangle, Clock, Package, CheckSquare, Camera, 
   PenTool, Sparkles, FileCheck, Navigation, Mic, History, Boxes,
@@ -54,6 +55,9 @@ export default function InterventionDetailPage() {
   const [activeTab, setActiveTab] = useState('overview');
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [hasReminder, setHasReminder] = useState(false);
+  
+  // Get assignments from Supabase
+  const { getAssignmentsForIntervention, refresh: refreshAssignments } = useInterventionAssignments();
 
   const tabs = [
     { id: 'overview', label: 'Détails', icon: FileText },
@@ -146,7 +150,10 @@ export default function InterventionDetailPage() {
     }
   };
 
-  const handleUpdate = () => { if (id) loadIntervention(parseInt(id)); };
+  const handleUpdate = () => { 
+    if (id) loadIntervention(parseInt(id)); 
+    refreshAssignments();
+  };
 
   if (isLoading) {
     return (
@@ -171,9 +178,15 @@ export default function InterventionDetailPage() {
   }
 
   const status = statusConfig[intervention.status];
-  const assigneeName = intervention.assignedTo 
-    ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
-    : null;
+  
+  // Get assignments from Supabase (priority) or fallback to Dolibarr
+  const supabaseAssignments = getAssignmentsForIntervention(intervention.id);
+  const primaryAssignment = supabaseAssignments.find(a => a.is_primary) || supabaseAssignments[0];
+  const assigneeName = primaryAssignment 
+    ? primaryAssignment.user_name
+    : intervention.assignedTo 
+      ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
+      : null;
 
   return (
     <div className="pb-4">
