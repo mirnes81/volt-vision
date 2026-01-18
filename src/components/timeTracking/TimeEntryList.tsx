@@ -1,6 +1,6 @@
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Clock, MapPin, CheckCircle, XCircle, AlertCircle, Trash2 } from 'lucide-react';
+import { Clock, MapPin, CheckCircle, XCircle, AlertCircle, Trash2, TrendingUp } from 'lucide-react';
 import { WorkTimeEntry, WORK_TYPES } from '@/types/timeTracking';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -63,6 +63,12 @@ export function TimeEntryList({ entries, onDelete, showUser = false }: TimeEntry
                   {entry.intervention_ref && (
                     <Badge variant="outline" className="text-xs">
                       {entry.intervention_ref}
+                    </Badge>
+                  )}
+                  {(entry as any).is_overtime && (
+                    <Badge className="text-xs bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30">
+                      <TrendingUp className="w-3 h-3 mr-1" />
+                      Heure sup.
                     </Badge>
                   )}
                 </div>
