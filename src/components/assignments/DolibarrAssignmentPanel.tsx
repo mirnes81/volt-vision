@@ -249,11 +249,24 @@ export function DolibarrAssignmentPanel({
         { duration: 4000 }
       );
 
-      // Invalidate cache to refresh all views
-      invalidateAssignmentsCache();
-      
+      // Close modal first to prevent re-render issues
       setIsOpen(false);
-      onAssignmentsChange?.();
+      
+      // Update local state with new assignments
+      const typedAssignments = newAssignments.map((a, idx) => ({
+        id: data?.[idx]?.id || `temp-${idx}`,
+        user_id: a.user_id,
+        user_name: a.user_name,
+        is_primary: a.is_primary,
+        priority: a.priority as 'normal' | 'urgent' | 'critical',
+      }));
+      setAssignments(typedAssignments);
+      
+      // Delay cache invalidation to allow modal to close smoothly
+      setTimeout(() => {
+        invalidateAssignmentsCache();
+        onAssignmentsChange?.();
+      }, 100);
 
     } catch (error: any) {
       console.error('[DolibarrAssignmentPanel] Save error:', error);
