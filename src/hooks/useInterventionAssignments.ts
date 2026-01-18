@@ -43,23 +43,41 @@ export function useInterventionAssignments() {
 
     setIsLoading(true);
     try {
-      console.log('[useInterventionAssignments] Fetching from Supabase for tenant:', DEFAULT_TENANT_ID);
-      const { data, error, count } = await supabase
-        .from('intervention_assignments')
-        .select('*', { count: 'exact' })
-        .eq('tenant_id', DEFAULT_TENANT_ID)
-        .order('assigned_at', { ascending: false });
+      // Use direct fetch with cache-busting headers to bypass Supabase CDN cache
+      const cacheBuster = Date.now();
+      console.log('[useInterventionAssignments] Fetching from Supabase for tenant:', DEFAULT_TENANT_ID, 'cacheBuster:', cacheBuster);
+      
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      
+      const response = await fetch(
+        `${supabaseUrl}/rest/v1/intervention_assignments?select=*&tenant_id=eq.${DEFAULT_TENANT_ID}&order=assigned_at.desc&_=${cacheBuster}`,
+        {
+          method: 'GET',
+          headers: {
+            'apikey': supabaseKey,
+            'Authorization': `Bearer ${supabaseKey}`,
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+          },
+          cache: 'no-store',
+        }
+      );
 
-      if (error) {
-        console.error('[useInterventionAssignments] Fetch error:', error);
+      if (!response.ok) {
+        console.error('[useInterventionAssignments] Fetch error:', response.status, response.statusText);
         return;
       }
 
-      console.log('[useInterventionAssignments] Fetched', data?.length || 0, 'assignments from DB, count:', count);
+      const data = await response.json();
+
+      console.log('[useInterventionAssignments] Fetched', data?.length || 0, 'assignments from DB');
       console.log('[useInterventionAssignments] Raw data:', JSON.stringify(data, null, 2));
       
       // Update cache - cast priority to union type
-      assignmentsCache = (data || []).map(a => ({
+      assignmentsCache = (data || []).map((a: any) => ({
         ...a,
         priority: a.priority as 'normal' | 'urgent' | 'critical'
       }));
