@@ -99,8 +99,15 @@ export function AssignmentsProvider({ children }: { children: React.ReactNode })
     await loadAssignments();
   }, [loadAssignments]);
 
+  const value = React.useMemo(() => ({
+    assignments,
+    isLoading,
+    getAssignmentsForIntervention,
+    refresh
+  }), [assignments, isLoading, getAssignmentsForIntervention, refresh]);
+
   return (
-    <AssignmentsContext.Provider value={{ assignments, isLoading, getAssignmentsForIntervention, refresh }}>
+    <AssignmentsContext.Provider value={value}>
       {children}
     </AssignmentsContext.Provider>
   );
@@ -108,7 +115,7 @@ export function AssignmentsProvider({ children }: { children: React.ReactNode })
 
 export function useAssignments() {
   const context = React.useContext(AssignmentsContext);
-  if (!context) {
+  if (context === undefined) {
     throw new Error('useAssignments must be used within AssignmentsProvider');
   }
   return context;
