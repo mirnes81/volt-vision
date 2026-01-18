@@ -196,7 +196,15 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
       if (error) throw error;
       
       if (data?.error) {
-        toast.error(data.error, { duration: 5000 });
+        // Dolibarr API doesn't support PUT on interventions - inform user clearly
+        toast.error(
+          <div className="space-y-1">
+            <p className="font-medium">Modification non supportée par Dolibarr</p>
+            <p className="text-sm">L'API REST Dolibarr v18 ne permet pas la modification d'assignation via PUT.</p>
+            <p className="text-sm text-muted-foreground">Modifiez directement dans Dolibarr ou utilisez le panneau d'assignation multiple.</p>
+          </div>,
+          { duration: 8000 }
+        );
       } else {
         // Show success state
         setShowSuccess(true);
