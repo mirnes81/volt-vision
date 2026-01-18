@@ -24,8 +24,16 @@ export function useInterventionAssignments() {
   const [refreshKey, setRefreshKey] = useState(0);
 
   const fetchAssignments = useCallback(async (force = false) => {
+    console.log('[useInterventionAssignments] fetchAssignments called, force:', force);
+    console.log('[useInterventionAssignments] Cache status:', { 
+      hasCache: !!assignmentsCache, 
+      cacheTimestamp,
+      age: cacheTimestamp ? Date.now() - cacheTimestamp : null 
+    });
+    
     // Use cache if fresh and not forced
     if (!force && assignmentsCache && cacheTimestamp && Date.now() - cacheTimestamp < CACHE_DURATION) {
+      console.log('[useInterventionAssignments] Using cached data:', assignmentsCache.length, 'assignments');
       setAssignments(assignmentsCache);
       setIsLoading(false);
       return;
@@ -33,6 +41,7 @@ export function useInterventionAssignments() {
 
     setIsLoading(true);
     try {
+      console.log('[useInterventionAssignments] Fetching from Supabase...');
       const { data, error } = await supabase
         .from('intervention_assignments')
         .select('*')
@@ -40,10 +49,12 @@ export function useInterventionAssignments() {
         .order('assigned_at', { ascending: false });
 
       if (error) {
-        console.error('Error fetching assignments:', error);
+        console.error('[useInterventionAssignments] Fetch error:', error);
         return;
       }
 
+      console.log('[useInterventionAssignments] Fetched', data?.length || 0, 'assignments from DB');
+      
       // Update cache - cast priority to union type
       assignmentsCache = (data || []).map(a => ({
         ...a,
@@ -51,8 +62,10 @@ export function useInterventionAssignments() {
       }));
       cacheTimestamp = Date.now();
       setAssignments(assignmentsCache);
+      
+      console.log('[useInterventionAssignments] State updated with', assignmentsCache.length, 'assignments');
     } catch (err) {
-      console.error('Failed to fetch assignments:', err);
+      console.error('[useInterventionAssignments] Failed to fetch assignments:', err);
     } finally {
       setIsLoading(false);
     }
@@ -66,18 +79,22 @@ export function useInterventionAssignments() {
   // Subscribe to cache invalidations
   useEffect(() => {
     const handleInvalidation = () => {
+      console.log('[useInterventionAssignments] Cache invalidated, triggering refresh');
       setRefreshKey(k => k + 1);
     };
     
     subscribers.add(handleInvalidation);
+    console.log('[useInterventionAssignments] Subscribed, total subscribers:', subscribers.size);
     return () => {
       subscribers.delete(handleInvalidation);
+      console.log('[useInterventionAssignments] Unsubscribed, remaining subscribers:', subscribers.size);
     };
   }, []);
 
   // Refetch when refreshKey changes
   useEffect(() => {
     if (refreshKey > 0) {
+      console.log('[useInterventionAssignments] RefreshKey changed to', refreshKey, ', refetching...');
       fetchAssignments(true);
     }
   }, [refreshKey, fetchAssignments]);
