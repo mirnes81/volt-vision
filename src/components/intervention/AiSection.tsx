@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { Sparkles, FileText, Wrench, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
@@ -11,10 +11,10 @@ interface AiSectionProps {
 }
 
 export function AiSection({ intervention, onUpdate }: AiSectionProps) {
-  const [isLoadingSummary, setIsLoadingSummary] = useState(false);
-  const [isLoadingDiagnostic, setIsLoadingDiagnostic] = useState(false);
-  const [summary, setSummary] = useState(intervention.aiSummary || '');
-  const [diagnostic, setDiagnostic] = useState(intervention.aiDiagnostic || '');
+  const [isLoadingSummary, setIsLoadingSummary] = React.useState(false);
+  const [isLoadingDiagnostic, setIsLoadingDiagnostic] = React.useState(false);
+  const [summary, setSummary] = React.useState(intervention.aiSummary || '');
+  const [diagnostic, setDiagnostic] = React.useState(intervention.aiDiagnostic || '');
 
   const handleGenerateSummary = async () => {
     setIsLoadingSummary(true);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { Plus, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,14 +12,14 @@ interface MaterialsSectionProps {
 }
 
 export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionProps) {
-  const [products, setProducts] = useState<Product[]>([]);
-  const [showAdd, setShowAdd] = useState(false);
-  const [selectedProduct, setSelectedProduct] = useState<number | null>(null);
-  const [qty, setQty] = useState('1');
-  const [comment, setComment] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const [products, setProducts] = React.useState<Product[]>([]);
+  const [showAdd, setShowAdd] = React.useState(false);
+  const [selectedProduct, setSelectedProduct] = React.useState<number | null>(null);
+  const [qty, setQty] = React.useState('1');
+  const [comment, setComment] = React.useState('');
+  const [isLoading, setIsLoading] = React.useState(false);
 
-  useEffect(() => {
+  React.useEffect(() => {
     getProducts().then(setProducts);
   }, []);
 

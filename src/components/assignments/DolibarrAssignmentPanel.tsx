@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import * as React from 'react';
 import { Users, Plus, X, Search, Loader2, AlertTriangle, User, Crown, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -62,20 +62,20 @@ export function DolibarrAssignmentPanel({
   onAssignmentsChange,
   initialAssignmentsCount = 0,
 }: DolibarrAssignmentPanelProps) {
-  const [isOpen, setIsOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [users, setUsers] = useState<DolibarrUser[]>([]);
-  const [assignments, setAssignments] = useState<Assignment[]>([]);
-  const [selectedUsers, setSelectedUsers] = useState<Set<string>>(new Set());
-  const [primaryUser, setPrimaryUser] = useState<string | null>(null);
-  const [selectedPriority, setSelectedPriority] = useState(priority);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isAdmin, setIsAdmin] = useState(false);
+  const [isOpen, setIsOpen] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
+  const [showSuccess, setShowSuccess] = React.useState(false);
+  const [users, setUsers] = React.useState<DolibarrUser[]>([]);
+  const [assignments, setAssignments] = React.useState<Assignment[]>([]);
+  const [selectedUsers, setSelectedUsers] = React.useState<Set<string>>(new Set());
+  const [primaryUser, setPrimaryUser] = React.useState<string | null>(null);
+  const [selectedPriority, setSelectedPriority] = React.useState(priority);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [isAdmin, setIsAdmin] = React.useState(false);
 
   // Check admin status
-  useEffect(() => {
+  React.useEffect(() => {
     const worker = getWorkerFromStorage();
     console.log('[DolibarrAssignmentPanel] Worker data:', JSON.stringify(worker));
     console.log('[DolibarrAssignmentPanel] Admin field:', worker?.admin, 'Type:', typeof worker?.admin);
@@ -86,12 +86,12 @@ export function DolibarrAssignmentPanel({
   }, []);
 
   // Log when isAdmin changes
-  useEffect(() => {
+  React.useEffect(() => {
     console.log('[DolibarrAssignmentPanel] isAdmin state:', isAdmin);
   }, [isAdmin]);
 
   // Fetch Dolibarr users and existing assignments
-  const loadData = useCallback(async () => {
+  const loadData = React.useCallback(async () => {
     setIsLoading(true);
     try {
       // Fetch Dolibarr users
@@ -137,14 +137,14 @@ export function DolibarrAssignmentPanel({
     }
   }, [interventionId]);
 
-  useEffect(() => {
+  React.useEffect(() => {
     if (isOpen) {
       loadData();
     }
   }, [isOpen, loadData]);
 
   // Auto-hide success after 3 seconds
-  useEffect(() => {
+  React.useEffect(() => {
     if (showSuccess) {
       const timer = setTimeout(() => setShowSuccess(false), 3000);
       return () => clearTimeout(timer);

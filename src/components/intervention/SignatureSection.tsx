@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import * as React from 'react';
 import { Eraser, Check, PenTool, FileText, Loader2, WifiOff, CloudOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
@@ -13,14 +13,14 @@ interface SignatureSectionProps {
 }
 
 export function SignatureSection({ intervention, onUpdate }: SignatureSectionProps) {
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [isDrawing, setIsDrawing] = useState(false);
-  const [hasSignature, setHasSignature] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const [pdfStatus, setPdfStatus] = useState<'idle' | 'generating' | 'success' | 'error'>('idle');
-  const [offlineSignature, setOfflineSignature] = useState<string | null>(null);
+  const canvasRef = React.useRef<HTMLCanvasElement>(null);
+  const [isDrawing, setIsDrawing] = React.useState(false);
+  const [hasSignature, setHasSignature] = React.useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [pdfStatus, setPdfStatus] = React.useState<'idle' | 'generating' | 'success' | 'error'>('idle');
+  const [offlineSignature, setOfflineSignature] = React.useState<string | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 

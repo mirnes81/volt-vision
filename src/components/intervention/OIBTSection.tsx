@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { FileCheck, Download, Save, AlertTriangle, CheckCircle, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,9 +18,9 @@ type OIBTResult = 'ok' | 'nok' | 'reserve';
 
 export function OIBTSection({ intervention, onUpdate }: OIBTSectionProps) {
   const { t } = useLanguage();
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = React.useState(false);
   
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = React.useState({
     isolation: '',
     continuity: '',
     differential: '',

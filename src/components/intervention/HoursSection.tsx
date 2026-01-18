@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { Clock, Plus, AlertTriangle, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -20,13 +20,13 @@ interface HoursSectionProps {
 }
 
 export function HoursSection({ intervention, onUpdate }: HoursSectionProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [hoursInput, setHoursInput] = useState('');
-  const [dailyTotal, setDailyTotal] = useState(0);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [hoursInput, setHoursInput] = React.useState('');
+  const [dailyTotal, setDailyTotal] = React.useState(0);
   const settings = getHoursSettings();
   
   // Calculate daily total for current user
-  useEffect(() => {
+  React.useEffect(() => {
     const worker = getCurrentWorker();
     if (!worker) return;
     

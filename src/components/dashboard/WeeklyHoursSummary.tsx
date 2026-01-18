@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { Clock, Users, AlertTriangle, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
@@ -18,10 +18,10 @@ interface TechnicianHours {
 }
 
 export function WeeklyHoursSummary() {
-  const [technicianHours, setTechnicianHours] = useState<TechnicianHours[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [technicianHours, setTechnicianHours] = React.useState<TechnicianHours[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
 
-  useEffect(() => {
+  React.useEffect(() => {
     async function fetchWeeklyHours() {
       setIsLoading(true);
       try {

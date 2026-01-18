@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import * as React from 'react';
 import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2, Copy, Send, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
@@ -38,21 +38,21 @@ async function blobToBase64(blob: Blob): Promise<string> {
 
 export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
   const { t } = useLanguage();
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [voiceNotes, setVoiceNotes] = useState<VoiceNote[]>([]);
-  const [playingId, setPlayingId] = useState<number | null>(null);
-  const [transcribingId, setTranscribingId] = useState<number | null>(null);
-  const [transcriptions, setTranscriptions] = useState<Record<number, string>>({});
-  const [copiedId, setCopiedId] = useState<number | null>(null);
-  const [sendingId, setSendingId] = useState<number | null>(null);
+  const [isRecording, setIsRecording] = React.useState(false);
+  const [recordingTime, setRecordingTime] = React.useState(0);
+  const [voiceNotes, setVoiceNotes] = React.useState<VoiceNote[]>([]);
+  const [playingId, setPlayingId] = React.useState<number | null>(null);
+  const [transcribingId, setTranscribingId] = React.useState<number | null>(null);
+  const [transcriptions, setTranscriptions] = React.useState<Record<number, string>>({});
+  const [copiedId, setCopiedId] = React.useState<number | null>(null);
+  const [sendingId, setSendingId] = React.useState<number | null>(null);
   
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
-  const audioChunksRef = useRef<Blob[]>([]);
-  const audioRef = useRef<HTMLAudioElement | null>(null);
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
+  const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
+  const audioChunksRef = React.useRef<Blob[]>([]);
+  const audioRef = React.useRef<HTMLAudioElement | null>(null);
+  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadVoiceNotes();
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { MapPin, Navigation, ExternalLink, Loader2, Compass } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
@@ -16,9 +16,9 @@ interface Coordinates {
 
 export function GPSSection({ intervention }: GPSSectionProps) {
   const { t } = useLanguage();
-  const [currentLocation, setCurrentLocation] = useState<Coordinates | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [distance, setDistance] = useState<string | null>(null);
+  const [currentLocation, setCurrentLocation] = React.useState<Coordinates | null>(null);
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [distance, setDistance] = React.useState<string | null>(null);
 
   const getCurrentLocation = () => {
     setIsLoading(true);

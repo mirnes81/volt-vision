@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, User, Users, FileText, Hash, Calendar, Building2, Key, Lock, Home, Gauge, ChevronDown, Crown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention, InterventionStatus } from '@/types/intervention';
@@ -94,9 +94,9 @@ function isUserAdmin(): boolean {
 }
 
 export function InterventionCard({ intervention, supabaseAssignments = [], onStatusChange }: InterventionCardProps) {
-  const [currentStatus, setCurrentStatus] = useState<InterventionStatus>(intervention.status);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [showDropdown, setShowDropdown] = useState(false);
+  const [currentStatus, setCurrentStatus] = React.useState<InterventionStatus>(intervention.status);
+  const [isUpdating, setIsUpdating] = React.useState(false);
+  const [showDropdown, setShowDropdown] = React.useState(false);
   
   const isAdmin = isUserAdmin();
   const status = statusConfig[currentStatus] || statusConfig.a_planifier;

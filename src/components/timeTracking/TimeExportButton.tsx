@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { Download, FileSpreadsheet, FileText, Loader2 } from 'lucide-react';
 import { WorkTimeEntry, WORK_TYPES } from '@/types/timeTracking';
 import { Button } from '@/components/ui/button';
@@ -18,7 +18,7 @@ interface TimeExportButtonProps {
 }
 
 export function TimeExportButton({ entries, dateRange }: TimeExportButtonProps) {
-  const [isExporting, setIsExporting] = useState(false);
+  const [isExporting, setIsExporting] = React.useState(false);
 
   const formatDuration = (minutes: number | null) => {
     if (!minutes) return '00:00';

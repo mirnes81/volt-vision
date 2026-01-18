@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import * as React from 'react';
 import { Package, AlertTriangle, CheckCircle, XCircle, RefreshCw, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -22,12 +22,12 @@ interface StockItem {
 
 export function StockSection() {
   const { t } = useLanguage();
-  const [stock, setStock] = useState<StockItem[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [online, setOnline] = useState(isOnline());
+  const [stock, setStock] = React.useState<StockItem[]>([]);
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [error, setError] = React.useState<string | null>(null);
+  const [online, setOnline] = React.useState(isOnline());
 
-  useEffect(() => {
+  React.useEffect(() => {
     loadStock();
     
     const handleOnline = () => setOnline(true);
