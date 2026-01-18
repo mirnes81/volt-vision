@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
-import { Calendar, User, Save, Loader2, X, Settings, ChevronDown } from 'lucide-react';
+import { Calendar, User, Save, Loader2, X, Settings, ChevronDown, CheckCircle2, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { toast } from '@/components/ui/sonner';
 import { supabase } from '@/integrations/supabase/client';
+import { cn } from '@/lib/utils';
 
 interface AdminEditSectionProps {
   intervention: Intervention;
@@ -35,6 +36,8 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
   const [users, setUsers] = useState<DolibarrUser[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [showSuccess, setShowSuccess] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   
   // Form state
   const [selectedUserId, setSelectedUserId] = useState<string>(
@@ -67,6 +70,14 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
       setIsAdmin(false);
     }
   }, []);
+
+  // Auto-hide success indicator after 5 seconds
+  useEffect(() => {
+    if (showSuccess) {
+      const timer = setTimeout(() => setShowSuccess(false), 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccess]);
 
   const loadUsers = useCallback(async () => {
     if (loadingUsers) return;
@@ -187,7 +198,25 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
       if (data?.error) {
         toast.error(data.error, { duration: 5000 });
       } else {
-        toast.success("Intervention mise à jour !");
+        // Show success state
+        setShowSuccess(true);
+        setLastUpdated(new Date());
+        
+        // Get the selected user name for the toast
+        const selectedUser = users.find(u => u.id.toString() === selectedUserId);
+        const userName = selectedUser ? `${selectedUser.firstName} ${selectedUser.name}`.trim() : '';
+        
+        toast.success(
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="w-5 h-5 text-green-500" />
+            <div>
+              <p className="font-medium">Intervention mise à jour !</p>
+              {userName && <p className="text-sm text-muted-foreground">Assigné à : {userName}</p>}
+            </div>
+          </div>,
+          { duration: 4000 }
+        );
+        
         onUpdate();
       }
     } catch (error: any) {
@@ -197,7 +226,7 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
       setIsLoading(false);
       handleClose();
     }
-  }, [selectedUserId, selectedDate, handleClose, intervention.id, onUpdate]);
+  }, [selectedUserId, selectedDate, handleClose, intervention.id, onUpdate, users]);
 
   // Don't render if not admin
   if (!isAdmin) {
@@ -206,10 +235,47 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
 
   return (
     <>
-      <Button variant="outline" size="sm" className="gap-2" onClick={handleOpen}>
-        <User className="w-4 h-4" />
-        Modifier
-      </Button>
+      {/* Button with success indicator */}
+      <div className="relative inline-flex items-center gap-2">
+        <Button 
+          variant="outline" 
+          size="sm" 
+          className={cn(
+            "gap-2 transition-all duration-300",
+            showSuccess && "border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+          )} 
+          onClick={handleOpen}
+        >
+          {showSuccess ? (
+            <>
+              <CheckCircle2 className="w-4 h-4 animate-bounce" />
+              <span>Modifié !</span>
+            </>
+          ) : (
+            <>
+              <User className="w-4 h-4" />
+              <span>Modifier</span>
+            </>
+          )}
+        </Button>
+        
+        {/* Success badge with sparkle animation */}
+        {showSuccess && (
+          <div className="absolute -top-1 -right-1 flex items-center justify-center">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-green-500"></span>
+            </span>
+          </div>
+        )}
+        
+        {/* Last updated indicator */}
+        {lastUpdated && !showSuccess && (
+          <span className="text-xs text-muted-foreground">
+            Modifié à {lastUpdated.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+        )}
+      </div>
       
       {/* Modal rendered inline - no portal */}
       {isOpen && (
@@ -221,20 +287,20 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
           />
           
           {/* Panel */}
-          <div className="absolute left-0 right-0 bottom-0 bg-white rounded-t-2xl shadow-2xl max-h-[80vh] overflow-hidden">
+          <div className="absolute left-0 right-0 bottom-0 bg-background rounded-t-2xl shadow-2xl max-h-[80vh] overflow-hidden">
             {/* Handle */}
             <div className="flex justify-center py-2">
-              <div className="w-10 h-1 bg-gray-300 rounded-full" />
+              <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
             </div>
 
             {/* Header */}
-            <div className="px-4 pb-3 border-b border-gray-200">
+            <div className="px-4 pb-3 border-b border-border">
               <div className="flex justify-between items-center">
                 <div className="flex items-center gap-2">
                   <Settings className="w-5 h-5 text-primary" />
                   <span className="text-lg font-semibold">Modifier l'intervention</span>
                 </div>
-                <button onClick={handleClose} className="p-2">
+                <button onClick={handleClose} className="p-2 hover:bg-muted rounded-full transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -262,7 +328,7 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
                     <select
                       value={selectedUserId}
                       onChange={(e) => setSelectedUserId(e.target.value)}
-                      className="w-full h-12 px-3 pr-10 text-base border border-input rounded-lg bg-background appearance-none cursor-pointer"
+                      className="w-full h-12 px-3 pr-10 text-base border border-input rounded-lg bg-background appearance-none cursor-pointer focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                     >
                       <option value="">Non assigné</option>
                       {users.map((user) => (
@@ -292,7 +358,7 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
                   type="datetime-local"
                   value={selectedDate}
                   onChange={(e) => setSelectedDate(e.target.value)}
-                  className="w-full h-12 px-3 text-base border border-input rounded-lg bg-background"
+                  className="w-full h-12 px-3 text-base border border-input rounded-lg bg-background focus:ring-2 focus:ring-primary focus:border-primary transition-all"
                 />
                 {intervention.dateStart && (
                   <p className="text-xs text-muted-foreground mt-1">
@@ -303,14 +369,27 @@ export function AdminEditSection({ intervention, onUpdate }: AdminEditSectionPro
             </div>
             
             {/* Footer */}
-            <div className="p-4 border-t border-gray-200 flex gap-3">
+            <div className="p-4 border-t border-border flex gap-3">
               <Button variant="outline" onClick={handleClose} disabled={isLoading} className="flex-1 h-12">
                 <X className="w-4 h-4 mr-2" />
                 Annuler
               </Button>
-              <Button onClick={handleSave} disabled={isLoading} className="flex-1 h-12">
-                <Save className="w-4 h-4 mr-2" />
-                Enregistrer
+              <Button 
+                onClick={handleSave} 
+                disabled={isLoading} 
+                className="flex-1 h-12 relative overflow-hidden"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                    Enregistrement...
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4 mr-2" />
+                    Enregistrer
+                  </>
+                )}
               </Button>
             </div>
           </div>
