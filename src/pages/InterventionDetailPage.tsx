@@ -18,7 +18,6 @@ import { VoiceNotesSection } from '@/components/intervention/VoiceNotesSection';
 import { HistorySection } from '@/components/intervention/HistorySection';
 import { StockSection } from '@/components/intervention/StockSection';
 
-import { AdminEditSection } from '@/components/intervention/AdminEditSection';
 import { DolibarrAssignmentPanel } from '@/components/assignments/DolibarrAssignmentPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -356,8 +355,6 @@ export default function InterventionDetailPage() {
                 priority={intervention.priority as 'normal' | 'urgent' | 'critical'}
                 onAssignmentsChange={handleUpdate}
               />
-              {/* Admin edit button */}
-              <AdminEditSection intervention={intervention} onUpdate={handleUpdate} />
             </div>
           </div>
 
