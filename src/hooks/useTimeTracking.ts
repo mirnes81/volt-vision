@@ -50,6 +50,7 @@ export function useTimeTracking(options: UseTimeTrackingOptions = {}) {
 
   // Use worker from AuthContext (Dolibarr) instead of Supabase auth
   const userId = worker ? String(worker.id) : null;
+  const userName = worker ? (worker.firstName && worker.name ? `${worker.firstName} ${worker.name}` : worker.login) : null;
   const tenantId = options.tenantId || DEFAULT_TENANT_ID;
 
   // Fetch entries for the selected date
