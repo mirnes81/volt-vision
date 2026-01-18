@@ -1,10 +1,13 @@
 import * as React from 'react';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { Clock, Calendar, ChevronLeft, ChevronRight, AlertTriangle } from 'lucide-react';
+import { Clock, Calendar, ChevronLeft, ChevronRight, AlertTriangle, TrendingUp } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
-import { ClockInOutButton } from '@/components/timeTracking/ClockInOutButton';
+import { ManualTimeEntry } from '@/components/timeTracking/ManualTimeEntry';
 import { TimeEntryList } from '@/components/timeTracking/TimeEntryList';
+import { WeeklySummaryCard } from '@/components/timeTracking/WeeklySummaryCard';
+import { MonthlySummaryCard } from '@/components/timeTracking/MonthlySummaryCard';
+import { UserWeeklyLimitSetting } from '@/components/timeTracking/UserWeeklyLimitSetting';
 import { AdminValidationPanel } from '@/components/timeTracking/AdminValidationPanel';
 import { HoursAlertsPanel } from '@/components/timeTracking/HoursAlertsPanel';
 import { TimeExportButton } from '@/components/timeTracking/TimeExportButton';
@@ -20,7 +23,17 @@ export default function TimeTrackingPage() {
   const isAdmin = worker?.isAdmin;
   const [selectedDate, setSelectedDate] = React.useState(new Date());
   
-  const { entries, deleteEntry, isLoading } = useTimeTracking({ date: selectedDate });
+  const { 
+    entries, 
+    deleteEntry, 
+    isLoading, 
+    weeklySummary, 
+    monthlySummary,
+    addManualEntry,
+    currentUser,
+    refresh 
+  } = useTimeTracking({ date: selectedDate });
+  
   const adminHook = useTimeTrackingAdmin();
 
   const navigateDate = (days: number) => {
@@ -36,28 +49,13 @@ export default function TimeTrackingPage() {
       <Header title="Suivi des heures" />
 
       <main className="container max-w-4xl mx-auto px-4 py-6 space-y-6">
-        {/* Date navigation */}
-        <div className="flex items-center justify-between bg-card border rounded-xl p-4">
-          <Button variant="ghost" size="icon" onClick={() => navigateDate(-1)}>
-            <ChevronLeft className="w-5 h-5" />
-          </Button>
-          <div className="text-center">
-            <p className="text-sm text-muted-foreground">
-              {isToday ? "Aujourd'hui" : format(selectedDate, 'EEEE', { locale: fr })}
-            </p>
-            <p className="font-semibold">{format(selectedDate, 'd MMMM yyyy', { locale: fr })}</p>
-          </div>
-          <Button variant="ghost" size="icon" onClick={() => navigateDate(1)} disabled={isToday}>
-            <ChevronRight className="w-5 h-5" />
-          </Button>
-        </div>
-
+        
         {isAdmin ? (
           <Tabs defaultValue="my-time" className="space-y-4">
             <TabsList className="w-full grid grid-cols-3">
               <TabsTrigger value="my-time" className="gap-2">
                 <Clock className="w-4 h-4" />
-                Mon pointage
+                Mes heures
               </TabsTrigger>
               <TabsTrigger value="validation" className="gap-2">
                 Validation
@@ -77,9 +75,60 @@ export default function TimeTrackingPage() {
             </TabsList>
 
             <TabsContent value="my-time" className="space-y-6">
-              {isToday && <ClockInOutButton />}
+              {/* Weekly and Monthly Summaries */}
+              <div className="grid gap-4 md:grid-cols-2">
+                <WeeklySummaryCard
+                  totalMinutes={weeklySummary.totalMinutes}
+                  limitMinutes={weeklySummary.limitMinutes}
+                  overtimeMinutes={weeklySummary.overtimeMinutes}
+                  approvedMinutes={weeklySummary.approvedMinutes}
+                  pendingMinutes={weeklySummary.pendingMinutes}
+                />
+                <MonthlySummaryCard
+                  totalMinutes={monthlySummary.totalMinutes}
+                  regularMinutes={monthlySummary.regularMinutes}
+                  overtimeMinutes={monthlySummary.overtimeMinutes}
+                  approvedMinutes={monthlySummary.approvedMinutes}
+                />
+              </div>
+
+              {/* Actions */}
+              <div className="flex flex-wrap items-center gap-3">
+                <ManualTimeEntry
+                  onSubmit={addManualEntry}
+                  weeklyLimit={weeklySummary.limitMinutes}
+                  currentWeekMinutes={weeklySummary.totalMinutes}
+                />
+                {currentUser && (
+                  <UserWeeklyLimitSetting
+                    userId={currentUser.id}
+                    userName={worker?.name}
+                    tenantId={currentUser.tenant_id}
+                    currentLimit={weeklySummary.limitMinutes / 60}
+                    onUpdate={refresh}
+                  />
+                )}
+              </div>
+
+              {/* Date navigation */}
+              <div className="flex items-center justify-between bg-card border rounded-xl p-4">
+                <Button variant="ghost" size="icon" onClick={() => navigateDate(-1)}>
+                  <ChevronLeft className="w-5 h-5" />
+                </Button>
+                <div className="text-center">
+                  <p className="text-sm text-muted-foreground">
+                    {isToday ? "Aujourd'hui" : format(selectedDate, 'EEEE', { locale: fr })}
+                  </p>
+                  <p className="font-semibold">{format(selectedDate, 'd MMMM yyyy', { locale: fr })}</p>
+                </div>
+                <Button variant="ghost" size="icon" onClick={() => navigateDate(1)} disabled={isToday}>
+                  <ChevronRight className="w-5 h-5" />
+                </Button>
+              </div>
+
+              {/* Entries list */}
               <div>
-                <h3 className="font-semibold mb-3">Mes entrées du jour</h3>
+                <h3 className="font-semibold mb-3">Entrées du {format(selectedDate, 'd MMMM', { locale: fr })}</h3>
                 <TimeEntryList entries={entries} onDelete={deleteEntry} />
               </div>
             </TabsContent>
@@ -106,9 +155,51 @@ export default function TimeTrackingPage() {
           </Tabs>
         ) : (
           <div className="space-y-6">
-            {isToday && <ClockInOutButton />}
+            {/* Weekly and Monthly Summaries */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <WeeklySummaryCard
+                totalMinutes={weeklySummary.totalMinutes}
+                limitMinutes={weeklySummary.limitMinutes}
+                overtimeMinutes={weeklySummary.overtimeMinutes}
+                approvedMinutes={weeklySummary.approvedMinutes}
+                pendingMinutes={weeklySummary.pendingMinutes}
+              />
+              <MonthlySummaryCard
+                totalMinutes={monthlySummary.totalMinutes}
+                regularMinutes={monthlySummary.regularMinutes}
+                overtimeMinutes={monthlySummary.overtimeMinutes}
+                approvedMinutes={monthlySummary.approvedMinutes}
+              />
+            </div>
+
+            {/* Actions */}
+            <div className="flex flex-wrap items-center gap-3">
+              <ManualTimeEntry
+                onSubmit={addManualEntry}
+                weeklyLimit={weeklySummary.limitMinutes}
+                currentWeekMinutes={weeklySummary.totalMinutes}
+              />
+            </div>
+
+            {/* Date navigation */}
+            <div className="flex items-center justify-between bg-card border rounded-xl p-4">
+              <Button variant="ghost" size="icon" onClick={() => navigateDate(-1)}>
+                <ChevronLeft className="w-5 h-5" />
+              </Button>
+              <div className="text-center">
+                <p className="text-sm text-muted-foreground">
+                  {isToday ? "Aujourd'hui" : format(selectedDate, 'EEEE', { locale: fr })}
+                </p>
+                <p className="font-semibold">{format(selectedDate, 'd MMMM yyyy', { locale: fr })}</p>
+              </div>
+              <Button variant="ghost" size="icon" onClick={() => navigateDate(1)} disabled={isToday}>
+                <ChevronRight className="w-5 h-5" />
+              </Button>
+            </div>
+
+            {/* Entries list */}
             <div>
-              <h3 className="font-semibold mb-3">Mes entrées du jour</h3>
+              <h3 className="font-semibold mb-3">Entrées du {format(selectedDate, 'd MMMM', { locale: fr })}</h3>
               <TimeEntryList entries={entries} onDelete={deleteEntry} />
             </div>
           </div>
