@@ -1,4 +1,4 @@
-import { Home, ClipboardList, Calendar, User, Clock } from 'lucide-react';
+import { Home, ClipboardList, Calendar, User, Map } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -9,13 +9,13 @@ export function BottomNav() {
   const navItems = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: 'Mes Int.' },
-    { to: '/time-tracking', icon: Clock, label: 'Heures' },
+    { to: '/map', icon: Map, label: 'Carte' },
     { to: '/calendar', icon: Calendar, label: t('nav.calendar') },
     { to: '/profile', icon: User, label: t('nav.profile') },
   ];
 
   return (
-    <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border safe-bottom">
+    <nav className="fixed bottom-0 left-0 right-0 z-50 glass border-t border-border safe-bottom lg:hidden">
       <div className="flex items-center justify-around h-16 max-w-lg mx-auto">
         {navItems.map((item) => (
           <NavLink
