@@ -370,6 +370,7 @@ export default function InterventionDetailPage() {
                 datePlanned={intervention.dateStart}
                 priority={intervention.priority as 'normal' | 'urgent' | 'critical'}
                 onAssignmentsChange={handleUpdate}
+                initialAssignmentsCount={supabaseAssignments.length}
               />
             </div>
           </div>

@@ -21,6 +21,7 @@ interface DolibarrAssignmentPanelProps {
   datePlanned?: string;
   priority?: 'normal' | 'urgent' | 'critical';
   onAssignmentsChange?: () => void;
+  initialAssignmentsCount?: number; // Count from parent to show immediately
 }
 
 interface DolibarrUser {
@@ -59,6 +60,7 @@ export function DolibarrAssignmentPanel({
   datePlanned,
   priority = 'normal',
   onAssignmentsChange,
+  initialAssignmentsCount = 0,
 }: DolibarrAssignmentPanelProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -275,7 +277,7 @@ export function DolibarrAssignmentPanel({
           ) : (
             <>
               <Users className="w-4 h-4" />
-              <span>Assigner ({assignments.length})</span>
+              <span>Assigner ({assignments.length || initialAssignmentsCount})</span>
             </>
           )}
         </Button>
