@@ -1,4 +1,4 @@
-// Main entry point - v5.0.0 ENES Électricité - Force complete rebuild
+// Main entry point - v6.0.0 ENES Électricité - Force complete rebuild
 import * as React from "react";
 import * as ReactDOM from "react-dom/client";
 import App from "./App.tsx";
