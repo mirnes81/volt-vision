@@ -77,12 +77,18 @@ export function DolibarrAssignmentPanel({
   // Check admin status
   useEffect(() => {
     const worker = getWorkerFromStorage();
-    console.log('[DolibarrAssignmentPanel] Worker data:', worker);
+    console.log('[DolibarrAssignmentPanel] Worker data:', JSON.stringify(worker));
     console.log('[DolibarrAssignmentPanel] Admin field:', worker?.admin, 'Type:', typeof worker?.admin);
+    console.log('[DolibarrAssignmentPanel] isAdmin check:', worker?.isAdmin);
     const adminCheck = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
-    console.log('[DolibarrAssignmentPanel] Is admin:', adminCheck);
+    console.log('[DolibarrAssignmentPanel] Final admin result:', adminCheck);
     setIsAdmin(adminCheck);
   }, []);
+
+  // Log when isAdmin changes
+  useEffect(() => {
+    console.log('[DolibarrAssignmentPanel] isAdmin state:', isAdmin);
+  }, [isAdmin]);
 
   // Fetch Dolibarr users and existing assignments
   const loadData = useCallback(async () => {
