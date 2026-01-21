@@ -1,11 +1,12 @@
 import * as React from 'react';
-import { Zap, ClipboardList, Clock, AlertTriangle, ChevronRight, Wifi, WifiOff, Plus, Calendar, TrendingUp, Users, MapPin, Play, CheckCircle2, BarChart3 } from 'lucide-react';
+import { Zap, ClipboardList, Clock, AlertTriangle, ChevronRight, Wifi, WifiOff, Plus, Calendar, TrendingUp, Users, MapPin, Play, CheckCircle2, BarChart3, UsersRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { InterventionCardCompact } from '@/components/intervention/InterventionCardCompact';
 import { WeeklyHoursSummary } from '@/components/dashboard/WeeklyHoursSummary';
 import { ProductivityCharts } from '@/components/dashboard/ProductivityCharts';
 import { DashboardKPIs } from '@/components/dashboard/DashboardKPIs';
+import { TeamDashboard } from '@/components/dashboard/TeamDashboard';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
 import { useAssignments } from '@/contexts/AssignmentsContext';
@@ -135,15 +136,25 @@ export default function DashboardPage() {
 
         {/* Tabs for Dashboard Views */}
         <Tabs defaultValue="overview" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid mb-4">
+          <TabsList className={cn(
+            "grid w-full mb-4",
+            isAdmin ? "grid-cols-3 lg:w-auto lg:inline-grid" : "grid-cols-2 lg:w-auto lg:inline-grid"
+          )}>
             <TabsTrigger value="overview" className="gap-2">
               <ClipboardList className="w-4 h-4" />
-              Vue d'ensemble
+              <span className="hidden sm:inline">Vue d'ensemble</span>
+              <span className="sm:hidden">Accueil</span>
             </TabsTrigger>
             <TabsTrigger value="analytics" className="gap-2">
               <BarChart3 className="w-4 h-4" />
               Productivité
             </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="team" className="gap-2">
+                <UsersRound className="w-4 h-4" />
+                Équipe
+              </TabsTrigger>
+            )}
           </TabsList>
 
           <TabsContent value="overview" className="mt-0">
@@ -431,6 +442,13 @@ export default function DashboardPage() {
               </div>
             )}
           </TabsContent>
+
+          {/* Team Dashboard Tab - Admin only */}
+          {isAdmin && (
+            <TabsContent value="team" className="mt-0">
+              <TeamDashboard />
+            </TabsContent>
+          )}
         </Tabs>
       </div>
     </div>
