@@ -1,9 +1,11 @@
 import * as React from 'react';
-import { Zap, ClipboardList, Clock, AlertTriangle, ChevronRight, Wifi, WifiOff, Plus, Calendar, TrendingUp, Users, MapPin, Play, CheckCircle2 } from 'lucide-react';
+import { Zap, ClipboardList, Clock, AlertTriangle, ChevronRight, Wifi, WifiOff, Plus, Calendar, TrendingUp, Users, MapPin, Play, CheckCircle2, BarChart3 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { InterventionCardCompact } from '@/components/intervention/InterventionCardCompact';
 import { WeeklyHoursSummary } from '@/components/dashboard/WeeklyHoursSummary';
+import { ProductivityCharts } from '@/components/dashboard/ProductivityCharts';
+import { DashboardKPIs } from '@/components/dashboard/DashboardKPIs';
 import { useAuth } from '@/contexts/AuthContext';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
 import { useAssignments } from '@/contexts/AssignmentsContext';
@@ -11,6 +13,7 @@ import { Intervention } from '@/types/intervention';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function DashboardPage() {
   const { worker } = useAuth();
@@ -130,44 +133,26 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Desktop Layout */}
-        <div className="lg:grid lg:grid-cols-3 lg:gap-6">
-          {/* Left Column - Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Stats Cards */}
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-              <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50 card-hover">
-                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-2">
-                  <ClipboardList className="w-5 h-5 text-primary" />
-                </div>
-                <p className="text-2xl font-bold">{interventions.length}</p>
-                <p className="text-xs text-muted-foreground">Récentes</p>
-              </div>
+        {/* Tabs for Dashboard Views */}
+        <Tabs defaultValue="overview" className="w-full">
+          <TabsList className="grid w-full grid-cols-2 lg:w-auto lg:inline-grid mb-4">
+            <TabsTrigger value="overview" className="gap-2">
+              <ClipboardList className="w-4 h-4" />
+              Vue d'ensemble
+            </TabsTrigger>
+            <TabsTrigger value="analytics" className="gap-2">
+              <BarChart3 className="w-4 h-4" />
+              Productivité
+            </TabsTrigger>
+          </TabsList>
 
-              <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50 card-hover">
-                <div className="w-10 h-10 rounded-xl bg-warning/10 flex items-center justify-center mb-2">
-                  <AlertTriangle className="w-5 h-5 text-warning" />
-                </div>
-                <p className="text-2xl font-bold">{urgentCount}</p>
-                <p className="text-xs text-muted-foreground">Urgentes</p>
-              </div>
-
-              <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50 card-hover">
-                <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center mb-2">
-                  <Clock className="w-5 h-5 text-success" />
-                </div>
-                <p className="text-2xl font-bold">{totalHours.toFixed(1)}h</p>
-                <p className="text-xs text-muted-foreground">Travaillées</p>
-              </div>
-
-              <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50 card-hover">
-                <div className="w-10 h-10 rounded-xl bg-accent/10 flex items-center justify-center mb-2">
-                  <Zap className="w-5 h-5 text-accent" />
-                </div>
-                <p className="text-2xl font-bold">{completedCount}</p>
-                <p className="text-xs text-muted-foreground">Terminées</p>
-              </div>
-            </div>
+          <TabsContent value="overview" className="mt-0">
+            {/* Desktop Layout */}
+            <div className="lg:grid lg:grid-cols-3 lg:gap-6">
+              {/* Left Column - Main Content */}
+              <div className="lg:col-span-2 space-y-6">
+                {/* KPIs Cards */}
+                <DashboardKPIs />
 
             {/* Quick Actions - Mobile */}
             <div className="grid grid-cols-2 gap-3 lg:hidden">
@@ -398,11 +383,55 @@ export default function DashboardPage() {
                       </div>
                     ))}
                   </div>
-                );
-              })()}
+                  );
+                })()}
+              </div>
             </div>
           </div>
-        </div>
+          </TabsContent>
+
+          <TabsContent value="analytics" className="mt-0 space-y-6">
+            {/* Productivity Charts */}
+            <ProductivityCharts />
+
+            {/* Additional Analytics */}
+            <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
+              <h3 className="font-bold flex items-center gap-2 mb-4">
+                <TrendingUp className="w-5 h-5 text-primary" />
+                Résumé mensuel
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div className="bg-secondary/50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-primary">{allInterventions.length}</p>
+                  <p className="text-xs text-muted-foreground">Interventions totales</p>
+                </div>
+                <div className="bg-secondary/50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-success">{completedCount}</p>
+                  <p className="text-xs text-muted-foreground">Terminées</p>
+                </div>
+                <div className="bg-secondary/50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-warning">{urgentCount}</p>
+                  <p className="text-xs text-muted-foreground">Urgentes</p>
+                </div>
+                <div className="bg-secondary/50 rounded-xl p-4 text-center">
+                  <p className="text-2xl font-bold text-accent">{inProgressCount}</p>
+                  <p className="text-xs text-muted-foreground">En cours</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Team Performance - Only for admin */}
+            {isAdmin && (
+              <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
+                <h3 className="font-bold flex items-center gap-2 mb-4">
+                  <Users className="w-5 h-5 text-primary" />
+                  Performance équipe
+                </h3>
+                <WeeklyHoursSummary />
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
