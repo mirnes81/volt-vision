@@ -4,10 +4,11 @@ import { useAssignments } from '@/contexts/AssignmentsContext';
 import { 
   MapPin, User, AlertTriangle, Clock, Package, CheckSquare, Camera, 
   PenTool, Sparkles, FileCheck, Navigation, Mic, History, Boxes,
-  Phone, Mail, FileText, Calendar, ExternalLink, ChevronDown, ChevronUp, Bell, BellRing
+  Phone, Mail, FileText, Calendar, ExternalLink, ChevronDown, ChevronUp, Bell, BellRing, Zap
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { HoursSection } from '@/components/intervention/HoursSection';
+import { CreateEmergencyDialog } from '@/components/emergency/CreateEmergencyDialog';
 import { MaterialsSection } from '@/components/intervention/MaterialsSection';
 import { TasksSection } from '@/components/intervention/TasksSection';
 import { PhotosSection } from '@/components/intervention/PhotosSection';
@@ -177,6 +178,14 @@ export default function InterventionDetailPage() {
     : intervention?.assignedTo 
       ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
       : null;
+
+  // Check if current user is admin
+  const isAdmin = (() => {
+    try {
+      const worker = localStorage.getItem('worker');
+      return worker ? JSON.parse(worker).admin === '1' : false;
+    } catch { return false; }
+  })();
 
   if (isLoading) {
     return (
@@ -371,6 +380,18 @@ export default function InterventionDetailPage() {
               </span>
             </div>
             <div className="flex items-center gap-2">
+              {/* Emergency button for admins */}
+              {isAdmin && (
+                <CreateEmergencyDialog
+                  intervention={intervention}
+                  trigger={
+                    <Button variant="outline" size="sm" className="gap-1 text-red-500 border-red-500 hover:bg-red-500/10">
+                      <Zap className="h-4 w-4" />
+                      Urgence
+                    </Button>
+                  }
+                />
+              )}
               {/* Dolibarr assignment panel for admins - uses Supabase for storage */}
               <DolibarrAssignmentPanel
                 interventionId={intervention.id}

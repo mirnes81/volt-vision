@@ -202,6 +202,72 @@ export type Database = {
           },
         ]
       }
+      emergency_interventions: {
+        Row: {
+          bonus_amount: number
+          claimed_at: string | null
+          claimed_by_user_id: string | null
+          claimed_by_user_name: string | null
+          client_name: string | null
+          completed_at: string | null
+          created_at: string
+          created_by_user_id: string
+          created_by_user_name: string | null
+          currency: string
+          description: string | null
+          expires_at: string | null
+          id: string
+          intervention_id: number
+          intervention_label: string | null
+          intervention_ref: string | null
+          location: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          bonus_amount?: number
+          claimed_at?: string | null
+          claimed_by_user_id?: string | null
+          claimed_by_user_name?: string | null
+          client_name?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id: string
+          created_by_user_name?: string | null
+          currency?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          intervention_id: number
+          intervention_label?: string | null
+          intervention_ref?: string | null
+          location?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Update: {
+          bonus_amount?: number
+          claimed_at?: string | null
+          claimed_by_user_id?: string | null
+          claimed_by_user_name?: string | null
+          client_name?: string | null
+          completed_at?: string | null
+          created_at?: string
+          created_by_user_id?: string
+          created_by_user_name?: string | null
+          currency?: string
+          description?: string | null
+          expires_at?: string | null
+          id?: string
+          intervention_id?: number
+          intervention_label?: string | null
+          intervention_ref?: string | null
+          location?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       hours_alerts: {
         Row: {
           acknowledged: boolean | null
@@ -1084,6 +1150,10 @@ export type Database = {
           remaining_minutes: number
           total_minutes: number
         }[]
+      }
+      claim_emergency_intervention: {
+        Args: { p_emergency_id: string; p_user_id: string; p_user_name: string }
+        Returns: Json
       }
       get_user_permissions: {
         Args: { _tenant_id: string; _user_id: string }
