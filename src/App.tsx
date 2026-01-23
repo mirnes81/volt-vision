@@ -1,4 +1,4 @@
-// App.tsx - v13 - PWA avec auto-update
+// App.tsx - v14 - Emergency system
 import * as React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -11,6 +11,7 @@ import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AssignmentsProvider } from "@/contexts/AssignmentsContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PWAInstallPrompt } from "@/components/pwa/PWAPrompts";
+import { EmergencyAlertToast } from "@/components/emergency/EmergencyAlertToast";
 import Index from "./pages/Index";
 import LoginPage from "./pages/LoginPage";
 import DashboardPage from "./pages/DashboardPage";
@@ -23,6 +24,7 @@ import ProfilePage from "./pages/ProfilePage";
 import SettingsPage from "./pages/SettingsPage";
 import DiagnosticPage from "./pages/DiagnosticPage";
 import InstallPage from "./pages/InstallPage";
+import EmergenciesPage from "./pages/EmergenciesPage";
 import NotFound from "./pages/NotFound";
 import { rescheduleRemindersOnStart } from "@/lib/interventionReminders";
 
@@ -58,6 +60,7 @@ const AppRoutes = () => (
       <Route path="/intervention/:id" element={<InterventionDetailPage />} />
       <Route path="/calendar" element={<CalendarPage />} />
       <Route path="/time-tracking" element={<TimeTrackingPage />} />
+      <Route path="/emergencies" element={<EmergenciesPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/settings" element={<SettingsPage />} />
     </Route>
@@ -75,6 +78,7 @@ const App = () => (
               <TooltipProvider>
                 <AppRoutes />
                 <PWAInstallPrompt />
+                <EmergencyAlertToast />
                 <Toaster />
                 <SonnerToaster position="top-center" />
               </TooltipProvider>

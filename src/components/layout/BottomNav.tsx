@@ -1,16 +1,18 @@
-import { Home, ClipboardList, Calendar, User, Clock } from 'lucide-react';
+import { Home, ClipboardList, Calendar, User, Clock, Zap } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
+import { useEmergencyInterventions } from '@/hooks/useEmergencyInterventions';
 
 export function BottomNav() {
   const { t } = useLanguage();
+  const { openCount } = useEmergencyInterventions();
   
   const navItems = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: 'Mes Int.' },
+    { to: '/emergencies', icon: Zap, label: 'Urgences', badge: openCount },
     { to: '/time-tracking', icon: Clock, label: 'Heures' },
-    { to: '/calendar', icon: Calendar, label: t('nav.calendar') },
     { to: '/profile', icon: User, label: t('nav.profile') },
   ];
 
@@ -28,9 +30,15 @@ export function BottomNav() {
               <>
                 <div className={cn(
                   "relative p-1.5 rounded-xl transition-all duration-200",
-                  isActive && "bg-primary/10"
+                  isActive && "bg-primary/10",
+                  item.badge && item.badge > 0 && "text-red-500"
                 )}>
                   <item.icon className={cn("w-5 h-5 transition-all duration-200", isActive && "scale-110")} />
+                  {item.badge && item.badge > 0 && (
+                    <span className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-[9px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                      {item.badge > 9 ? '9+' : item.badge}
+                    </span>
+                  )}
                 </div>
                 <span className={cn("text-[10px] mt-0.5 font-medium", isActive && "font-semibold")}>
                   {item.label}
