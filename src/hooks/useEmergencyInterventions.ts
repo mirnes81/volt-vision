@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { playEmergencySound, playSuccessSound, isOutsideWorkHours } from '@/lib/emergencySound';
 
 const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
@@ -29,15 +30,6 @@ export function useEmergencyInterventions() {
   const [openCount, setOpenCount] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
   const [claimingId, setClaimingId] = useState<string | null>(null);
-
-  // Sound for new emergencies
-  const playEmergencySound = useCallback(() => {
-    try {
-      const audio = new Audio('/notification.mp3');
-      audio.volume = 1.0;
-      audio.play().catch(() => {});
-    } catch (e) {}
-  }, []);
 
   const fetchEmergencies = useCallback(async () => {
     try {
@@ -79,10 +71,15 @@ export function useEmergencyInterventions() {
         (payload) => {
           console.log('[Emergency] Realtime update:', payload.eventType);
           if (payload.eventType === 'INSERT') {
+            // Play sound (urgent if outside work hours)
             playEmergencySound();
-            toast.warning('🚨 Nouvelle urgence disponible!', {
-              description: 'Un dépannage avec bonus est disponible',
-              duration: 10000
+            
+            const outsideHours = isOutsideWorkHours();
+            toast.warning(outsideHours ? '🚨 URGENCE!' : '🚨 Nouvelle urgence disponible!', {
+              description: outsideHours 
+                ? 'Dépannage urgent avec bonus - Action requise!'
+                : 'Un dépannage avec bonus est disponible',
+              duration: outsideHours ? 30000 : 10000
             });
           }
           fetchEmergencies();
@@ -118,6 +115,8 @@ export function useEmergencyInterventions() {
       const result = data as { success: boolean; error?: string; bonus_amount?: number; message?: string };
       
       if (result.success) {
+        // Play success sound
+        playSuccessSound();
         toast.success(`🎉 Intervention réclamée! Bonus: ${result.bonus_amount} CHF`, {
           duration: 5000
         });
