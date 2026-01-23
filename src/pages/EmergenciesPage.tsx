@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Zap, Clock, User, MapPin, Check, X, RefreshCw, Trophy } from 'lucide-react';
+import { Zap, Clock, User, MapPin, Check, X, RefreshCw, Trophy, Plus } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useEmergencyInterventions, EmergencyIntervention } from '@/hooks/useEmergencyInterventions';
+import { CreateEmergencyFromList } from '@/components/emergency/CreateEmergencyFromList';
 import { useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -201,6 +202,18 @@ export default function EmergenciesPage() {
       />
 
       <main className="container mx-auto px-4 py-4 space-y-4">
+        {/* Admin: Create emergency button */}
+        {isAdmin && (
+          <CreateEmergencyFromList
+            trigger={
+              <Button className="w-full gap-2 bg-red-500 hover:bg-red-600 text-white">
+                <Plus className="h-5 w-5" />
+                Créer une urgence avec bonus
+              </Button>
+            }
+          />
+        )}
+
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
           <Card className="bg-red-500/10 border-red-500/30">
