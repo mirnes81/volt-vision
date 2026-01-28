@@ -78,8 +78,10 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
       const { data, error } = await supabase.functions.invoke('dolibarr-api', {
         body: {
           action: 'update-intervention-date',
-          interventionId,
-          dateStart: unixTimestamp
+          params: {
+            interventionId,
+            dateStart: unixTimestamp
+          }
         }
       });
 

@@ -795,7 +795,9 @@ serve(async (req) => {
 
       // Update intervention date (admin only)
       case 'update-intervention-date': {
-        const { interventionId, dateStart } = await req.json().catch(() => ({}));
+        // Use params from the already parsed body
+        const interventionId = params?.interventionId;
+        const dateStart = params?.dateStart;
         
         if (!interventionId || !dateStart) {
           return new Response(
@@ -806,28 +808,52 @@ serve(async (req) => {
         
         console.log(`[UPDATE-DATE] Updating intervention ${interventionId} with dateo=${dateStart}`);
         
-        // Use PUT to update intervention with new date
-        const updateResponse = await fetchWithTimeout(
+        // Try multiple endpoints - Dolibarr versions differ
+        const endpoints = [
           `${baseUrl}/interventions/${interventionId}`,
-          {
-            method: 'PUT',
-            headers,
-            body: JSON.stringify({
-              dateo: dateStart,
-            }),
-          },
-          15000
-        );
+          `${baseUrl}/ficheinter/${interventionId}`,
+          `${baseUrl}/fichinter/${interventionId}`,
+        ];
         
-        if (!updateResponse.ok) {
-          const errText = await updateResponse.text();
-          console.error(`[UPDATE-DATE] Failed: ${updateResponse.status} - ${errText}`);
+        let updateResponse: Response | null = null;
+        let lastError = '';
+        
+        for (const ep of endpoints) {
+          console.log(`[UPDATE-DATE] Trying PUT on: ${ep}`);
+          try {
+            updateResponse = await fetchWithTimeout(
+              ep,
+              {
+                method: 'PUT',
+                headers,
+                body: JSON.stringify({ dateo: dateStart }),
+              },
+              15000
+            );
+            
+            console.log(`[UPDATE-DATE] Response from ${ep}: ${updateResponse.status}`);
+            
+            if (updateResponse.ok) {
+              break;
+            } else {
+              lastError = await updateResponse.text();
+              console.log(`[UPDATE-DATE] Failed: ${lastError}`);
+            }
+          } catch (e) {
+            console.error(`[UPDATE-DATE] Error on ${ep}:`, e);
+            lastError = String(e);
+          }
+        }
+        
+        if (!updateResponse || !updateResponse.ok) {
+          console.error(`[UPDATE-DATE] All endpoints failed. Last error: ${lastError}`);
           return new Response(
             JSON.stringify({ 
-              error: 'Erreur lors de la mise à jour de la date',
-              details: errText 
+              error: 'La modification de date n\'est pas supportée par cette version de Dolibarr',
+              details: lastError,
+              suggestion: 'Modifiez la date directement dans Dolibarr.'
             }),
-            { status: updateResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         
