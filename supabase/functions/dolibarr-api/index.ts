@@ -655,6 +655,7 @@ serve(async (req) => {
           fk_product: params.productId,
           qty: params.qty,
           description: params.description || 'Matériel ajouté',
+          date: Math.floor(Date.now() / 1000), // Unix timestamp required by Dolibarr
         });
         break;
       case 'update-intervention-line':
