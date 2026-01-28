@@ -20,7 +20,7 @@ import { VoiceNotesSection } from '@/components/intervention/VoiceNotesSection';
 import { HistorySection } from '@/components/intervention/HistorySection';
 import { StockSection } from '@/components/intervention/StockSection';
 import { ReportNotesSection } from '@/components/intervention/ReportNotesSection';
-import { DateEditDialog } from '@/components/intervention/DateEditDialog';
+import { DateEditDialog, getDateOverride } from '@/components/intervention/DateEditDialog';
 
 import { DolibarrAssignmentPanel } from '@/components/assignments/DolibarrAssignmentPanel';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -411,19 +411,21 @@ export default function InterventionDetailPage() {
           </div>
 
         {/* Date with day of week, time and reminder button */}
-        {intervention.dateStart && (
+        {(intervention.dateStart || getDateOverride(intervention.id)) && (
           <div className="flex items-center justify-between gap-2 text-sm mt-2">
             <div className="flex items-center gap-2">
               <Calendar className="w-4 h-4 text-primary" />
               <span className="font-semibold text-foreground">
                 {(() => {
-                  const date = new Date(intervention.dateStart);
+                  const localOverride = getDateOverride(intervention.id);
+                  const date = new Date(localOverride || intervention.dateStart!);
                   const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
                   return `${dayNames[date.getDay()]} ${date.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' })}`;
                 })()}
               </span>
               {(() => {
-                const date = new Date(intervention.dateStart);
+                const localOverride = getDateOverride(intervention.id);
+                const date = new Date(localOverride || intervention.dateStart!);
                 const hours = date.getHours();
                 const minutes = date.getMinutes();
                 const hasTime = hours !== 0 || minutes !== 0;
@@ -438,7 +440,7 @@ export default function InterventionDetailPage() {
               {isAdmin && (
                 <DateEditDialog
                   interventionId={intervention.id}
-                  currentDate={intervention.dateStart}
+                  currentDate={getDateOverride(intervention.id) || intervention.dateStart}
                   onDateUpdated={handleUpdate}
                 />
               )}
