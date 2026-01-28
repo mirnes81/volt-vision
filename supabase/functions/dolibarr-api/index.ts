@@ -680,18 +680,29 @@ serve(async (req) => {
         const productsData = await productsResponse.json();
         const dolibarrBaseUrl = DOLIBARR_URL.replace(/\/+$/, '');
         
-        const enrichedProducts = Array.isArray(productsData) ? productsData.map((p: any) => ({
-          id: parseInt(p.id),
-          ref: p.ref || '',
-          label: p.label || p.description || '',
-          unit: p.fk_unit_label || p.unit || 'pce',
-          price: parseFloat(p.price || p.price_ttc || '0'),
-          barcode: p.barcode || '',
-          // Dolibarr product photo path - format: product/{entity}/{ref}/photos/{filename}
-          photo: p.photo ? `${dolibarrBaseUrl}/viewimage.php?modulepart=product&entity=${p.entity || 1}&file=${encodeURIComponent(p.ref)}/${encodeURIComponent(p.photo)}` : null,
-          // Alternative: use document API for photos
-          photoFile: p.photo || null,
-        })) : [];
+        const enrichedProducts = Array.isArray(productsData) ? productsData.map((p: any) => {
+          // Dolibarr stores photo in 'photo' field or 'photos' array
+          let photoUrl = null;
+          const photoFileName = p.photo || (Array.isArray(p.photos) && p.photos.length > 0 ? p.photos[0] : null);
+          
+          if (photoFileName) {
+            // Dolibarr viewimage.php format for products
+            // The file is stored as: product/{ref}/{filename}
+            const cleanRef = (p.ref || '').replace(/[\/\\]/g, '_');
+            photoUrl = `${dolibarrBaseUrl}/viewimage.php?modulepart=product&entity=${p.entity || 1}&file=${encodeURIComponent(cleanRef)}%2F${encodeURIComponent(photoFileName)}`;
+          }
+          
+          return {
+            id: parseInt(p.id),
+            ref: p.ref || '',
+            label: p.label || p.description || '',
+            unit: p.fk_unit_label || p.unit || 'pce',
+            price: parseFloat(p.price || p.price_ttc || '0'),
+            barcode: p.barcode || '',
+            photo: photoUrl,
+            photoFile: photoFileName || null,
+          };
+        }) : [];
         
         return new Response(
           JSON.stringify(enrichedProducts),

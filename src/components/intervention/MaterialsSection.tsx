@@ -328,7 +328,7 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             <label className="text-sm font-medium mb-2 block">
               Produit {filteredProducts.length > 0 && `(${filteredProducts.length})`}
             </label>
-            <div className="max-h-64 overflow-y-auto rounded-xl border border-border/50 bg-secondary/30">
+            <div className="max-h-72 overflow-y-auto rounded-xl border border-border/50 bg-secondary/30">
               {filteredProducts.length === 0 ? (
                 <div className="p-6 text-center text-muted-foreground">
                   <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
@@ -356,11 +356,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
                         </p>
                         <p className="text-xs text-muted-foreground">{product.ref}</p>
                       </div>
-                      {product.price && (
-                        <span className="text-xs font-semibold text-primary shrink-0">
-                          {product.price.toFixed(2)} CHF
-                        </span>
-                      )}
                     </button>
                   ))}
                   {filteredProducts.length > 50 && (
