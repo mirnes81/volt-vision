@@ -32,6 +32,7 @@ export interface Material {
   unit: string;
   comment?: string;
   photoPath?: string;
+  photo?: string | null;
   price?: number;
 }
 
@@ -138,4 +139,7 @@ export interface Product {
   label: string;
   unit: string;
   price?: number;
+  photo?: string | null;
+  photoFile?: string | null;
+  barcode?: string;
 }
