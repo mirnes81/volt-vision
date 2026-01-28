@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { Clock, Plus, AlertTriangle, Check } from 'lucide-react';
+import { Clock, Plus, AlertTriangle, Check, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Intervention, WorkerHour } from '@/types/intervention';
 import { addManualHours } from '@/lib/api';
 import { toast } from '@/components/ui/sonner';
@@ -13,6 +14,7 @@ import {
   checkDailyLimit 
 } from '@/lib/hoursSettings';
 import { getCurrentWorker } from '@/lib/api';
+import { Label } from '@/components/ui/label';
 
 interface HoursSectionProps {
   intervention: Intervention;
@@ -22,6 +24,7 @@ interface HoursSectionProps {
 export function HoursSection({ intervention, onUpdate }: HoursSectionProps) {
   const [isLoading, setIsLoading] = React.useState(false);
   const [hoursInput, setHoursInput] = React.useState('');
+  const [workDescription, setWorkDescription] = React.useState('');
   const [dailyTotal, setDailyTotal] = React.useState(0);
   const settings = getHoursSettings();
   
@@ -87,15 +90,21 @@ export function HoursSection({ intervention, onUpdate }: HoursSectionProps) {
       const hoursDecimal = minutes / 60;
       const endTime = new Date(now.getTime() + minutes * 60 * 1000);
       
+      // Build comment with description if provided
+      const comment = workDescription.trim() 
+        ? `${workDescription.trim()} (${formatMinutesToHM(minutes)})`
+        : `Saisie manuelle: ${formatMinutesToHM(minutes)}`;
+      
       await addManualHours(intervention.id, {
         dateStart: now.toISOString(),
         dateEnd: endTime.toISOString(),
         workType: intervention.type,
-        comment: `Saisie manuelle: ${formatMinutesToHM(minutes)}`,
+        comment,
       });
       
-      toast.success(`${formatMinutesToHM(minutes)} ajoutées`);
+      toast.success(`${formatMinutesToHM(minutes)} ajoutées avec description`);
       setHoursInput('');
+      setWorkDescription('');
       onUpdate();
     } catch (error) {
       toast.error('Erreur lors de l\'ajout des heures');
@@ -117,24 +126,45 @@ export function HoursSection({ intervention, onUpdate }: HoursSectionProps) {
           Heures facturables
         </h3>
         
-        <div className="flex gap-2">
-          <Input
-            type="text"
-            placeholder="Ex: 2h30"
-            value={hoursInput}
-            onChange={(e) => setHoursInput(e.target.value)}
-            className="flex-1 h-10 text-sm"
-            onKeyDown={(e) => e.key === 'Enter' && handleAddHours()}
+        {/* Work description input */}
+        <div className="mb-3">
+          <Label className="text-xs text-muted-foreground flex items-center gap-1.5 mb-1.5">
+            <FileText className="w-3 h-3" />
+            Description du travail effectué
+          </Label>
+          <Textarea
+            placeholder="Ex: Remplacement tableau électrique, pose prises..."
+            value={workDescription}
+            onChange={(e) => setWorkDescription(e.target.value)}
+            className="min-h-[60px] text-sm resize-none"
+            rows={2}
           />
-          <Button
-            variant="worker-success"
-            size="icon"
-            onClick={handleAddHours}
-            disabled={isLoading || !hoursInput.trim()}
-            className="h-10 w-10"
-          >
-            <Plus className="w-5 h-5" />
-          </Button>
+        </div>
+        
+        {/* Hours input row */}
+        <div className="flex gap-2">
+          <div className="flex-1">
+            <Label className="text-xs text-muted-foreground mb-1.5 block">Durée</Label>
+            <Input
+              type="text"
+              placeholder="Ex: 2h30"
+              value={hoursInput}
+              onChange={(e) => setHoursInput(e.target.value)}
+              className="h-10 text-sm"
+              onKeyDown={(e) => e.key === 'Enter' && handleAddHours()}
+            />
+          </div>
+          <div className="flex items-end">
+            <Button
+              variant="worker-success"
+              size="icon"
+              onClick={handleAddHours}
+              disabled={isLoading || !hoursInput.trim()}
+              className="h-10 w-10"
+            >
+              <Plus className="w-5 h-5" />
+            </Button>
+          </div>
         </div>
         
         {/* Daily limit info - Compact */}
@@ -162,7 +192,7 @@ export function HoursSection({ intervention, onUpdate }: HoursSectionProps) {
       <div className="flex items-center gap-2 bg-primary/10 rounded-lg px-3 py-2">
         <Clock className="w-4 h-4 text-primary" />
         <div className="flex items-center gap-2">
-          <p className="text-xs text-muted-foreground">Total:</p>
+          <p className="text-xs text-muted-foreground">Total intervention:</p>
           <p className="text-base font-bold">{formatDuration(totalHours)}</p>
         </div>
       </div>
@@ -179,18 +209,25 @@ export function HoursSection({ intervention, onUpdate }: HoursSectionProps) {
             {intervention.hours.map((hour) => (
               <div
                 key={hour.id}
-                className="bg-card rounded-lg p-2 border border-border/50"
+                className="bg-card rounded-lg p-2.5 border border-border/50"
               >
-                <div className="flex items-center justify-between">
-                  <div>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
                     <p className="font-medium text-xs">
                       {new Date(hour.dateStart).toLocaleDateString('fr-CH')}
                     </p>
-                    <p className="text-[10px] text-muted-foreground truncate max-w-[150px]">
-                      {hour.comment || hour.workType}
-                    </p>
+                    {hour.comment && (
+                      <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
+                        {hour.comment}
+                      </p>
+                    )}
+                    {!hour.comment && hour.workType && (
+                      <p className="text-[10px] text-muted-foreground truncate">
+                        {hour.workType}
+                      </p>
+                    )}
                   </div>
-                  <div className="text-right">
+                  <div className="text-right flex-shrink-0">
                     <p className="font-bold text-sm">{formatDuration(hour.durationHours || 0)}</p>
                     <p className="text-[10px] text-muted-foreground">{hour.userName}</p>
                   </div>
