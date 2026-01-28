@@ -651,7 +651,7 @@ serve(async (req) => {
         body = JSON.stringify({
           fk_product: params.productId,
           qty: params.qty,
-          desc: params.description || '',
+          description: params.description || 'Matériel ajouté',
         });
         break;
       case 'update-intervention-line':
