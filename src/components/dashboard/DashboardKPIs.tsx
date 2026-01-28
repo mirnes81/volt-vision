@@ -127,10 +127,10 @@ export function DashboardKPIs() {
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {[1, 2, 3, 4].map(i => (
-          <div key={i} className="bg-card rounded-2xl p-4 shadow-card border border-border/50 h-24 flex items-center justify-center">
-            <Loader2 className="w-5 h-5 animate-spin text-primary" />
+          <div key={i} className="bg-card rounded-xl p-3 shadow-sm border border-border/50 h-20 flex items-center justify-center">
+            <Loader2 className="w-4 h-4 animate-spin text-primary" />
           </div>
         ))}
       </div>
@@ -202,34 +202,37 @@ export function DashboardKPIs() {
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Main KPIs */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+    <div className="space-y-2">
+      {/* Main KPIs - Compact */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
         {kpiCards.map((kpi, index) => (
           <div 
             key={index}
-            className="bg-card rounded-2xl p-4 shadow-card border border-border/50 card-hover"
+            className="bg-card rounded-xl p-2.5 shadow-sm border border-border/50"
           >
-            <div className={cn("w-10 h-10 rounded-xl flex items-center justify-center mb-2", kpi.bgColor)}>
-              <kpi.icon className={cn("w-5 h-5", kpi.color)} />
+            <div className="flex items-center gap-2">
+              <div className={cn("w-8 h-8 rounded-lg flex items-center justify-center shrink-0", kpi.bgColor)}>
+                <kpi.icon className={cn("w-4 h-4", kpi.color)} />
+              </div>
+              <div className="min-w-0">
+                <p className="text-lg font-bold leading-none">{kpi.value}</p>
+                <p className="text-[10px] text-muted-foreground truncate">{kpi.label}</p>
+              </div>
             </div>
-            <p className="text-2xl font-bold">{kpi.value}</p>
-            <p className="text-xs text-muted-foreground">{kpi.label}</p>
-            <p className="text-[10px] text-muted-foreground/70">{kpi.sublabel}</p>
           </div>
         ))}
       </div>
 
-      {/* Secondary KPIs - inline */}
-      <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
-        <div className="grid grid-cols-4 gap-4">
+      {/* Secondary KPIs - Compact inline */}
+      <div className="bg-card rounded-xl p-2.5 shadow-sm border border-border/50">
+        <div className="grid grid-cols-4 gap-2">
           {secondaryKpis.map((kpi, index) => (
             <div key={index} className="text-center">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <kpi.icon className={cn("w-4 h-4", kpi.color)} />
-                <span className={cn("text-lg font-bold", kpi.color)}>{kpi.value}</span>
+              <div className="flex items-center justify-center gap-1 mb-0.5">
+                <kpi.icon className={cn("w-3.5 h-3.5", kpi.color)} />
+                <span className={cn("text-sm font-bold", kpi.color)}>{kpi.value}</span>
               </div>
-              <p className="text-xs text-muted-foreground">{kpi.label}</p>
+              <p className="text-[9px] text-muted-foreground">{kpi.label}</p>
             </div>
           ))}
         </div>
