@@ -793,6 +793,52 @@ serve(async (req) => {
         });
         break;
 
+      // Update intervention date (admin only)
+      case 'update-intervention-date': {
+        const { interventionId, dateStart } = await req.json().catch(() => ({}));
+        
+        if (!interventionId || !dateStart) {
+          return new Response(
+            JSON.stringify({ error: 'interventionId et dateStart sont requis' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        console.log(`[UPDATE-DATE] Updating intervention ${interventionId} with dateo=${dateStart}`);
+        
+        // Use PUT to update intervention with new date
+        const updateResponse = await fetchWithTimeout(
+          `${baseUrl}/interventions/${interventionId}`,
+          {
+            method: 'PUT',
+            headers,
+            body: JSON.stringify({
+              dateo: dateStart,
+            }),
+          },
+          15000
+        );
+        
+        if (!updateResponse.ok) {
+          const errText = await updateResponse.text();
+          console.error(`[UPDATE-DATE] Failed: ${updateResponse.status} - ${errText}`);
+          return new Response(
+            JSON.stringify({ 
+              error: 'Erreur lors de la mise à jour de la date',
+              details: errText 
+            }),
+            { status: updateResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const result = await updateResponse.json();
+        console.log(`[UPDATE-DATE] Success for intervention ${interventionId}`);
+        return new Response(
+          JSON.stringify({ success: true, id: result }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+
       default:
         return new Response(
           JSON.stringify({ error: `Action inconnue: ${action}` }),
