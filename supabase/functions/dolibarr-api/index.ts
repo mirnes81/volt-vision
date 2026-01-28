@@ -647,6 +647,46 @@ serve(async (req) => {
         );
       }
 
+      // Add timespent to intervention (hours tracking)
+      case 'add-timespent': {
+        const intId = params.interventionId;
+        if (!intId) {
+          return new Response(
+            JSON.stringify({ error: 'interventionId manquant' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Calculate duration in minutes from dateStart/dateEnd or use provided duration
+        let durationMinutes = 0;
+        if (params.duration) {
+          durationMinutes = Math.round(params.duration / 60); // Convert seconds to minutes
+        } else if (params.dateStart && params.dateEnd) {
+          const start = new Date(params.dateStart).getTime();
+          const end = new Date(params.dateEnd).getTime();
+          durationMinutes = Math.round((end - start) / (1000 * 60));
+        }
+        
+        // Dolibarr API for intervention lines requires:
+        // - duree: duration in minutes
+        // - date: Unix timestamp
+        // - desc or description: optional description
+        const dateTimestamp = params.dateStart 
+          ? Math.floor(new Date(params.dateStart).getTime() / 1000)
+          : Math.floor(Date.now() / 1000);
+        
+        console.log(`[ADD-TIMESPENT] Adding ${durationMinutes} min to intervention ${intId}`);
+        
+        endpoint = `/interventions/${intId}/lines`;
+        method = 'POST';
+        body = JSON.stringify({
+          duree: durationMinutes,
+          date: dateTimestamp,
+          desc: params.comment || params.workType || 'Heures travaillées',
+        });
+        break;
+      }
+
       // Intervention Lines
       case 'add-intervention-line':
         endpoint = `/interventions/${params.interventionId}/lines`;
