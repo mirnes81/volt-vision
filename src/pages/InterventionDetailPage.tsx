@@ -19,6 +19,7 @@ import { GPSSection } from '@/components/intervention/GPSSection';
 import { VoiceNotesSection } from '@/components/intervention/VoiceNotesSection';
 import { HistorySection } from '@/components/intervention/HistorySection';
 import { StockSection } from '@/components/intervention/StockSection';
+import { ReportNotesSection } from '@/components/intervention/ReportNotesSection';
 
 import { DolibarrAssignmentPanel } from '@/components/assignments/DolibarrAssignmentPanel';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -72,6 +73,7 @@ export default function InterventionDetailPage() {
     { id: 'oibt', label: t('tab.oibt'), icon: FileCheck },
     { id: 'gps', label: t('tab.gps'), icon: Navigation },
     { id: 'voice', label: t('tab.voice'), icon: Mic },
+    { id: 'report', label: 'Rapport', icon: FileText },
     { id: 'ai', label: t('tab.ai'), icon: Sparkles },
     { id: 'history', label: t('tab.history'), icon: History },
     { id: 'stock', label: 'Stock', icon: Boxes },
@@ -652,6 +654,7 @@ export default function InterventionDetailPage() {
           {activeTab === 'oibt' && <OIBTSection intervention={intervention} onUpdate={handleUpdate} />}
           {activeTab === 'gps' && <GPSSection intervention={intervention} />}
           {activeTab === 'voice' && <VoiceNotesSection intervention={intervention} />}
+          {activeTab === 'report' && <ReportNotesSection intervention={intervention} />}
           {activeTab === 'ai' && <AiSection intervention={intervention} onUpdate={handleUpdate} />}
           {activeTab === 'history' && <HistorySection intervention={intervention} />}
           {activeTab === 'stock' && <StockSection />}
