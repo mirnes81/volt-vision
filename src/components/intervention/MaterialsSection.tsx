@@ -323,22 +323,54 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             </div>
           )}
 
+          {/* Product selection grid with photos */}
           <div>
             <label className="text-sm font-medium mb-2 block">
               Produit {filteredProducts.length > 0 && `(${filteredProducts.length})`}
             </label>
-            <select
-              value={selectedProduct || ''}
-              onChange={(e) => setSelectedProduct(Number(e.target.value) || null)}
-              className="w-full h-14 px-4 bg-secondary rounded-xl text-base font-medium border-0 focus:ring-2 focus:ring-primary"
-            >
-              <option value="">Sélectionner un produit</option>
-              {filteredProducts.map((product) => (
-                <option key={product.id} value={product.id}>
-                  {product.ref} - {product.label}
-                </option>
-              ))}
-            </select>
+            <div className="max-h-64 overflow-y-auto rounded-xl border border-border/50 bg-secondary/30">
+              {filteredProducts.length === 0 ? (
+                <div className="p-6 text-center text-muted-foreground">
+                  <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Aucun produit trouvé</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border/30">
+                  {filteredProducts.slice(0, 50).map((product) => (
+                    <button
+                      key={product.id}
+                      type="button"
+                      onClick={() => setSelectedProduct(product.id)}
+                      className={cn(
+                        "w-full flex items-center gap-3 p-3 text-left transition-colors hover:bg-primary/5",
+                        selectedProduct === product.id && "bg-primary/10 border-l-4 border-primary"
+                      )}
+                    >
+                      <ProductPhoto src={product.photo} alt={product.label} size="md" />
+                      <div className="min-w-0 flex-1">
+                        <p className={cn(
+                          "font-medium truncate text-sm",
+                          selectedProduct === product.id && "text-primary"
+                        )}>
+                          {product.label}
+                        </p>
+                        <p className="text-xs text-muted-foreground">{product.ref}</p>
+                      </div>
+                      {product.price && (
+                        <span className="text-xs font-semibold text-primary shrink-0">
+                          {product.price.toFixed(2)} CHF
+                        </span>
+                      )}
+                    </button>
+                  ))}
+                  {filteredProducts.length > 50 && (
+                    <p className="text-xs text-center text-muted-foreground py-2">
+                      +{filteredProducts.length - 50} autres produits, affinez votre recherche
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
           </div>
 
           <div className="flex gap-3">
