@@ -62,19 +62,19 @@ function saveMaterialPhotos(interventionId: number, photos: MaterialPhoto[]) {
   localStorage.setItem(getMaterialPhotosKey(interventionId), JSON.stringify(photos));
 }
 
-// Product photo component with fallback
+// Product photo component with fallback - mobile optimized
 function ProductPhoto({ src, alt, size = 'md' }: { src?: string | null; alt: string; size?: 'sm' | 'md' | 'lg' }) {
   const [hasError, setHasError] = React.useState(false);
   
   const sizeClasses = {
-    sm: 'w-8 h-8',
-    md: 'w-12 h-12',
-    lg: 'w-16 h-16',
+    sm: 'w-7 h-7',
+    md: 'w-10 h-10',
+    lg: 'w-12 h-12',
   };
   
   if (!src || hasError) {
     return (
-      <div className={`${sizeClasses[size]} bg-muted rounded-lg flex items-center justify-center shrink-0`}>
+      <div className={`${sizeClasses[size]} bg-muted rounded-md flex items-center justify-center shrink-0`}>
         <Package className="w-1/2 h-1/2 text-muted-foreground/50" />
       </div>
     );
@@ -84,7 +84,7 @@ function ProductPhoto({ src, alt, size = 'md' }: { src?: string | null; alt: str
     <img
       src={src}
       alt={alt}
-      className={`${sizeClasses[size]} rounded-lg object-cover shrink-0 border border-border/50`}
+      className={`${sizeClasses[size]} rounded-md object-cover shrink-0 border border-border/50`}
       onError={() => setHasError(true)}
     />
   );
@@ -286,53 +286,50 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
         className="hidden"
       />
 
-      {/* Add Button */}
+      {/* Add Button - Compact */}
       <Button
         variant="worker"
-        size="full"
+        size="sm"
         onClick={() => setShowAdd(!showAdd)}
-        className="gap-3"
+        className="w-full gap-2 h-10"
       >
-        <Plus className="w-5 h-5" />
-        Ajouter du matériel
+        <Plus className="w-4 h-4" />
+        Ajouter matériel
       </Button>
 
-      {/* Add Form */}
+      {/* Add Form - Mobile Optimized */}
       {showAdd && (
-        <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50 space-y-4 animate-slide-up">
+        <div className="bg-card rounded-xl p-3 shadow-card border border-border/50 space-y-3 animate-slide-up">
           <div>
-            <label className="text-sm font-medium mb-2 block">Rechercher un produit</label>
+            <label className="text-xs font-medium mb-1.5 block text-muted-foreground">Rechercher</label>
             <Input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tapez pour rechercher..."
-              className="h-12 text-base"
+              className="h-10 text-sm"
             />
           </div>
 
           {selectedProductData && (
-            <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
-              <ProductPhoto src={selectedProductData.photo} alt={selectedProductData.label} size="lg" />
+            <div className="flex items-center gap-2 p-2 bg-primary/5 rounded-lg border border-primary/20">
+              <ProductPhoto src={selectedProductData.photo} alt={selectedProductData.label} size="md" />
               <div className="min-w-0 flex-1">
-                <p className="font-semibold truncate">{selectedProductData.label}</p>
-                <p className="text-sm text-muted-foreground">{selectedProductData.ref}</p>
-                {selectedProductData.price && (
-                  <p className="text-xs text-primary font-medium">{selectedProductData.price.toFixed(2)} CHF</p>
-                )}
+                <p className="font-semibold truncate text-sm">{selectedProductData.label}</p>
+                <p className="text-xs text-muted-foreground">{selectedProductData.ref}</p>
               </div>
             </div>
           )}
 
-          {/* Product selection grid with photos */}
+          {/* Product selection grid with photos - Compact for mobile */}
           <div>
-            <label className="text-sm font-medium mb-2 block">
+            <label className="text-xs font-medium mb-1.5 block text-muted-foreground">
               Produit {filteredProducts.length > 0 && `(${filteredProducts.length})`}
             </label>
-            <div className="max-h-72 overflow-y-auto rounded-xl border border-border/50 bg-secondary/30">
+            <div className="max-h-48 overflow-y-auto rounded-lg border border-border/50 bg-secondary/30">
               {filteredProducts.length === 0 ? (
-                <div className="p-6 text-center text-muted-foreground">
-                  <Package className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                  <p className="text-sm">Aucun produit trouvé</p>
+                <div className="p-4 text-center text-muted-foreground">
+                  <Package className="w-6 h-6 mx-auto mb-1 opacity-50" />
+                  <p className="text-xs">Aucun produit trouvé</p>
                 </div>
               ) : (
                 <div className="divide-y divide-border/30">
@@ -342,25 +339,25 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
                       type="button"
                       onClick={() => setSelectedProduct(product.id)}
                       className={cn(
-                        "w-full flex items-center gap-3 p-3 text-left transition-colors hover:bg-primary/5",
-                        selectedProduct === product.id && "bg-primary/10 border-l-4 border-primary"
+                        "w-full flex items-center gap-2 p-2 text-left transition-colors active:bg-primary/10",
+                        selectedProduct === product.id && "bg-primary/10 border-l-3 border-primary"
                       )}
                     >
-                      <ProductPhoto src={product.photo} alt={product.label} size="md" />
+                      <ProductPhoto src={product.photo} alt={product.label} size="sm" />
                       <div className="min-w-0 flex-1">
                         <p className={cn(
-                          "font-medium truncate text-sm",
+                          "font-medium truncate text-xs",
                           selectedProduct === product.id && "text-primary"
                         )}>
                           {product.label}
                         </p>
-                        <p className="text-xs text-muted-foreground">{product.ref}</p>
+                        <p className="text-[10px] text-muted-foreground">{product.ref}</p>
                       </div>
                     </button>
                   ))}
                   {filteredProducts.length > 50 && (
-                    <p className="text-xs text-center text-muted-foreground py-2">
-                      +{filteredProducts.length - 50} autres produits, affinez votre recherche
+                    <p className="text-[10px] text-center text-muted-foreground py-1.5">
+                      +{filteredProducts.length - 50} autres
                     </p>
                   )}
                 </div>
@@ -368,41 +365,42 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Quantité</label>
+              <label className="text-xs font-medium mb-1.5 block text-muted-foreground">Qté</label>
               <Input
                 type="number"
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
-                className="h-14 text-base font-medium text-center"
+                className="h-10 text-sm font-medium text-center"
                 min="0.1"
                 step="0.1"
               />
             </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-2 block">Unité</label>
+            <div className="w-16">
+              <label className="text-xs font-medium mb-1.5 block text-muted-foreground">Unité</label>
               <Input
                 value={products.find(p => p.id === selectedProduct)?.unit || '-'}
                 readOnly
-                className="h-14 text-base font-medium text-center bg-muted"
+                className="h-10 text-sm font-medium text-center bg-muted"
               />
             </div>
           </div>
 
           <div>
-            <label className="text-sm font-medium mb-2 block">Commentaire (optionnel)</label>
+            <label className="text-xs font-medium mb-1.5 block text-muted-foreground">Commentaire</label>
             <Input
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               placeholder="Ex: Posé dans cuisine"
-              className="h-14 text-base"
+              className="h-10 text-sm"
             />
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-2">
             <Button
               variant="worker-ghost"
+              size="sm"
               className="flex-1"
               onClick={() => {
                 setShowAdd(false);
@@ -414,6 +412,7 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             </Button>
             <Button
               variant="worker"
+              size="sm"
               className="flex-1"
               onClick={handleAdd}
               disabled={!selectedProduct || isLoading}
@@ -424,18 +423,18 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
         </div>
       )}
 
-      {/* Materials List */}
-      <div className="space-y-2">
-        <h4 className="text-sm font-semibold text-muted-foreground px-1">
+      {/* Materials List - Mobile Optimized */}
+      <div className="space-y-1.5">
+        <h4 className="text-xs font-semibold text-muted-foreground px-1">
           Matériel posé {allMaterials.length > 0 && `(${allMaterials.length})`}
         </h4>
         {allMaterials.length === 0 ? (
-          <div className="text-center py-8 text-muted-foreground">
-            <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
-            <p className="text-sm">Aucun matériel enregistré</p>
+          <div className="text-center py-6 text-muted-foreground">
+            <Package className="w-10 h-10 mx-auto mb-1.5 opacity-50" />
+            <p className="text-xs">Aucun matériel enregistré</p>
           </div>
         ) : (
-          <div className="space-y-3">
+          <div className="space-y-2">
             {allMaterials.map((material) => {
               const isLocal = localMaterials.some(m => m.id === material.id);
               const photos = getPhotosForMaterial(material.id);
@@ -443,80 +442,73 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
               return (
                 <div
                   key={material.id}
-                  className="bg-card rounded-xl p-3 border border-border/50 space-y-3"
+                  className="bg-card rounded-lg p-2 border border-border/50 space-y-2"
                 >
-                  <div className="flex items-center gap-3">
-                    <ProductPhoto src={material.photo} alt={material.productName} size="md" />
+                  <div className="flex items-center gap-2">
+                    <ProductPhoto src={material.photo} alt={material.productName} size="sm" />
                     
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
-                        <p className="font-semibold truncate text-sm">{material.productName}</p>
+                      <div className="flex items-center gap-1">
+                        <p className="font-semibold truncate text-xs">{material.productName}</p>
                         {isLocal && (
-                          <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded shrink-0">
+                          <span className="text-[10px] bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-1 py-0.5 rounded shrink-0">
                             Local
                           </span>
                         )}
                       </div>
                       {material.productRef && (
-                        <p className="text-xs text-muted-foreground">{material.productRef}</p>
-                      )}
-                      {material.comment && (
-                        <p className="text-xs text-muted-foreground truncate">{material.comment}</p>
+                        <p className="text-[10px] text-muted-foreground">{material.productRef}</p>
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex items-center gap-1.5 shrink-0">
                       <div className="text-right">
-                        <p className="text-lg font-bold text-primary">
+                        <p className="text-base font-bold text-primary">
                           {material.qtyUsed}
                         </p>
-                        <p className="text-xs text-muted-foreground">{material.unit}</p>
+                        <p className="text-[10px] text-muted-foreground">{material.unit}</p>
                       </div>
                       {isLocal && (
                         <Button
                           variant="ghost"
                           size="icon"
-                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          className="h-7 w-7 text-destructive hover:text-destructive"
                           onClick={() => handleRemoveLocal(material.id)}
                         >
-                          <Trash2 className="w-4 h-4" />
+                          <Trash2 className="w-3.5 h-3.5" />
                         </Button>
                       )}
                     </div>
                   </div>
 
-                  {/* Photos section for this material */}
-                  <div className="flex items-center gap-2 pt-2 border-t border-border/30">
-                    {/* Photo thumbnails */}
+                  {/* Photos section - compact */}
+                  <div className="flex items-center gap-1.5 pt-1.5 border-t border-border/30">
                     {photos.map((photo) => (
                       <button
                         key={photo.id}
                         onClick={() => setViewingPhoto(photo)}
-                        className="relative w-12 h-12 rounded-lg overflow-hidden border border-border/50 hover:border-primary transition-colors"
+                        className="relative w-10 h-10 rounded-md overflow-hidden border border-border/50 active:border-primary"
                       >
                         <img
                           src={photo.dataUrl}
                           alt="Photo matériel"
                           className="w-full h-full object-cover"
                         />
-                        <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
-                          <ZoomIn className="w-4 h-4 text-white opacity-0 hover:opacity-100" />
-                        </div>
                       </button>
                     ))}
                     
-                    {/* Add photo button */}
+                    {/* Add photo button - compact */}
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleCapturePhoto(material.id)}
                       className={cn(
-                        "h-12 gap-2 border-dashed",
-                        photos.length === 0 ? "flex-1" : "w-12 p-0"
+                        "h-10 gap-1.5 border-dashed",
+                        photos.length === 0 ? "flex-1" : "w-10 p-0"
                       )}
                     >
-                      <Camera className="w-4 h-4" />
-                      {photos.length === 0 && <span className="text-xs">Prendre photo</span>}
+                      <Camera className="w-3.5 h-3.5" />
+                      {photos.length === 0 && <span className="text-[10px]">Photo</span>}
                     </Button>
                   </div>
                 </div>
