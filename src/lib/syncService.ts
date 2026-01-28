@@ -15,7 +15,7 @@ async function callDolibarrApi<T>(action: string, params: Record<string, unknown
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${supabaseKey}`,
     },
-    body: JSON.stringify({ action, ...params }),
+    body: JSON.stringify({ action, params }), // Fixed: wrap params correctly
   });
 
   if (!response.ok) {
