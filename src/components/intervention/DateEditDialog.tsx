@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Calendar, Clock, Loader2, Edit2 } from 'lucide-react';
+import { Calendar, Clock, Loader2, Edit2, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
@@ -24,7 +24,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { toast } from '@/components/ui/sonner';
-import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -35,9 +34,20 @@ interface DateEditDialogProps {
   onDateUpdated: () => void;
 }
 
+// Save date override locally (Dolibarr API doesn't support PUT)
+function saveDateOverride(interventionId: number, date: Date) {
+  const key = `intervention_date_override_${interventionId}`;
+  localStorage.setItem(key, date.toISOString());
+}
+
+// Get local date override if exists
+export function getDateOverride(interventionId: number): string | null {
+  const key = `intervention_date_override_${interventionId}`;
+  return localStorage.getItem(key);
+}
+
 export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: DateEditDialogProps) {
   const [open, setOpen] = React.useState(false);
-  const [isLoading, setIsLoading] = React.useState(false);
   const [selectedDate, setSelectedDate] = React.useState<Date | undefined>(
     currentDate ? new Date(currentDate) : undefined
   );
@@ -51,57 +61,40 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
   // Reset when dialog opens
   React.useEffect(() => {
     if (open && currentDate) {
-      const date = new Date(currentDate);
+      // Check for local override first
+      const override = getDateOverride(interventionId);
+      const dateToUse = override || currentDate;
+      const date = new Date(dateToUse);
       setSelectedDate(date);
       setSelectedHour(date.getHours().toString().padStart(2, '0'));
       setSelectedMinute(date.getMinutes().toString().padStart(2, '0'));
     }
-  }, [open, currentDate]);
+  }, [open, currentDate, interventionId]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!selectedDate) {
-      toast.error('Veuillez sélectionner une date');
+      toast.error('Veuillez selectionner une date');
       return;
     }
 
-    setIsLoading(true);
+    // Build the new date with time
+    const newDate = new Date(selectedDate);
+    newDate.setHours(parseInt(selectedHour), parseInt(selectedMinute), 0, 0);
+    
+    // Save locally (Dolibarr API doesn't support PUT for interventions)
+    saveDateOverride(interventionId, newDate);
+    
+    toast.success('Date modifiee localement', {
+      description: 'Pour modifier dans Dolibarr, utilisez le lien ci-dessous.',
+    });
+    
+    setOpen(false);
+    onDateUpdated();
+  };
 
-    try {
-      // Build the new date with time
-      const newDate = new Date(selectedDate);
-      newDate.setHours(parseInt(selectedHour), parseInt(selectedMinute), 0, 0);
-      
-      // Convert to Unix timestamp for Dolibarr
-      const unixTimestamp = Math.floor(newDate.getTime() / 1000);
-
-      // Call the edge function to update the intervention date in Dolibarr
-      const { data, error } = await supabase.functions.invoke('dolibarr-api', {
-        body: {
-          action: 'update-intervention-date',
-          params: {
-            interventionId,
-            dateStart: unixTimestamp
-          }
-        }
-      });
-
-      if (error) {
-        throw new Error(error.message);
-      }
-
-      if (data?.error) {
-        throw new Error(data.error);
-      }
-
-      toast.success('Date modifiée avec succès');
-      setOpen(false);
-      onDateUpdated();
-    } catch (error) {
-      console.error('Error updating date:', error);
-      toast.error('Erreur lors de la modification de la date');
-    } finally {
-      setIsLoading(false);
-    }
+  const openInDolibarr = () => {
+    const url = `https://crm.enes-electricite.ch/fichinter/card.php?id=${interventionId}`;
+    window.open(url, '_blank');
   };
 
   // Generate hours options
@@ -122,11 +115,25 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
             Modifier la date d'intervention
           </DialogTitle>
           <DialogDescription>
-            Sélectionnez une nouvelle date et heure pour cette intervention.
+            Selectionnez une nouvelle date et heure pour cette intervention.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* API Limitation Warning */}
+          <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <p className="font-medium text-amber-800 dark:text-amber-300">
+                Modification locale uniquement
+              </p>
+              <p className="text-amber-700 dark:text-amber-400 mt-1">
+                L'API Dolibarr ne permet pas la modification des dates. 
+                La date sera sauvegardee localement sur cet appareil.
+              </p>
+            </div>
+          </div>
+
           {/* Date picker */}
           <div className="space-y-2">
             <label className="text-sm font-medium">Date</label>
@@ -143,7 +150,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
                   {selectedDate ? (
                     format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })
                   ) : (
-                    <span>Sélectionner une date</span>
+                    <span>Selectionner une date</span>
                   )}
                 </Button>
               </PopoverTrigger>
@@ -201,26 +208,29 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
                 Nouvelle date:
               </p>
               <p className="text-lg font-bold">
-                {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })} à {selectedHour}:{selectedMinute}
+                {format(selectedDate, "EEEE d MMMM yyyy", { locale: fr })} a {selectedHour}:{selectedMinute}
               </p>
             </div>
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => setOpen(false)} disabled={isLoading}>
-            Annuler
+        <DialogFooter className="flex-col sm:flex-row gap-2">
+          <Button 
+            variant="outline" 
+            onClick={openInDolibarr}
+            className="gap-2 w-full sm:w-auto"
+          >
+            <ExternalLink className="w-4 h-4" />
+            Ouvrir dans Dolibarr
           </Button>
-          <Button onClick={handleSave} disabled={isLoading || !selectedDate}>
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Enregistrement...
-              </>
-            ) : (
-              'Enregistrer'
-            )}
-          </Button>
+          <div className="flex gap-2 w-full sm:w-auto">
+            <Button variant="ghost" onClick={() => setOpen(false)}>
+              Annuler
+            </Button>
+            <Button onClick={handleSave} disabled={!selectedDate}>
+              Sauvegarder localement
+            </Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
