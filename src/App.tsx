@@ -27,11 +27,15 @@ import InstallPage from "./pages/InstallPage";
 import EmergenciesPage from "./pages/EmergenciesPage";
 import NotFound from "./pages/NotFound";
 import { rescheduleRemindersOnStart } from "@/lib/interventionReminders";
+import { cleanupCorruptedPendingSync } from "@/lib/offlineStorage";
 
 const queryClient = new QueryClient();
 
 // Reschedule reminders when app starts
 rescheduleRemindersOnStart();
+
+// Clean up corrupted sync items on startup
+cleanupCorruptedPendingSync().catch(console.error);
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading } = useAuth();
