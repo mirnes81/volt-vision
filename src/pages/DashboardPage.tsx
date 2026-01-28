@@ -112,23 +112,23 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="pb-4">
+    <div className="pb-2">
       <Header title="ENES Électricité" showNotifications />
 
-      <div className="px-4 lg:px-6 space-y-6">
-        {/* Welcome Section */}
-        <div className="pt-4">
+      <div className="px-3 lg:px-6 space-y-3">
+        {/* Welcome Section - Compact */}
+        <div className="pt-2">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm text-muted-foreground capitalize">{currentDate}</p>
-              <h2 className="text-2xl lg:text-3xl font-bold mt-1">
+              <p className="text-xs text-muted-foreground capitalize">{currentDate}</p>
+              <h2 className="text-lg lg:text-2xl font-bold">
                 Bonjour, {worker?.firstName || 'Technicien'} 👋
               </h2>
             </div>
-            <div className={`flex items-center gap-1 px-2 py-1 rounded-full text-xs ${
+            <div className={`flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] ${
               isOnline ? 'bg-success/10 text-success' : 'bg-warning/10 text-warning'
             }`}>
-              {isOnline ? <Wifi className="w-3 h-3" /> : <WifiOff className="w-3 h-3" />}
+              {isOnline ? <Wifi className="w-2.5 h-2.5" /> : <WifiOff className="w-2.5 h-2.5" />}
               {isOnline ? 'En ligne' : 'Hors ligne'}
             </div>
           </div>
@@ -137,21 +137,21 @@ export default function DashboardPage() {
         {/* Tabs for Dashboard Views */}
         <Tabs defaultValue="overview" className="w-full">
           <TabsList className={cn(
-            "grid w-full mb-4",
+            "grid w-full mb-2 h-9",
             isAdmin ? "grid-cols-3 lg:w-auto lg:inline-grid" : "grid-cols-2 lg:w-auto lg:inline-grid"
           )}>
-            <TabsTrigger value="overview" className="gap-2">
-              <ClipboardList className="w-4 h-4" />
+            <TabsTrigger value="overview" className="gap-1.5 text-xs py-1.5">
+              <ClipboardList className="w-3.5 h-3.5" />
               <span className="hidden sm:inline">Vue d'ensemble</span>
               <span className="sm:hidden">Accueil</span>
             </TabsTrigger>
-            <TabsTrigger value="analytics" className="gap-2">
-              <BarChart3 className="w-4 h-4" />
+            <TabsTrigger value="analytics" className="gap-1.5 text-xs py-1.5">
+              <BarChart3 className="w-3.5 h-3.5" />
               Productivité
             </TabsTrigger>
             {isAdmin && (
-              <TabsTrigger value="team" className="gap-2">
-                <UsersRound className="w-4 h-4" />
+              <TabsTrigger value="team" className="gap-1.5 text-xs py-1.5">
+                <UsersRound className="w-3.5 h-3.5" />
                 Équipe
               </TabsTrigger>
             )}
@@ -161,64 +161,68 @@ export default function DashboardPage() {
             {/* Desktop Layout */}
             <div className="lg:grid lg:grid-cols-3 lg:gap-6">
               {/* Left Column - Main Content */}
-              <div className="lg:col-span-2 space-y-6">
+              <div className="lg:col-span-2 space-y-3">
                 {/* KPIs Cards */}
                 <DashboardKPIs />
 
-            {/* Quick Actions - Mobile */}
-            <div className="grid grid-cols-2 gap-3 lg:hidden">
+            {/* Quick Actions - Mobile - Compact */}
+            <div className="grid grid-cols-2 gap-2 lg:hidden">
               <Link 
                 to="/intervention/new"
-                className="flex flex-col items-center justify-center bg-gradient-to-r from-success to-emerald-500 rounded-2xl p-4 text-white shadow-lg card-hover"
+                className="flex items-center gap-2 bg-gradient-to-r from-success to-emerald-500 rounded-xl p-3 text-white shadow-md"
               >
-                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2">
-                  <Plus className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                  <Plus className="w-5 h-5" />
                 </div>
-                <p className="font-bold text-sm">Nouvelle</p>
-                <p className="text-xs opacity-80">Intervention</p>
+                <div>
+                  <p className="font-bold text-sm">Nouvelle</p>
+                  <p className="text-[10px] opacity-80">Intervention</p>
+                </div>
               </Link>
 
               <Link 
                 to="/interventions"
-                className="flex flex-col items-center justify-center bg-gradient-to-r from-primary to-accent rounded-2xl p-4 text-primary-foreground shadow-lg card-hover"
+                className="flex items-center gap-2 bg-gradient-to-r from-primary to-accent rounded-xl p-3 text-primary-foreground shadow-md"
               >
-                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center mb-2">
-                  <ClipboardList className="w-6 h-6" />
+                <div className="w-10 h-10 rounded-lg bg-white/20 flex items-center justify-center shrink-0">
+                  <ClipboardList className="w-5 h-5" />
                 </div>
-                <p className="font-bold text-sm">Interventions</p>
-                <p className="text-xs opacity-80">{inProgressCount} en cours</p>
+                <div>
+                  <p className="font-bold text-sm">Interventions</p>
+                  <p className="text-[10px] opacity-80">{inProgressCount} en cours</p>
+                </div>
               </Link>
             </div>
 
-            {/* Recent Interventions */}
+            {/* Recent Interventions - Compact */}
             <div>
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="font-bold text-lg">Dernières interventions</h3>
-                <Link to="/interventions" className="text-sm text-primary font-medium flex items-center gap-1 hover:underline">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="font-bold text-sm">Dernières interventions</h3>
+                <Link to="/interventions" className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline">
                   Voir tout
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
               {isLoading ? (
-                <div className="grid gap-2">
+                <div className="grid gap-1.5">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <Skeleton key={i} className="h-20 rounded-xl" />
+                    <Skeleton key={i} className="h-16 rounded-lg" />
                   ))}
                 </div>
               ) : interventions.length === 0 ? (
-                <div className="text-center py-12 text-muted-foreground bg-card rounded-2xl border border-border/50">
-                  <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Aucune intervention récente</p>
-                  <Link to="/intervention/new" className="mt-4 inline-block">
-                    <Button className="gap-2">
-                      <Plus className="w-4 h-4" />
+                <div className="text-center py-8 text-muted-foreground bg-card rounded-xl border border-border/50">
+                  <ClipboardList className="w-10 h-10 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">Aucune intervention récente</p>
+                  <Link to="/intervention/new" className="mt-3 inline-block">
+                    <Button size="sm" className="gap-1.5">
+                      <Plus className="w-3.5 h-3.5" />
                       Créer une intervention
                     </Button>
                   </Link>
                 </div>
               ) : (
-                <div className="grid gap-2">
+                <div className="grid gap-1.5">
                   {interventions.slice(0, 8).map((intervention) => (
                     <InterventionCardCompact 
                       key={intervention.id} 
