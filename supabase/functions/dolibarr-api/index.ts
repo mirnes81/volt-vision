@@ -687,7 +687,7 @@ serve(async (req) => {
         break;
       }
 
-      // Intervention Lines
+      // Intervention Lines (Materials)
       case 'add-intervention-line':
         endpoint = `/interventions/${params.interventionId}/lines`;
         method = 'POST';
@@ -696,6 +696,7 @@ serve(async (req) => {
           qty: params.qty,
           description: params.description || 'Matériel ajouté',
           date: Math.floor(Date.now() / 1000), // Unix timestamp required by Dolibarr
+          duree: 0, // Duration in minutes - required by Dolibarr, 0 for material lines
         });
         break;
       case 'update-intervention-line':
