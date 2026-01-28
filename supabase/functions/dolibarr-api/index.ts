@@ -663,9 +663,9 @@ serve(async (req) => {
         body = JSON.stringify(params.data);
         break;
 
-      // Products - with photo URL
+      // Products - with photo URL from documents API
       case 'get-products': {
-        const productsEndpoint = '/products' + (params?.search ? `?sqlfilters=(t.label:like:'%${params.search}%')&limit=50` : '?limit=500');
+        const productsEndpoint = '/products?limit=500';
         
         const productsResponse = await fetchWithTimeout(`${baseUrl}${productsEndpoint}`, { method: 'GET', headers }, 15000);
         
@@ -680,29 +680,66 @@ serve(async (req) => {
         const productsData = await productsResponse.json();
         const dolibarrBaseUrl = DOLIBARR_URL.replace(/\/+$/, '');
         
-        const enrichedProducts = Array.isArray(productsData) ? productsData.map((p: any) => {
-          // Dolibarr stores photo in 'photo' field or 'photos' array
-          let photoUrl = null;
-          const photoFileName = p.photo || (Array.isArray(p.photos) && p.photos.length > 0 ? p.photos[0] : null);
+        // For each product, try to get documents (photos) in parallel - but limit to avoid timeout
+        // We'll fetch documents for a sample of products to check the API format
+        const productsList = Array.isArray(productsData) ? productsData : [];
+        
+        // Fetch documents for first 20 products in parallel to get photos
+        const productsToEnrich = productsList.slice(0, 30);
+        const documentPromises = productsToEnrich.map(async (p: any) => {
+          try {
+            // Use documents API to get product files: GET /documents?modulepart=product&id={product_id}
+            const docResponse = await fetchWithTimeout(
+              `${baseUrl}/documents?modulepart=product&id=${p.id}`, 
+              { method: 'GET', headers }, 
+              3000
+            );
+            if (docResponse.ok) {
+              const docs = await docResponse.json();
+              // Find first image file
+              const imageDoc = Array.isArray(docs) ? docs.find((d: any) => 
+                /\.(jpg|jpeg|png|gif|webp)$/i.test(d.name || d.filename || '')
+              ) : null;
+              return { id: parseInt(p.id), photo: imageDoc };
+            }
+          } catch (e) {
+            // Ignore errors for document fetching
+          }
+          return { id: parseInt(p.id), photo: null };
+        });
+        
+        const documentResults = await Promise.allSettled(documentPromises);
+        const photoMap = new Map<number, any>();
+        documentResults.forEach((result) => {
+          if (result.status === 'fulfilled' && result.value) {
+            photoMap.set(result.value.id, result.value.photo);
+          }
+        });
+        
+        const enrichedProducts = productsList.map((p: any) => {
+          const productId = parseInt(p.id);
+          const docPhoto = photoMap.get(productId);
           
-          if (photoFileName) {
-            // Dolibarr viewimage.php format for products
-            // The file is stored as: product/{ref}/{filename}
+          let photoUrl = null;
+          if (docPhoto) {
+            // Build URL from document info
+            // Dolibarr documents are accessed via: viewimage.php?modulepart=product&file=REF/filename
+            const fileName = docPhoto.name || docPhoto.filename;
             const cleanRef = (p.ref || '').replace(/[\/\\]/g, '_');
-            photoUrl = `${dolibarrBaseUrl}/viewimage.php?modulepart=product&entity=${p.entity || 1}&file=${encodeURIComponent(cleanRef)}%2F${encodeURIComponent(photoFileName)}`;
+            photoUrl = `${dolibarrBaseUrl}/viewimage.php?modulepart=product&entity=${p.entity || 1}&file=${encodeURIComponent(cleanRef)}%2F${encodeURIComponent(fileName)}`;
           }
           
           return {
-            id: parseInt(p.id),
+            id: productId,
             ref: p.ref || '',
             label: p.label || p.description || '',
             unit: p.fk_unit_label || p.unit || 'pce',
             price: parseFloat(p.price || p.price_ttc || '0'),
             barcode: p.barcode || '',
             photo: photoUrl,
-            photoFile: photoFileName || null,
+            photoFile: docPhoto?.name || docPhoto?.filename || null,
           };
-        }) : [];
+        });
         
         return new Response(
           JSON.stringify(enrichedProducts),
