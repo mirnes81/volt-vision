@@ -660,10 +660,41 @@ serve(async (req) => {
         body = JSON.stringify(params.data);
         break;
 
-      // Products
-      case 'get-products':
-        endpoint = '/products' + (params?.search ? `?sqlfilters=(t.label:like:'%${params.search}%')&limit=50` : '?limit=100');
-        break;
+      // Products - with photo URL
+      case 'get-products': {
+        const productsEndpoint = '/products' + (params?.search ? `?sqlfilters=(t.label:like:'%${params.search}%')&limit=50` : '?limit=500');
+        
+        const productsResponse = await fetchWithTimeout(`${baseUrl}${productsEndpoint}`, { method: 'GET', headers }, 15000);
+        
+        if (!productsResponse.ok) {
+          const errText = await productsResponse.text();
+          return new Response(
+            JSON.stringify({ error: `Erreur Dolibarr ${productsResponse.status}`, details: errText }),
+            { status: productsResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        const productsData = await productsResponse.json();
+        const dolibarrBaseUrl = DOLIBARR_URL.replace(/\/+$/, '');
+        
+        const enrichedProducts = Array.isArray(productsData) ? productsData.map((p: any) => ({
+          id: parseInt(p.id),
+          ref: p.ref || '',
+          label: p.label || p.description || '',
+          unit: p.fk_unit_label || p.unit || 'pce',
+          price: parseFloat(p.price || p.price_ttc || '0'),
+          barcode: p.barcode || '',
+          // Dolibarr product photo path - format: product/{entity}/{ref}/photos/{filename}
+          photo: p.photo ? `${dolibarrBaseUrl}/viewimage.php?modulepart=product&entity=${p.entity || 1}&file=${encodeURIComponent(p.ref)}/${encodeURIComponent(p.photo)}` : null,
+          // Alternative: use document API for photos
+          photoFile: p.photo || null,
+        })) : [];
+        
+        return new Response(
+          JSON.stringify(enrichedProducts),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       case 'get-product':
         endpoint = `/products/${params.id}`;
         break;
