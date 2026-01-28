@@ -276,40 +276,18 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
         ? `${existingNotes}\n\n${newNote}`
         : newNote;
       
-      // Save locally first
+      // Save locally - Dolibarr API doesn't support PUT for interventions
       localStorage.setItem(notesKey, updatedNotes);
       
-      if (isOnline()) {
-        // Send to Dolibarr as note_private update
-        const { error } = await supabase.functions.invoke('dolibarr-api', {
-          body: {
-            action: 'update-intervention',
-            params: {
-              id: intervention.id,
-              data: {
-                note_private: updatedNotes
-              }
-            }
-          }
-        });
-        
-        if (error) {
-          throw new Error(error.message);
-        }
-        
-        toast.success('Note ajoutée à l\'intervention');
-      } else {
-        // Queue for offline sync
-        await addPendingSync('note', intervention.id, {
-          note_private: updatedNotes
-        });
-        
-        
-        toast.success('Note sauvegardée (synchronisation hors-ligne)');
-      }
+      // Dispatch custom event to notify other components
+      window.dispatchEvent(new CustomEvent('intervention-notes-updated', {
+        detail: { interventionId: intervention.id, notes: updatedNotes }
+      }));
+      
+      toast.success('Note ajoutée au rapport local');
     } catch (error) {
       console.error('Send to notes error:', error);
-      toast.error("Erreur lors de l'envoi de la note");
+      toast.error("Erreur lors de l'ajout de la note");
     } finally {
       setSendingId(null);
     }
