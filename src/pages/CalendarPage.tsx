@@ -8,6 +8,7 @@ import { getAllInterventions } from '@/lib/api';
 import { Intervention } from '@/types/intervention';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { getDateOverride } from '@/components/intervention/DateEditDialog';
 
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const DAYS_DE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -19,7 +20,7 @@ const MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin', 'Juill
 const MONTHS_DE = ['Januar', 'Februar', 'März', 'April', 'Mai', 'Juni', 'Juli', 'August', 'September', 'Oktober', 'November', 'Dezember'];
 const MONTHS_IT = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
-type ViewMode = 'week' | 'month' | 'day';
+type ViewMode = 'day' | 'week' | 'month' | 'thirty';
 
 const typeColors: Record<string, { bg: string; border: string; text: string }> = {
   installation: { bg: 'bg-primary/10', border: 'border-l-primary', text: 'text-primary' },
@@ -75,11 +76,25 @@ export default function CalendarPage() {
       newDate.setDate(newDate.getDate() + (direction === 'next' ? 1 : -1));
     } else if (viewMode === 'week') {
       newDate.setDate(newDate.getDate() + (direction === 'next' ? 7 : -7));
+    } else if (viewMode === 'thirty') {
+      newDate.setDate(newDate.getDate() + (direction === 'next' ? 30 : -30));
     } else {
       newDate.setMonth(newDate.getMonth() + (direction === 'next' ? 1 : -1));
     }
     setCurrentDate(newDate);
     if (viewMode === 'day') setSelectedDate(newDate);
+  };
+
+  // Get 30 days dates starting from current date
+  const getThirtyDaysDates = () => {
+    const dates = [];
+    const startDate = new Date(currentDate);
+    for (let i = 0; i < 30; i++) {
+      const date = new Date(startDate);
+      date.setDate(startDate.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
   };
 
   const getWeekDates = () => {
@@ -123,19 +138,27 @@ export default function CalendarPage() {
     return dates;
   };
 
-  // Filter interventions by date using dateStart
+  // Get effective date for intervention (local override or dateStart)
+  const getEffectiveDate = (int: Intervention): string | null => {
+    const localOverride = getDateOverride(int.id);
+    return localOverride || int.dateStart || null;
+  };
+
+  // Filter interventions by date using effective date (local override or dateStart)
   const getInterventionsForDate = (date: Date) => {
     return interventions.filter(int => {
-      if (!int.dateStart) return false;
-      const intDate = new Date(int.dateStart);
+      const effectiveDate = getEffectiveDate(int);
+      if (!effectiveDate) return false;
+      const intDate = new Date(effectiveDate);
       return intDate.toDateString() === date.toDateString();
     });
   };
 
-  // Get time from dateStart
+  // Get time from effective date
   const getInterventionTime = (intervention: Intervention): string | null => {
-    if (!intervention.dateStart) return null;
-    const date = new Date(intervention.dateStart);
+    const effectiveDate = getEffectiveDate(intervention);
+    if (!effectiveDate) return null;
+    const date = new Date(effectiveDate);
     const hours = date.getHours();
     const minutes = date.getMinutes();
     if (hours === 0 && minutes === 0) return null;
@@ -147,11 +170,14 @@ export default function CalendarPage() {
 
   const weekDates = getWeekDates();
   const monthDates = getMonthDates();
+  const thirtyDaysDates = getThirtyDaysDates();
   const selectedInterventions = React.useMemo(() => {
     return getInterventionsForDate(selectedDate).sort((a, b) => {
-      if (!a.dateStart) return 1;
-      if (!b.dateStart) return -1;
-      return new Date(a.dateStart).getTime() - new Date(b.dateStart).getTime();
+      const dateA = getEffectiveDate(a);
+      const dateB = getEffectiveDate(b);
+      if (!dateA) return 1;
+      if (!dateB) return -1;
+      return new Date(dateA).getTime() - new Date(dateB).getTime();
     });
   }, [selectedDate, interventions]);
 
@@ -159,8 +185,9 @@ export default function CalendarPage() {
   const hours = Array.from({ length: 12 }, (_, i) => i + 7); // 7h to 18h
 
   const getInterventionPosition = (int: Intervention) => {
-    if (!int.dateStart) return null;
-    const date = new Date(int.dateStart);
+    const effectiveDate = getEffectiveDate(int);
+    if (!effectiveDate) return null;
+    const date = new Date(effectiveDate);
     const hour = date.getHours();
     const minute = date.getMinutes();
     if (hour < 7 || hour > 18) return null;
@@ -191,7 +218,7 @@ export default function CalendarPage() {
             <button
               onClick={() => setViewMode('day')}
               className={cn(
-                "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors hidden lg:block",
+                "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
                 viewMode === 'day'
                   ? "bg-primary text-primary-foreground"
                   : "bg-secondary text-muted-foreground hover:text-foreground"
@@ -219,7 +246,18 @@ export default function CalendarPage() {
                   : "bg-secondary text-muted-foreground hover:text-foreground"
               )}
             >
-              {t('calendar.month')}
+              Mois
+            </button>
+            <button
+              onClick={() => setViewMode('thirty')}
+              className={cn(
+                "px-3 py-1.5 rounded-lg text-sm font-medium transition-colors",
+                viewMode === 'thirty'
+                  ? "bg-primary text-primary-foreground"
+                  : "bg-secondary text-muted-foreground hover:text-foreground"
+              )}
+            >
+              30j
             </button>
           </div>
           <div className="flex items-center gap-2">
@@ -243,11 +281,13 @@ export default function CalendarPage() {
           >
             <ChevronLeft className="w-5 h-5" />
           </button>
-          <h2 className="text-lg font-bold">
+          <h2 className="text-lg font-bold text-center">
             {viewMode === 'day'
               ? `${DAYS_FULL_FR[currentDate.getDay() === 0 ? 6 : currentDate.getDay() - 1]} ${currentDate.getDate()} ${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`
               : viewMode === 'week'
               ? `${weekDates[0].getDate()} - ${weekDates[6].getDate()} ${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`
+              : viewMode === 'thirty'
+              ? `${thirtyDaysDates[0].getDate()} ${months[thirtyDaysDates[0].getMonth()]} - ${thirtyDaysDates[29].getDate()} ${months[thirtyDaysDates[29].getMonth()]}`
               : `${months[currentDate.getMonth()]} ${currentDate.getFullYear()}`
             }
           </h2>
@@ -705,6 +745,90 @@ export default function CalendarPage() {
                 })}
               </div>
             )}
+          </div>
+        )}
+
+        {/* 30 Days View */}
+        {viewMode === 'thirty' && (
+          <div className="bg-card rounded-2xl shadow-card border border-border/50 overflow-hidden">
+            <div className="divide-y divide-border max-h-[70vh] overflow-y-auto">
+              {thirtyDaysDates.map((date, idx) => {
+                const dayInterventions = getInterventionsForDate(date);
+                const today = isToday(date);
+                const dayName = DAYS_FULL_FR[date.getDay() === 0 ? 6 : date.getDay() - 1];
+                
+                return (
+                  <div
+                    key={idx}
+                    className={cn(
+                      "p-3",
+                      today && "bg-primary/5"
+                    )}
+                  >
+                    {/* Date header */}
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <span className={cn(
+                          "text-sm font-semibold",
+                          today && "text-primary"
+                        )}>
+                          {dayName}
+                        </span>
+                        <span className={cn(
+                          "text-lg font-bold",
+                          today && "bg-primary text-primary-foreground px-2 py-0.5 rounded-full"
+                        )}>
+                          {date.getDate()}
+                        </span>
+                        <span className="text-sm text-muted-foreground">
+                          {months[date.getMonth()]}
+                        </span>
+                      </div>
+                      {dayInterventions.length > 0 && (
+                        <span className="text-xs font-medium text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+                          {dayInterventions.length} intervention{dayInterventions.length > 1 ? 's' : ''}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* Interventions for the day */}
+                    {dayInterventions.length > 0 ? (
+                      <div className="space-y-2 ml-2">
+                        {dayInterventions.map((int) => {
+                          const time = getInterventionTime(int);
+                          const colors = typeColors[int.type] || typeColors.installation;
+                          
+                          return (
+                            <Link
+                              key={int.id}
+                              to={`/intervention/${int.id}`}
+                              className={cn(
+                                "block p-2 rounded-lg border-l-4 transition-all hover:shadow-md",
+                                colors.bg,
+                                colors.border
+                              )}
+                            >
+                              <div className="flex items-center gap-2">
+                                {time && (
+                                  <span className="text-xs font-bold text-muted-foreground">{time}</span>
+                                )}
+                                {int.priority === 'urgent' && (
+                                  <AlertTriangle className="w-3 h-3 text-destructive" />
+                                )}
+                                <span className="font-medium text-sm truncate flex-1">{int.label}</span>
+                                <span className="text-xs text-muted-foreground truncate max-w-[120px]">{int.clientName}</span>
+                              </div>
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    ) : (
+                      <p className="text-xs text-muted-foreground ml-2 italic">Aucune intervention</p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           </div>
         )}
       </div>
