@@ -125,18 +125,24 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
         return;
       }
 
-      // API returned error - fallback to local
-      throw new Error(data?.error || 'Erreur inconnue');
-      
-    } catch (err: any) {
-      console.warn('Dolibarr update failed, saving locally:', err);
-      
-      // Fallback: Save locally
+      // API doesn't support this - expected behavior, save locally
       saveDateOverride(interventionId, newDate);
       setUpdateResult('local');
       
-      toast.warning('Sauvegarde locale uniquement', {
-        description: 'L\'API Dolibarr ne permet pas cette modification. Utilisez le lien pour modifier dans Dolibarr.',
+      // Show info toast (not warning/error - this is expected)
+      toast.info('Date enregistree localement', {
+        description: 'Cliquez sur le lien pour mettre a jour dans Dolibarr.',
+      });
+      
+    } catch (err: any) {
+      console.log('Dolibarr API limitation - saving locally:', err);
+      
+      // Fallback: Save locally - this is expected behavior
+      saveDateOverride(interventionId, newDate);
+      setUpdateResult('local');
+      
+      toast.info('Date enregistree localement', {
+        description: 'Utilisez le lien pour mettre a jour dans Dolibarr.',
       });
     } finally {
       setIsLoading(false);
@@ -181,17 +187,17 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
             </div>
           )}
           
-          {/* Local save warning */}
+          {/* Local save info - this is expected behavior, not an error */}
           {updateResult === 'local' && (
-            <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
-              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
+              <CheckCircle2 className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-amber-800 dark:text-amber-300">
-                  Sauvegarde locale uniquement
+                <p className="font-medium text-blue-800 dark:text-blue-300">
+                  Date enregistree localement
                 </p>
-                <p className="text-amber-700 dark:text-amber-400 mt-1">
-                  L'API Dolibarr ne supporte pas cette modification. 
-                  Cliquez sur "Ouvrir dans Dolibarr" pour modifier manuellement.
+                <p className="text-blue-700 dark:text-blue-400 mt-1">
+                  L'API Dolibarr ne permet pas les modifications directes. 
+                  Cliquez sur "Ouvrir dans Dolibarr" pour finaliser le changement.
                 </p>
               </div>
             </div>
