@@ -6,7 +6,7 @@ import { InterventionAssignment } from '@/types/assignments';
 import { cn } from '@/lib/utils';
 import { updateInterventionStatus } from '@/lib/dolibarrApi';
 import { toast } from '@/components/ui/sonner';
-
+import { getDateOverride } from '@/components/intervention/DateEditDialog';
 interface InterventionCardProps {
   intervention: Intervention;
   supabaseAssignments?: InterventionAssignment[];
@@ -105,8 +105,9 @@ export function InterventionCard({ intervention, supabaseAssignments = [], onSta
   const totalTasks = intervention.tasks.length;
   const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
 
-  // Use dateStart or datePlanned for the intervention date
-  const interventionDate = formatDateWithDay(intervention.dateStart || intervention.datePlanned);
+  // Use local override if exists, otherwise dateStart or datePlanned
+  const localOverride = getDateOverride(intervention.id);
+  const interventionDate = formatDateWithDay(localOverride || intervention.dateStart || intervention.datePlanned);
 
   const briefing = intervention.briefing || intervention.description;
   const assigneeName = intervention.assignedTo 

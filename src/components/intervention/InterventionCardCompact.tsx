@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Intervention, InterventionStatus } from '@/types/intervention';
 import { InterventionAssignment } from '@/types/assignments';
 import { cn } from '@/lib/utils';
+import { getDateOverride } from '@/components/intervention/DateEditDialog';
 
 interface InterventionCardCompactProps {
   intervention: Intervention;
@@ -65,7 +66,9 @@ function formatDateTime(dateString?: string): { day: string; date: string; time:
 export function InterventionCardCompact({ intervention, supabaseAssignments = [] }: InterventionCardCompactProps) {
   const status = statusConfig[intervention.status] || statusConfig.a_planifier;
   const StatusIcon = status.icon;
-  const dateInfo = formatDateTime(intervention.dateStart || intervention.datePlanned);
+  // Use local override if exists, otherwise dateStart or datePlanned
+  const localOverride = getDateOverride(intervention.id);
+  const dateInfo = formatDateTime(localOverride || intervention.dateStart || intervention.datePlanned);
   const completedTasks = intervention.tasks.filter(t => t.status === 'fait').length;
   const totalTasks = intervention.tasks.length;
   const progress = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
