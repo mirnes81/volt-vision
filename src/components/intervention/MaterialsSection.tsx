@@ -62,10 +62,9 @@ function saveMaterialPhotos(interventionId: number, photos: MaterialPhoto[]) {
   localStorage.setItem(getMaterialPhotosKey(interventionId), JSON.stringify(photos));
 }
 
-// Product photo component with fallback and proxy support - mobile optimized
+// Product photo component with fallback - mobile optimized
 function ProductPhoto({ src, alt, size = 'md' }: { src?: string | null; alt: string; size?: 'sm' | 'md' | 'lg' }) {
   const [hasError, setHasError] = React.useState(false);
-  const [imgSrc, setImgSrc] = React.useState<string | null>(null);
   
   const sizeClasses = {
     sm: 'w-7 h-7',
@@ -73,26 +72,7 @@ function ProductPhoto({ src, alt, size = 'md' }: { src?: string | null; alt: str
     lg: 'w-12 h-12',
   };
   
-  // Build proxy URL for external images to bypass CORS
-  React.useEffect(() => {
-    if (!src) {
-      setImgSrc(null);
-      return;
-    }
-    
-    // If it's a Dolibarr URL (contains viewimage.php), use proxy
-    if (src.includes('viewimage.php')) {
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const proxyUrl = `${supabaseUrl}/functions/v1/dolibarr-api`;
-      // Use POST with body for proxy-image action
-      setImgSrc(src); // For now, try direct URL first
-    } else {
-      setImgSrc(src);
-    }
-  }, [src]);
-  
-  if (!imgSrc || hasError) {
+  if (!src || hasError) {
     return (
       <div className={`${sizeClasses[size]} bg-muted rounded-md flex items-center justify-center shrink-0`}>
         <Package className="w-1/2 h-1/2 text-muted-foreground/50" />
@@ -102,11 +82,10 @@ function ProductPhoto({ src, alt, size = 'md' }: { src?: string | null; alt: str
   
   return (
     <img
-      src={imgSrc}
+      src={src}
       alt={alt}
       className={`${sizeClasses[size]} rounded-md object-cover shrink-0 border border-border/50`}
       onError={() => setHasError(true)}
-      crossOrigin="anonymous"
     />
   );
 }
