@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { FileText, Trash2, Copy, Check, AlertCircle } from 'lucide-react';
+import { FileText, Trash2, Copy, Check, AlertCircle, Lock, User, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { toast } from '@/components/ui/sonner';
@@ -20,11 +20,21 @@ interface ReportNotesSectionProps {
   intervention: Intervention;
 }
 
+interface ParsedNote {
+  timestamp: string | null;
+  author: string | null;
+  content: string;
+  raw: string;
+}
+
 export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
   const [notes, setNotes] = React.useState<string>('');
   const [copied, setCopied] = React.useState(false);
   
   const notesKey = `intervention_notes_${intervention.id}`;
+  
+  // Check if intervention is locked (already invoiced)
+  const isLocked = intervention.status === 'facture';
 
   // Load notes on mount and listen for updates
   React.useEffect(() => {
@@ -73,16 +83,48 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
   };
 
   const handleClearNotes = () => {
+    if (isLocked) {
+      toast.error('Intervention facturée - modifications non autorisées');
+      return;
+    }
     localStorage.removeItem(notesKey);
     setNotes('');
     toast.success('Notes du rapport effacées');
   };
 
-  // Parse notes into individual entries
-  const noteEntries = React.useMemo(() => {
+  // Parse notes into individual entries with author info
+  const noteEntries = React.useMemo((): ParsedNote[] => {
     if (!notes) return [];
-    return notes.split('\n\n').filter(entry => entry.trim());
+    
+    return notes.split('\n\n').filter(entry => entry.trim()).map(entry => {
+      // Parse format: [timestamp] 👤 AuthorName\nContent
+      const timestampMatch = entry.match(/^\[(.+?)\]\s*/);
+      const timestamp = timestampMatch ? timestampMatch[1] : null;
+      
+      let remaining = timestamp ? entry.replace(timestampMatch[0], '') : entry;
+      
+      // Parse author (👤 Name format)
+      const authorMatch = remaining.match(/^👤\s*(.+?)(?:\n|$)/);
+      const author = authorMatch ? authorMatch[1].trim() : null;
+      
+      const content = author ? remaining.replace(authorMatch[0], '').trim() : remaining.trim();
+      
+      return {
+        timestamp,
+        author,
+        content,
+        raw: entry
+      };
+    });
   }, [notes]);
+
+  // Get unique authors
+  const uniqueAuthors = React.useMemo(() => {
+    const authors = noteEntries
+      .map(n => n.author)
+      .filter((a): a is string => a !== null);
+    return [...new Set(authors)];
+  }, [noteEntries]);
 
   if (!notes) {
     return (
@@ -95,6 +137,11 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
           <p className="text-sm text-muted-foreground">
             Les transcriptions vocales ajoutées depuis l'onglet "Notes vocales" apparaîtront ici.
           </p>
+          {!isLocked && (
+            <p className="text-xs text-muted-foreground mt-2">
+              Plusieurs ouvriers peuvent ajouter des notes tant que l'intervention n'est pas facturée.
+            </p>
+          )}
         </div>
       </div>
     );
@@ -133,72 +180,101 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
               )}
             </Button>
             
-            <AlertDialog>
-              <AlertDialogTrigger asChild>
-                <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </AlertDialogTrigger>
-              <AlertDialogContent>
-                <AlertDialogHeader>
-                  <AlertDialogTitle className="flex items-center gap-2">
-                    <AlertCircle className="w-5 h-5 text-destructive" />
-                    Effacer les notes ?
-                  </AlertDialogTitle>
-                  <AlertDialogDescription>
-                    Cette action supprimera toutes les notes du rapport pour cette intervention. 
-                    Cette action est irréversible.
-                  </AlertDialogDescription>
-                </AlertDialogHeader>
-                <AlertDialogFooter>
-                  <AlertDialogCancel>Annuler</AlertDialogCancel>
-                  <AlertDialogAction 
-                    onClick={handleClearNotes}
-                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                  >
-                    Effacer
-                  </AlertDialogAction>
-                </AlertDialogFooter>
-              </AlertDialogContent>
-            </AlertDialog>
+            {!isLocked && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="text-destructive hover:text-destructive">
+                    <Trash2 className="w-4 h-4" />
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle className="flex items-center gap-2">
+                      <AlertCircle className="w-5 h-5 text-destructive" />
+                      Effacer les notes ?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Cette action supprimera toutes les notes du rapport pour cette intervention. 
+                      Cette action est irréversible.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleClearNotes}
+                      className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    >
+                      Effacer
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
           </div>
         </div>
         
-        {/* Info banner */}
-        <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
-          <AlertCircle className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-          <p className="text-xs text-amber-700 dark:text-amber-300">
-            Ces notes sont stockées localement. L'API Dolibarr ne permet pas la synchronisation automatique des notes d'intervention.
-          </p>
-        </div>
+        {/* Authors summary */}
+        {uniqueAuthors.length > 0 && (
+          <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg mb-4">
+            {uniqueAuthors.length === 1 ? (
+              <User className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            ) : (
+              <Users className="w-4 h-4 text-blue-600 dark:text-blue-400 shrink-0" />
+            )}
+            <p className="text-xs text-blue-700 dark:text-blue-300">
+              {uniqueAuthors.length === 1 
+                ? `Notes de: ${uniqueAuthors[0]}`
+                : `Notes de ${uniqueAuthors.length} ouvriers: ${uniqueAuthors.join(', ')}`
+              }
+            </p>
+          </div>
+        )}
+        
+        {/* Status info banner */}
+        {isLocked ? (
+          <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
+            <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-amber-700 dark:text-amber-300">
+              Intervention facturée - les notes sont en lecture seule.
+            </p>
+          </div>
+        ) : (
+          <div className="flex items-start gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg mb-4">
+            <Users className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
+            <p className="text-xs text-green-700 dark:text-green-300">
+              Plusieurs ouvriers peuvent ajouter des notes tant que l'intervention n'est pas facturée.
+            </p>
+          </div>
+        )}
         
         {/* Notes list */}
         <div className="space-y-3">
-          {noteEntries.map((entry, index) => {
-            // Parse timestamp if present
-            const timestampMatch = entry.match(/^\[(.+?)\]\s*/);
-            const timestamp = timestampMatch ? timestampMatch[1] : null;
-            const content = timestamp ? entry.replace(timestampMatch[0], '') : entry;
-            
-            return (
-              <div 
-                key={index}
-                className={cn(
-                  "p-3 rounded-xl border",
-                  "bg-secondary/30 border-border/50"
-                )}
-              >
-                {timestamp && (
-                  <div className="text-xs text-muted-foreground mb-1.5 font-medium">
-                    📅 {timestamp}
+          {noteEntries.map((entry, index) => (
+            <div 
+              key={index}
+              className={cn(
+                "p-3 rounded-xl border",
+                "bg-secondary/30 border-border/50"
+              )}
+            >
+              <div className="flex items-center justify-between mb-2">
+                {entry.timestamp && (
+                  <div className="text-xs text-muted-foreground font-medium">
+                    📅 {entry.timestamp}
                   </div>
                 )}
-                <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
-                  {content}
-                </p>
+                {entry.author && (
+                  <div className="flex items-center gap-1 text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full">
+                    <User className="w-3 h-3" />
+                    {entry.author}
+                  </div>
+                )}
               </div>
-            );
-          })}
+              <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">
+                {entry.content}
+              </p>
+            </div>
+          ))}
         </div>
       </div>
     </div>
