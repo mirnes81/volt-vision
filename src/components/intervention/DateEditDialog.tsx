@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Calendar, Clock, Loader2, Edit2, AlertTriangle, ExternalLink } from 'lucide-react';
+import { Calendar, Clock, Loader2, Edit2, AlertTriangle, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
@@ -27,6 +27,7 @@ import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { supabase } from '@/integrations/supabase/client';
 
 interface DateEditDialogProps {
   interventionId: number;
@@ -34,7 +35,7 @@ interface DateEditDialogProps {
   onDateUpdated: () => void;
 }
 
-// Save date override locally (Dolibarr API doesn't support PUT)
+// Save date override locally as fallback
 function saveDateOverride(interventionId: number, date: Date) {
   const key = `intervention_date_override_${interventionId}`;
   localStorage.setItem(key, date.toISOString());
@@ -44,6 +45,12 @@ function saveDateOverride(interventionId: number, date: Date) {
 export function getDateOverride(interventionId: number): string | null {
   const key = `intervention_date_override_${interventionId}`;
   return localStorage.getItem(key);
+}
+
+// Clear local override after successful Dolibarr update
+function clearDateOverride(interventionId: number) {
+  const key = `intervention_date_override_${interventionId}`;
+  localStorage.removeItem(key);
 }
 
 export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: DateEditDialogProps) {
@@ -57,39 +64,83 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
   const [selectedMinute, setSelectedMinute] = React.useState<string>(
     currentDate ? new Date(currentDate).getMinutes().toString().padStart(2, '0') : '00'
   );
+  const [isLoading, setIsLoading] = React.useState(false);
+  const [updateResult, setUpdateResult] = React.useState<'success' | 'local' | null>(null);
 
   // Reset when dialog opens
   React.useEffect(() => {
     if (open && currentDate) {
-      // Check for local override first
       const override = getDateOverride(interventionId);
       const dateToUse = override || currentDate;
       const date = new Date(dateToUse);
       setSelectedDate(date);
       setSelectedHour(date.getHours().toString().padStart(2, '0'));
       setSelectedMinute(date.getMinutes().toString().padStart(2, '0'));
+      setUpdateResult(null);
     }
   }, [open, currentDate, interventionId]);
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!selectedDate) {
       toast.error('Veuillez selectionner une date');
       return;
     }
 
+    setIsLoading(true);
+    setUpdateResult(null);
+
     // Build the new date with time
     const newDate = new Date(selectedDate);
     newDate.setHours(parseInt(selectedHour), parseInt(selectedMinute), 0, 0);
     
-    // Save locally (Dolibarr API doesn't support PUT for interventions)
-    saveDateOverride(interventionId, newDate);
+    // Convert to Unix timestamp for Dolibarr
+    const timestamp = Math.floor(newDate.getTime() / 1000);
     
-    toast.success('Date modifiee localement', {
-      description: 'Pour modifier dans Dolibarr, utilisez le lien ci-dessous.',
-    });
-    
-    setOpen(false);
-    onDateUpdated();
+    try {
+      // Try to update in Dolibarr via edge function
+      const { data, error } = await supabase.functions.invoke('dolibarr-api', {
+        body: {
+          action: 'update-intervention-date',
+          params: {
+            interventionId,
+            dateStart: timestamp,
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.success) {
+        // Success! Clear any local override
+        clearDateOverride(interventionId);
+        setUpdateResult('success');
+        toast.success('Date modifiee dans Dolibarr!', {
+          description: format(newDate, "EEEE d MMMM yyyy 'a' HH:mm", { locale: fr }),
+        });
+        
+        setTimeout(() => {
+          setOpen(false);
+          onDateUpdated();
+        }, 1500);
+        return;
+      }
+
+      // API returned error - fallback to local
+      throw new Error(data?.error || 'Erreur inconnue');
+      
+    } catch (err: any) {
+      console.warn('Dolibarr update failed, saving locally:', err);
+      
+      // Fallback: Save locally
+      saveDateOverride(interventionId, newDate);
+      setUpdateResult('local');
+      
+      toast.warning('Sauvegarde locale uniquement', {
+        description: 'L\'API Dolibarr ne permet pas cette modification. Utilisez le lien pour modifier dans Dolibarr.',
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const openInDolibarr = () => {
@@ -120,19 +171,31 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* API Limitation Warning */}
-          <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
-            <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <div className="text-sm">
-              <p className="font-medium text-amber-800 dark:text-amber-300">
-                Modification locale uniquement
-              </p>
-              <p className="text-amber-700 dark:text-amber-400 mt-1">
-                L'API Dolibarr ne permet pas la modification des dates. 
-                La date sera sauvegardee localement sur cet appareil.
+          {/* Success message */}
+          {updateResult === 'success' && (
+            <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+              <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
+              <p className="text-sm font-medium text-green-800 dark:text-green-300">
+                Date mise a jour dans Dolibarr avec succes!
               </p>
             </div>
-          </div>
+          )}
+          
+          {/* Local save warning */}
+          {updateResult === 'local' && (
+            <div className="flex items-start gap-3 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+              <div className="text-sm">
+                <p className="font-medium text-amber-800 dark:text-amber-300">
+                  Sauvegarde locale uniquement
+                </p>
+                <p className="text-amber-700 dark:text-amber-400 mt-1">
+                  L'API Dolibarr ne supporte pas cette modification. 
+                  Cliquez sur "Ouvrir dans Dolibarr" pour modifier manuellement.
+                </p>
+              </div>
+            </div>
+          )}
 
           {/* Date picker */}
           <div className="space-y-2">
@@ -145,6 +208,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
                     "w-full justify-start text-left font-normal",
                     !selectedDate && "text-muted-foreground"
                   )}
+                  disabled={isLoading || updateResult === 'success'}
                 >
                   <Calendar className="mr-2 h-4 w-4" />
                   {selectedDate ? (
@@ -173,7 +237,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
               Heure
             </label>
             <div className="flex gap-2">
-              <Select value={selectedHour} onValueChange={setSelectedHour}>
+              <Select value={selectedHour} onValueChange={setSelectedHour} disabled={isLoading || updateResult === 'success'}>
                 <SelectTrigger className="w-24">
                   <SelectValue placeholder="Heure" />
                 </SelectTrigger>
@@ -186,7 +250,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
                 </SelectContent>
               </Select>
               <span className="self-center text-lg font-medium">:</span>
-              <Select value={selectedMinute} onValueChange={setSelectedMinute}>
+              <Select value={selectedMinute} onValueChange={setSelectedMinute} disabled={isLoading || updateResult === 'success'}>
                 <SelectTrigger className="w-24">
                   <SelectValue placeholder="Min" />
                 </SelectTrigger>
@@ -202,7 +266,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
           </div>
 
           {/* Preview */}
-          {selectedDate && (
+          {selectedDate && !updateResult && (
             <div className="p-3 bg-primary/10 rounded-lg">
               <p className="text-sm font-medium text-primary">
                 Nouvelle date:
@@ -215,21 +279,26 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
         </div>
 
         <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button 
-            variant="outline" 
-            onClick={openInDolibarr}
-            className="gap-2 w-full sm:w-auto"
-          >
-            <ExternalLink className="w-4 h-4" />
-            Ouvrir dans Dolibarr
-          </Button>
+          {updateResult === 'local' && (
+            <Button 
+              variant="outline" 
+              onClick={openInDolibarr}
+              className="gap-2 w-full sm:w-auto"
+            >
+              <ExternalLink className="w-4 h-4" />
+              Ouvrir dans Dolibarr
+            </Button>
+          )}
           <div className="flex gap-2 w-full sm:w-auto">
             <Button variant="ghost" onClick={() => setOpen(false)}>
-              Annuler
+              {updateResult ? 'Fermer' : 'Annuler'}
             </Button>
-            <Button onClick={handleSave} disabled={!selectedDate}>
-              Sauvegarder localement
-            </Button>
+            {!updateResult && (
+              <Button onClick={handleSave} disabled={!selectedDate || isLoading}>
+                {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                Enregistrer
+              </Button>
+            )}
           </div>
         </DialogFooter>
       </DialogContent>

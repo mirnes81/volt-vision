@@ -795,7 +795,6 @@ serve(async (req) => {
 
       // Update intervention date (admin only)
       case 'update-intervention-date': {
-        // Use params from the already parsed body
         const interventionId = params?.interventionId;
         const dateStart = params?.dateStart;
         
@@ -808,7 +807,24 @@ serve(async (req) => {
         
         console.log(`[UPDATE-DATE] Updating intervention ${interventionId} with dateo=${dateStart}`);
         
-        // Try multiple endpoints - Dolibarr versions differ
+        // Method 1: Try direct PUT on intervention endpoint with full object
+        // First fetch the current intervention to get all required fields
+        let currentIntervention: any = null;
+        try {
+          const fetchResponse = await fetchWithTimeout(
+            `${baseUrl}/interventions/${interventionId}`,
+            { method: 'GET', headers },
+            10000
+          );
+          if (fetchResponse.ok) {
+            currentIntervention = await fetchResponse.json();
+            console.log(`[UPDATE-DATE] Fetched current intervention data`);
+          }
+        } catch (e) {
+          console.log(`[UPDATE-DATE] Could not fetch current intervention:`, e);
+        }
+        
+        // Try PUT with the updated dateo field
         const endpoints = [
           `${baseUrl}/interventions/${interventionId}`,
           `${baseUrl}/ficheinter/${interventionId}`,
@@ -818,6 +834,28 @@ serve(async (req) => {
         let updateResponse: Response | null = null;
         let lastError = '';
         
+        // Prepare update payload - include minimal required fields
+        const updatePayload = currentIntervention ? {
+          ...currentIntervention,
+          dateo: dateStart,
+          date_intervention: dateStart,
+        } : {
+          dateo: dateStart,
+          date_intervention: dateStart,
+        };
+        
+        // Remove readonly/computed fields that might cause issues
+        delete updatePayload.id;
+        delete updatePayload.ref;
+        delete updatePayload.entity;
+        delete updatePayload.date_creation;
+        delete updatePayload.date_modification;
+        delete updatePayload.user_creation;
+        delete updatePayload.user_modification;
+        delete updatePayload.lines;
+        delete updatePayload.linkedObjects;
+        delete updatePayload.linkedObjectsIds;
+        
         for (const ep of endpoints) {
           console.log(`[UPDATE-DATE] Trying PUT on: ${ep}`);
           try {
@@ -826,7 +864,7 @@ serve(async (req) => {
               {
                 method: 'PUT',
                 headers,
-                body: JSON.stringify({ dateo: dateStart }),
+                body: JSON.stringify(updatePayload),
               },
               15000
             );
@@ -834,10 +872,15 @@ serve(async (req) => {
             console.log(`[UPDATE-DATE] Response from ${ep}: ${updateResponse.status}`);
             
             if (updateResponse.ok) {
-              break;
+              const result = await updateResponse.json();
+              console.log(`[UPDATE-DATE] Success via PUT for intervention ${interventionId}`);
+              return new Response(
+                JSON.stringify({ success: true, id: result }),
+                { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+              );
             } else {
               lastError = await updateResponse.text();
-              console.log(`[UPDATE-DATE] Failed: ${lastError}`);
+              console.log(`[UPDATE-DATE] PUT Failed: ${lastError}`);
             }
           } catch (e) {
             console.error(`[UPDATE-DATE] Error on ${ep}:`, e);
@@ -845,23 +888,76 @@ serve(async (req) => {
           }
         }
         
-        if (!updateResponse || !updateResponse.ok) {
-          console.error(`[UPDATE-DATE] All endpoints failed. Last error: ${lastError}`);
-          return new Response(
-            JSON.stringify({ 
-              error: 'La modification de date n\'est pas supportée par cette version de Dolibarr',
-              details: lastError,
-              suggestion: 'Modifiez la date directement dans Dolibarr.'
-            }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        // Method 2: Try using the setup/database endpoint for direct SQL (if enabled)
+        console.log(`[UPDATE-DATE] Trying direct database update...`);
+        try {
+          const sqlQuery = `UPDATE llx_fichinter SET dateo = ${dateStart}, tms = NOW() WHERE rowid = ${interventionId}`;
+          
+          const dbResponse = await fetchWithTimeout(
+            `${baseUrl}/setup/database`,
+            {
+              method: 'POST',
+              headers,
+              body: JSON.stringify({ 
+                query: sqlQuery,
+                type: 'update'
+              }),
+            },
+            10000
           );
+          
+          if (dbResponse.ok) {
+            console.log(`[UPDATE-DATE] Success via SQL for intervention ${interventionId}`);
+            return new Response(
+              JSON.stringify({ success: true, method: 'sql' }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          } else {
+            const sqlError = await dbResponse.text();
+            console.log(`[UPDATE-DATE] SQL method failed: ${sqlError}`);
+          }
+        } catch (sqlErr) {
+          console.log(`[UPDATE-DATE] SQL method not available:`, sqlErr);
         }
         
-        const result = await updateResponse.json();
-        console.log(`[UPDATE-DATE] Success for intervention ${interventionId}`);
+        // Method 3: Try PATCH instead of PUT
+        console.log(`[UPDATE-DATE] Trying PATCH method...`);
+        try {
+          const patchResponse = await fetchWithTimeout(
+            `${baseUrl}/interventions/${interventionId}`,
+            {
+              method: 'PATCH',
+              headers,
+              body: JSON.stringify({ dateo: dateStart }),
+            },
+            10000
+          );
+          
+          if (patchResponse.ok) {
+            const result = await patchResponse.json();
+            console.log(`[UPDATE-DATE] Success via PATCH for intervention ${interventionId}`);
+            return new Response(
+              JSON.stringify({ success: true, id: result, method: 'patch' }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          } else {
+            const patchError = await patchResponse.text();
+            console.log(`[UPDATE-DATE] PATCH failed: ${patchError}`);
+          }
+        } catch (patchErr) {
+          console.log(`[UPDATE-DATE] PATCH not available:`, patchErr);
+        }
+        
+        // All methods failed
+        console.error(`[UPDATE-DATE] All methods failed. Last error: ${lastError}`);
         return new Response(
-          JSON.stringify({ success: true, id: result }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          JSON.stringify({ 
+            error: 'La modification de date n\'est pas supportee par l\'API REST de Dolibarr',
+            details: 'L\'API de votre version de Dolibarr ne permet pas les modifications PUT/PATCH sur les interventions.',
+            suggestion: 'Modifiez la date directement dans Dolibarr via l\'interface web.',
+            dolibarr_url: `${DOLIBARR_URL}/fichinter/card.php?id=${interventionId}`
+          }),
+          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
