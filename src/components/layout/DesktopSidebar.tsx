@@ -10,6 +10,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
+import { useTodayInterventionsCount } from '@/hooks/useTodayInterventionsCount';
 
 interface NavItem {
   to: string;
@@ -24,11 +25,12 @@ export function DesktopSidebar() {
   const { worker, logout } = useAuth();
   const location = useLocation();
   const [isCollapsed, setIsCollapsed] = React.useState(false);
+  const { todayCount } = useTodayInterventionsCount();
 
   const mainNavItems: NavItem[] = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: t('nav.interventions') },
-    { to: '/calendar', icon: CalendarDays, label: 'Planning' },
+    { to: '/calendar', icon: CalendarDays, label: 'Planning', badge: todayCount },
     { to: '/time-tracking', icon: Clock, label: 'Suivi heures' },
     { to: '/profile', icon: User, label: t('nav.profile') },
   ];
