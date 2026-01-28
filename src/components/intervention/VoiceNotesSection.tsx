@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2, Copy, Send, Check } from 'lucide-react';
+import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2, Copy, Send, Check, Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -8,6 +8,13 @@ import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { isOnline } from '@/lib/offlineStorage';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface VoiceNotesSectionProps {
   intervention: Intervention;
@@ -20,6 +27,21 @@ interface VoiceNote {
   createdAt: string;
   transcription?: string;
 }
+
+// Supported languages for transcription
+const SUPPORTED_LANGUAGES = [
+  { code: 'fr', name: 'Français', flag: '🇫🇷' },
+  { code: 'en', name: 'English', flag: '🇬🇧' },
+  { code: 'de', name: 'Deutsch', flag: '🇩🇪' },
+  { code: 'it', name: 'Italiano', flag: '🇮🇹' },
+  { code: 'es', name: 'Español', flag: '🇪🇸' },
+  { code: 'pt', name: 'Português', flag: '🇵🇹' },
+];
+
+const SOURCE_LANGUAGES = [
+  { code: 'auto', name: 'Auto-détection', flag: '🌍' },
+  ...SUPPORTED_LANGUAGES,
+];
 
 // Convert Blob to base64
 async function blobToBase64(blob: Blob): Promise<string> {
@@ -47,6 +69,10 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
   const [copiedId, setCopiedId] = React.useState<number | null>(null);
   const [sendingId, setSendingId] = React.useState<number | null>(null);
   
+  // Language settings
+  const [targetLanguage, setTargetLanguage] = React.useState('fr');
+  const [sourceLanguage, setSourceLanguage] = React.useState('auto');
+  
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
@@ -54,10 +80,22 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
 
   React.useEffect(() => {
     loadVoiceNotes();
+    // Load saved language preferences
+    const savedTarget = localStorage.getItem('voice_target_language');
+    const savedSource = localStorage.getItem('voice_source_language');
+    if (savedTarget) setTargetLanguage(savedTarget);
+    if (savedSource) setSourceLanguage(savedSource);
+    
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [intervention.id]);
+
+  // Save language preferences
+  React.useEffect(() => {
+    localStorage.setItem('voice_target_language', targetLanguage);
+    localStorage.setItem('voice_source_language', sourceLanguage);
+  }, [targetLanguage, sourceLanguage]);
 
   const loadVoiceNotes = async () => {
     const notes = await getVoiceNotes(intervention.id);
@@ -73,7 +111,6 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
     });
     setTranscriptions(savedTranscriptions);
   };
-
   const transcribeAudio = async (note: VoiceNote) => {
     setTranscribingId(note.id);
     
@@ -83,7 +120,9 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
       const { data, error } = await supabase.functions.invoke('transcribe-audio', {
         body: {
           audioBase64,
-          mimeType: note.audioBlob.type
+          mimeType: note.audioBlob.type,
+          targetLanguage,
+          sourceLanguage
         }
       });
 
@@ -95,7 +134,8 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
         const transcription = data.text;
         setTranscriptions(prev => ({ ...prev, [note.id]: transcription }));
         localStorage.setItem(`transcription_${note.id}`, transcription);
-        toast.success('Transcription terminée');
+        const targetLang = SUPPORTED_LANGUAGES.find(l => l.code === targetLanguage);
+        toast.success(`Transcription en ${targetLang?.name || 'français'} terminée`);
       } else if (data?.error) {
         throw new Error(data.error);
       }
@@ -308,8 +348,57 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
             <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
               <Mic className="w-10 h-10 text-primary" />
             </div>
+            
+            {/* Language Selection */}
+            <div className="mb-4 space-y-3">
+              <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground">
+                <Globe className="w-4 h-4" />
+                <span>Configuration des langues</span>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Langue parlée</label>
+                  <Select value={sourceLanguage} onValueChange={setSourceLanguage}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SOURCE_LANGUAGES.map(lang => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          <span className="flex items-center gap-2">
+                            <span>{lang.flag}</span>
+                            <span>{lang.name}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-1">
+                  <label className="text-xs text-muted-foreground">Transcrire en</label>
+                  <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                    <SelectTrigger className="h-10">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {SUPPORTED_LANGUAGES.map(lang => (
+                        <SelectItem key={lang.code} value={lang.code}>
+                          <span className="flex items-center gap-2">
+                            <span>{lang.flag}</span>
+                            <span>{lang.name}</span>
+                          </span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+            
             <p className="text-sm text-muted-foreground mb-4">
-              Appuyez pour enregistrer - transcription automatique en français
+              Parlez dans n'importe quelle langue, la transcription sera automatique
             </p>
             <Button
               variant="worker"
