@@ -5,8 +5,8 @@ import { decodeHtmlEntities } from '@/lib/htmlUtils';
 
 // Debug module loading
 console.log('[DolibarrApi Module] Loaded, supabase client exists:', !!supabase);
-// Helper to call the Dolibarr proxy
-async function callDolibarrApi<T>(action: string, params: Record<string, any> = {}): Promise<T> {
+// Helper to call the Dolibarr proxy (exported for direct usage)
+export async function callDolibarrApi<T>(action: string, params: Record<string, any> = {}): Promise<T> {
   console.log('[DolibarrApi] Starting call:', action, params);
   console.log('[DolibarrApi] Supabase client:', !!supabase);
   

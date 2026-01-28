@@ -1,14 +1,34 @@
 import * as React from 'react';
-import { Plus, Package } from 'lucide-react';
+import { Plus, Package, Trash2, WifiOff, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Intervention, Product } from '@/types/intervention';
-import { getProducts, addMaterial } from '@/lib/api';
+import { Intervention, Product, Material } from '@/types/intervention';
+import { getProducts } from '@/lib/api';
 import { toast } from '@/components/ui/sonner';
+import { addPendingSync } from '@/lib/offlineStorage';
+import { callDolibarrApi } from '@/lib/dolibarrApi';
 
 interface MaterialsSectionProps {
   intervention: Intervention;
   onUpdate: () => void;
+}
+
+// LocalStorage key for materials
+const getMaterialsKey = (interventionId: number) => `intervention_materials_${interventionId}`;
+
+// Get locally stored materials
+function getLocalMaterials(interventionId: number): Material[] {
+  try {
+    const stored = localStorage.getItem(getMaterialsKey(interventionId));
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Save materials locally
+function saveLocalMaterials(interventionId: number, materials: Material[]) {
+  localStorage.setItem(getMaterialsKey(interventionId), JSON.stringify(materials));
 }
 
 export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionProps) {
@@ -18,32 +38,112 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
   const [qty, setQty] = React.useState('1');
   const [comment, setComment] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
+  const [localMaterials, setLocalMaterials] = React.useState<Material[]>([]);
+  const [searchQuery, setSearchQuery] = React.useState('');
 
+  // Load products and local materials on mount
   React.useEffect(() => {
-    getProducts().then(setProducts);
-  }, []);
+    getProducts().then(setProducts).catch(console.error);
+    setLocalMaterials(getLocalMaterials(intervention.id));
+  }, [intervention.id]);
+
+  // Combine API materials with locally added ones
+  const allMaterials = React.useMemo(() => {
+    const apiMaterials = intervention.materials || [];
+    const apiIds = new Set(apiMaterials.map(m => m.id));
+    // Only add local materials that don't exist in API response
+    const uniqueLocalMaterials = localMaterials.filter(m => !apiIds.has(m.id));
+    return [...apiMaterials, ...uniqueLocalMaterials];
+  }, [intervention.materials, localMaterials]);
+
+  // Filter products by search
+  const filteredProducts = React.useMemo(() => {
+    if (!searchQuery.trim()) return products;
+    const query = searchQuery.toLowerCase();
+    return products.filter(p => 
+      p.label.toLowerCase().includes(query) || 
+      p.ref.toLowerCase().includes(query)
+    );
+  }, [products, searchQuery]);
 
   const handleAdd = async () => {
     if (!selectedProduct || !qty) return;
     
+    const product = products.find(p => p.id === selectedProduct);
+    if (!product) return;
+
     setIsLoading(true);
+    
+    // Create local material object for immediate feedback
+    const newMaterial: Material = {
+      id: Date.now(),
+      productId: selectedProduct,
+      productRef: product.ref,
+      productName: product.label,
+      qtyUsed: parseFloat(qty),
+      unit: product.unit || 'pce',
+      comment: comment || undefined,
+      price: product.price,
+    };
+
     try {
-      await addMaterial(intervention.id, {
-        productId: selectedProduct,
-        qty: parseFloat(qty),
-        comment: comment || undefined,
-      });
-      toast.success('Matériel ajouté');
+      // Save locally first (immediate feedback)
+      const updatedLocalMaterials = [...localMaterials, newMaterial];
+      setLocalMaterials(updatedLocalMaterials);
+      saveLocalMaterials(intervention.id, updatedLocalMaterials);
+      
+      // Reset form immediately for good UX
       setShowAdd(false);
       setSelectedProduct(null);
       setQty('1');
       setComment('');
+      setSearchQuery('');
+      
+      toast.success('Matériel ajouté', {
+        description: `${product.label} x${qty}`,
+      });
+
+      // Try to sync with Dolibarr in background
+      try {
+        await callDolibarrApi('add-intervention-line', {
+          interventionId: intervention.id,
+          productId: selectedProduct,
+          qty: parseFloat(qty),
+          description: comment || product.label,
+        });
+        
+        // Mark as synced (optional: you could add a sync status field)
+        console.log('[Materials] Synced with Dolibarr');
+      } catch (syncError) {
+        console.warn('[Materials] API sync failed, queuing for later:', syncError);
+        
+        // Queue for offline sync
+        await addPendingSync('material', intervention.id, {
+          productId: selectedProduct,
+          qtyUsed: parseFloat(qty),
+          comment: comment || undefined,
+        });
+        
+        toast.info('Enregistré localement', {
+          description: 'Sera synchronisé automatiquement',
+          icon: <WifiOff className="w-4 h-4" />,
+        });
+      }
+
       onUpdate();
     } catch (error) {
+      console.error('[Materials] Error adding material:', error);
       toast.error('Erreur lors de l\'ajout');
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleRemoveLocal = (materialId: number) => {
+    const updatedMaterials = localMaterials.filter(m => m.id !== materialId);
+    setLocalMaterials(updatedMaterials);
+    saveLocalMaterials(intervention.id, updatedMaterials);
+    toast.success('Matériel supprimé');
   };
 
   return (
@@ -62,15 +162,29 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
       {/* Add Form */}
       {showAdd && (
         <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50 space-y-4 animate-slide-up">
+          {/* Search Input */}
           <div>
-            <label className="text-sm font-medium mb-2 block">Produit</label>
+            <label className="text-sm font-medium mb-2 block">Rechercher un produit</label>
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tapez pour rechercher..."
+              className="h-12 text-base"
+            />
+          </div>
+
+          {/* Product Select */}
+          <div>
+            <label className="text-sm font-medium mb-2 block">
+              Produit {filteredProducts.length > 0 && `(${filteredProducts.length})`}
+            </label>
             <select
               value={selectedProduct || ''}
               onChange={(e) => setSelectedProduct(Number(e.target.value) || null)}
               className="w-full h-14 px-4 bg-secondary rounded-xl text-base font-medium border-0 focus:ring-2 focus:ring-primary"
             >
               <option value="">Sélectionner un produit</option>
-              {products.map((product) => (
+              {filteredProducts.map((product) => (
                 <option key={product.id} value={product.id}>
                   {product.ref} - {product.label}
                 </option>
@@ -78,6 +192,7 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             </select>
           </div>
 
+          {/* Quantity & Unit */}
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Quantité</label>
@@ -86,7 +201,7 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
                 value={qty}
                 onChange={(e) => setQty(e.target.value)}
                 className="h-14 text-base font-medium text-center"
-                min="0"
+                min="0.1"
                 step="0.1"
               />
             </div>
@@ -100,6 +215,7 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             </div>
           </div>
 
+          {/* Comment */}
           <div>
             <label className="text-sm font-medium mb-2 block">Commentaire (optionnel)</label>
             <Input
@@ -110,11 +226,16 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             />
           </div>
 
+          {/* Buttons */}
           <div className="flex gap-3">
             <Button
               variant="worker-ghost"
               className="flex-1"
-              onClick={() => setShowAdd(false)}
+              onClick={() => {
+                setShowAdd(false);
+                setSearchQuery('');
+                setSelectedProduct(null);
+              }}
             >
               Annuler
             </Button>
@@ -124,7 +245,7 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
               onClick={handleAdd}
               disabled={!selectedProduct || isLoading}
             >
-              Ajouter
+              {isLoading ? 'Ajout...' : 'Ajouter'}
             </Button>
           </div>
         </div>
@@ -132,34 +253,62 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
 
       {/* Materials List */}
       <div className="space-y-2">
-        <h4 className="text-sm font-semibold text-muted-foreground px-1">Matériel posé</h4>
-        {intervention.materials.length === 0 ? (
+        <h4 className="text-sm font-semibold text-muted-foreground px-1">
+          Matériel posé {allMaterials.length > 0 && `(${allMaterials.length})`}
+        </h4>
+        {allMaterials.length === 0 ? (
           <div className="text-center py-8 text-muted-foreground">
             <Package className="w-12 h-12 mx-auto mb-2 opacity-50" />
             <p className="text-sm">Aucun matériel enregistré</p>
           </div>
         ) : (
           <div className="space-y-2">
-            {intervention.materials.map((material) => (
-              <div
-                key={material.id}
-                className="bg-card rounded-xl p-4 border border-border/50"
-              >
-                <div className="flex items-center justify-between">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-semibold truncate">{material.productName}</p>
-                    {material.comment && (
-                      <p className="text-xs text-muted-foreground truncate">{material.comment}</p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0 ml-3">
-                    <p className="text-lg font-bold text-primary">
-                      {material.qtyUsed} <span className="text-sm font-normal text-muted-foreground">{material.unit}</span>
-                    </p>
+            {allMaterials.map((material) => {
+              const isLocal = localMaterials.some(m => m.id === material.id);
+              
+              return (
+                <div
+                  key={material.id}
+                  className="bg-card rounded-xl p-4 border border-border/50"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="font-semibold truncate">{material.productName}</p>
+                        {isLocal && (
+                          <span className="text-xs bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-400 px-1.5 py-0.5 rounded">
+                            Local
+                          </span>
+                        )}
+                      </div>
+                      {material.productRef && (
+                        <p className="text-xs text-muted-foreground">{material.productRef}</p>
+                      )}
+                      {material.comment && (
+                        <p className="text-xs text-muted-foreground truncate mt-1">{material.comment}</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 shrink-0 ml-3">
+                      <div className="text-right">
+                        <p className="text-lg font-bold text-primary">
+                          {material.qtyUsed} <span className="text-sm font-normal text-muted-foreground">{material.unit}</span>
+                        </p>
+                      </div>
+                      {isLocal && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive"
+                          onClick={() => handleRemoveLocal(material.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
