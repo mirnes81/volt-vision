@@ -20,6 +20,7 @@ import { VoiceNotesSection } from '@/components/intervention/VoiceNotesSection';
 import { HistorySection } from '@/components/intervention/HistorySection';
 import { StockSection } from '@/components/intervention/StockSection';
 import { ReportNotesSection } from '@/components/intervention/ReportNotesSection';
+import { DateEditDialog } from '@/components/intervention/DateEditDialog';
 
 import { DolibarrAssignmentPanel } from '@/components/assignments/DolibarrAssignmentPanel';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -433,6 +434,14 @@ export default function InterventionDetailPage() {
                   </span>
                 );
               })()}
+              {/* Admin date edit button */}
+              {isAdmin && (
+                <DateEditDialog
+                  interventionId={intervention.id}
+                  currentDate={intervention.dateStart}
+                  onDateUpdated={handleUpdate}
+                />
+              )}
             </div>
             {/* Reminder button */}
             <Button
