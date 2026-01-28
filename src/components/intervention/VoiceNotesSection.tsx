@@ -1,8 +1,9 @@
 import * as React from 'react';
-import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2, Copy, Send, Check, Globe } from 'lucide-react';
+import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2, Copy, Send, Check, Globe, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { saveVoiceNote, getVoiceNotes, deleteVoiceNote, addPendingSync } from '@/lib/offlineStorage';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
@@ -60,6 +61,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
 
 export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
   const { t } = useLanguage();
+  const { worker } = useAuth();
   const [isRecording, setIsRecording] = React.useState(false);
   const [recordingTime, setRecordingTime] = React.useState(0);
   const [voiceNotes, setVoiceNotes] = React.useState<VoiceNote[]>([]);
@@ -77,6 +79,12 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
   const audioChunksRef = React.useRef<Blob[]>([]);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
   const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+
+  // Check if intervention is locked (already invoiced)
+  const isLocked = intervention.status === 'facture';
+  
+  // Get current worker name
+  const workerName = worker ? `${worker.firstName} ${worker.name}`.trim() || worker.login : 'Anonyme';
 
   React.useEffect(() => {
     loadVoiceNotes();
@@ -148,6 +156,11 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
   };
 
   const startRecording = async () => {
+    if (isLocked) {
+      toast.error('Intervention facturée - modifications non autorisées');
+      return;
+    }
+    
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       const mediaRecorder = new MediaRecorder(stream);
@@ -234,6 +247,11 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
   };
 
   const handleDelete = async (id: number) => {
+    if (isLocked) {
+      toast.error('Intervention facturée - modifications non autorisées');
+      return;
+    }
+    
     await deleteVoiceNote(id);
     localStorage.removeItem(`transcription_${id}`);
     setTranscriptions(prev => {
@@ -264,6 +282,11 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
     const text = transcriptions[noteId];
     if (!text) return;
     
+    if (isLocked) {
+      toast.error('Intervention facturée - modifications non autorisées');
+      return;
+    }
+    
     setSendingId(noteId);
     
     try {
@@ -271,7 +294,9 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
       const notesKey = `intervention_notes_${intervention.id}`;
       const existingNotes = localStorage.getItem(notesKey) || '';
       const timestamp = new Date().toLocaleString('fr-CH');
-      const newNote = `[${timestamp}] ${text}`;
+      
+      // Include worker name in the note
+      const newNote = `[${timestamp}] 👤 ${workerName}\n${text}`;
       const updatedNotes = existingNotes 
         ? `${existingNotes}\n\n${newNote}`
         : newNote;
@@ -284,7 +309,7 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
         detail: { interventionId: intervention.id, notes: updatedNotes }
       }));
       
-      toast.success('Note ajoutée au rapport local');
+      toast.success('Note ajoutée au rapport');
     } catch (error) {
       console.error('Send to notes error:', error);
       toast.error("Erreur lors de l'ajout de la note");
@@ -301,6 +326,16 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
 
   return (
     <div className="space-y-4">
+      {/* Locked warning */}
+      {isLocked && (
+        <div className="flex items-center gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg">
+          <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+          <p className="text-sm text-amber-700 dark:text-amber-300">
+            Cette intervention est facturée. Les notes vocales sont en lecture seule.
+          </p>
+        </div>
+      )}
+      
       {/* Recording Button */}
       <div className="bg-card rounded-2xl p-6 shadow-card border border-border/50 text-center">
         {isRecording ? (
@@ -323,69 +358,98 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
           </>
         ) : (
           <>
-            <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Mic className="w-10 h-10 text-primary" />
+            <div className={cn(
+              "w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-4",
+              isLocked ? "bg-muted/50" : "bg-primary/10"
+            )}>
+              {isLocked ? (
+                <Lock className="w-10 h-10 text-muted-foreground" />
+              ) : (
+                <Mic className="w-10 h-10 text-primary" />
+              )}
             </div>
+            
+            {/* Current worker info */}
+            {!isLocked && (
+              <div className="mb-3 text-sm text-muted-foreground">
+                Enregistrement par: <span className="font-medium text-foreground">{workerName}</span>
+              </div>
+            )}
             
             {/* Language Selection */}
-            <div className="mb-4 space-y-3">
-              <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground">
-                <Globe className="w-4 h-4" />
-                <span>Configuration des langues</span>
-              </div>
-              
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Langue parlée</label>
-                  <Select value={sourceLanguage} onValueChange={setSourceLanguage}>
-                    <SelectTrigger className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SOURCE_LANGUAGES.map(lang => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          <span className="flex items-center gap-2">
-                            <span>{lang.flag}</span>
-                            <span>{lang.name}</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+            {!isLocked && (
+              <div className="mb-4 space-y-3">
+                <div className="flex items-center gap-2 justify-center text-sm text-muted-foreground">
+                  <Globe className="w-4 h-4" />
+                  <span>Configuration des langues</span>
                 </div>
                 
-                <div className="space-y-1">
-                  <label className="text-xs text-muted-foreground">Transcrire en</label>
-                  <Select value={targetLanguage} onValueChange={setTargetLanguage}>
-                    <SelectTrigger className="h-10">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {SUPPORTED_LANGUAGES.map(lang => (
-                        <SelectItem key={lang.code} value={lang.code}>
-                          <span className="flex items-center gap-2">
-                            <span>{lang.flag}</span>
-                            <span>{lang.name}</span>
-                          </span>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Langue parlée</label>
+                    <Select value={sourceLanguage} onValueChange={setSourceLanguage}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SOURCE_LANGUAGES.map(lang => (
+                          <SelectItem key={lang.code} value={lang.code}>
+                            <span className="flex items-center gap-2">
+                              <span>{lang.flag}</span>
+                              <span>{lang.name}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Transcrire en</label>
+                    <Select value={targetLanguage} onValueChange={setTargetLanguage}>
+                      <SelectTrigger className="h-10">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {SUPPORTED_LANGUAGES.map(lang => (
+                          <SelectItem key={lang.code} value={lang.code}>
+                            <span className="flex items-center gap-2">
+                              <span>{lang.flag}</span>
+                              <span>{lang.name}</span>
+                            </span>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
             
             <p className="text-sm text-muted-foreground mb-4">
-              Parlez dans n'importe quelle langue, la transcription sera automatique
+              {isLocked 
+                ? 'Intervention facturée - enregistrement désactivé'
+                : 'Parlez dans n\'importe quelle langue, la transcription sera automatique'
+              }
             </p>
             <Button
               variant="worker"
               size="full"
               onClick={startRecording}
               className="gap-3"
+              disabled={isLocked}
             >
-              <Mic className="w-6 h-6" />
-              {t('voice.record')}
+              {isLocked ? (
+                <>
+                  <Lock className="w-6 h-6" />
+                  Verrouillé
+                </>
+              ) : (
+                <>
+                  <Mic className="w-6 h-6" />
+                  {t('voice.record')}
+                </>
+              )}
             </Button>
           </>
         )}
@@ -456,12 +520,14 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
                     </div>
                   )}
                   
-                  <button
-                    onClick={() => handleDelete(note.id)}
-                    className="p-2 text-muted-foreground hover:text-destructive transition-colors"
-                  >
-                    <Trash2 className="w-5 h-5" />
-                  </button>
+                  {!isLocked && (
+                    <button
+                      onClick={() => handleDelete(note.id)}
+                      className="p-2 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <Trash2 className="w-5 h-5" />
+                    </button>
+                  )}
                 </div>
                 
                 {/* Transcription text with actions */}
@@ -496,7 +562,7 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
                         variant="default"
                         size="sm"
                         onClick={() => sendToInterventionNotes(note.id)}
-                        disabled={sendingId === note.id}
+                        disabled={sendingId === note.id || isLocked}
                         className="gap-2 flex-1"
                       >
                         {sendingId === note.id ? (
@@ -504,24 +570,19 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
                             <Loader2 className="w-4 h-4 animate-spin" />
                             Envoi...
                           </>
+                        ) : isLocked ? (
+                          <>
+                            <Lock className="w-4 h-4" />
+                            Verrouillé
+                          </>
                         ) : (
                           <>
                             <Send className="w-4 h-4" />
-                            Ajouter aux notes
+                            Ajouter au rapport
                           </>
                         )}
                       </Button>
                     </div>
-                  </div>
-                )}
-                
-                {/* Transcribing indicator */}
-                {transcribingId === note.id && (
-                  <div className="mt-3 pt-3 border-t border-border/50">
-                    <p className="text-sm text-muted-foreground italic flex items-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin" />
-                      Transcription en cours...
-                    </p>
                   </div>
                 )}
               </div>
