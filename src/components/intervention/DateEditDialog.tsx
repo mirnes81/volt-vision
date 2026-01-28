@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Calendar, Clock, Loader2, Edit2, AlertTriangle, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Calendar, Clock, Edit2, ExternalLink, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
@@ -27,7 +27,6 @@ import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { supabase } from '@/integrations/supabase/client';
 
 interface DateEditDialogProps {
   interventionId: number;
@@ -64,7 +63,6 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
   const [selectedMinute, setSelectedMinute] = React.useState<string>(
     currentDate ? new Date(currentDate).getMinutes().toString().padStart(2, '0') : '00'
   );
-  const [isLoading, setIsLoading] = React.useState(false);
   const [updateResult, setUpdateResult] = React.useState<'success' | 'local' | null>(null);
 
   // Reset when dialog opens
@@ -80,73 +78,24 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
     }
   }, [open, currentDate, interventionId]);
 
-  const handleSave = async () => {
+  const handleSave = () => {
     if (!selectedDate) {
       toast.error('Veuillez selectionner une date');
       return;
     }
 
-    setIsLoading(true);
-    setUpdateResult(null);
-
     // Build the new date with time
     const newDate = new Date(selectedDate);
     newDate.setHours(parseInt(selectedHour), parseInt(selectedMinute), 0, 0);
     
-    // Convert to Unix timestamp for Dolibarr
-    const timestamp = Math.floor(newDate.getTime() / 1000);
+    // Save locally - Dolibarr API doesn't support PUT for interventions
+    // This is a known limitation, not an error
+    saveDateOverride(interventionId, newDate);
+    setUpdateResult('local');
     
-    try {
-      // Try to update in Dolibarr via edge function
-      const { data, error } = await supabase.functions.invoke('dolibarr-api', {
-        body: {
-          action: 'update-intervention-date',
-          params: {
-            interventionId,
-            dateStart: timestamp,
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.success) {
-        // Success! Clear any local override
-        clearDateOverride(interventionId);
-        setUpdateResult('success');
-        toast.success('Date modifiee dans Dolibarr!', {
-          description: format(newDate, "EEEE d MMMM yyyy 'a' HH:mm", { locale: fr }),
-        });
-        
-        setTimeout(() => {
-          setOpen(false);
-          onDateUpdated();
-        }, 1500);
-        return;
-      }
-
-      // API doesn't support this - expected behavior, save locally
-      saveDateOverride(interventionId, newDate);
-      setUpdateResult('local');
-      
-      // Show info toast (not warning/error - this is expected)
-      toast.info('Date enregistree localement', {
-        description: 'Cliquez sur le lien pour mettre a jour dans Dolibarr.',
-      });
-      
-    } catch (err: any) {
-      console.log('Dolibarr API limitation - saving locally:', err);
-      
-      // Fallback: Save locally - this is expected behavior
-      saveDateOverride(interventionId, newDate);
-      setUpdateResult('local');
-      
-      toast.info('Date enregistree localement', {
-        description: 'Utilisez le lien pour mettre a jour dans Dolibarr.',
-      });
-    } finally {
-      setIsLoading(false);
-    }
+    toast.success('Date enregistree', {
+      description: format(newDate, "EEEE d MMMM yyyy 'a' HH:mm", { locale: fr }),
+    });
   };
 
   const openInDolibarr = () => {
@@ -214,7 +163,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
                     "w-full justify-start text-left font-normal",
                     !selectedDate && "text-muted-foreground"
                   )}
-                  disabled={isLoading || updateResult === 'success'}
+                  disabled={updateResult === 'success'}
                 >
                   <Calendar className="mr-2 h-4 w-4" />
                   {selectedDate ? (
@@ -243,7 +192,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
               Heure
             </label>
             <div className="flex gap-2">
-              <Select value={selectedHour} onValueChange={setSelectedHour} disabled={isLoading || updateResult === 'success'}>
+              <Select value={selectedHour} onValueChange={setSelectedHour} disabled={updateResult === 'success'}>
                 <SelectTrigger className="w-24">
                   <SelectValue placeholder="Heure" />
                 </SelectTrigger>
@@ -256,7 +205,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
                 </SelectContent>
               </Select>
               <span className="self-center text-lg font-medium">:</span>
-              <Select value={selectedMinute} onValueChange={setSelectedMinute} disabled={isLoading || updateResult === 'success'}>
+              <Select value={selectedMinute} onValueChange={setSelectedMinute} disabled={updateResult === 'success'}>
                 <SelectTrigger className="w-24">
                   <SelectValue placeholder="Min" />
                 </SelectTrigger>
@@ -300,8 +249,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
               {updateResult ? 'Fermer' : 'Annuler'}
             </Button>
             {!updateResult && (
-              <Button onClick={handleSave} disabled={!selectedDate || isLoading}>
-                {isLoading && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+              <Button onClick={handleSave} disabled={!selectedDate}>
                 Enregistrer
               </Button>
             )}
