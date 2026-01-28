@@ -20,22 +20,22 @@ const filters = [
 
 const PAGE_SIZE = 25;
 
-// Cache source indicator
+// Cache source indicator - Compact
 const CacheIndicator = ({ source, isOffline }: { source: string | null; isOffline: boolean }) => {
   if (isOffline) {
     return (
-      <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-warning/10 text-warning text-xs font-medium">
-        <WifiOff className="w-3 h-3" />
+      <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-warning/10 text-warning text-[10px] font-medium">
+        <WifiOff className="w-2.5 h-2.5" />
         <span>Hors ligne</span>
       </div>
     );
   }
   
   const icons = {
-    memory: <Zap className="w-3 h-3" />,
-    session: <Zap className="w-3 h-3" />,
-    indexeddb: <Database className="w-3 h-3" />,
-    network: <Cloud className="w-3 h-3" />,
+    memory: <Zap className="w-2.5 h-2.5" />,
+    session: <Zap className="w-2.5 h-2.5" />,
+    indexeddb: <Database className="w-2.5 h-2.5" />,
+    network: <Cloud className="w-2.5 h-2.5" />,
   };
   
   const labels = {
@@ -49,7 +49,7 @@ const CacheIndicator = ({ source, isOffline }: { source: string | null; isOfflin
   
   return (
     <div className={cn(
-      "flex items-center gap-1.5 px-2 py-1 rounded-full text-xs font-medium",
+      "flex items-center gap-1 px-1.5 py-0.5 rounded-full text-[10px] font-medium",
       source === 'network' ? "bg-success/10 text-success" : "bg-primary/10 text-primary"
     )}>
       {icons[source as keyof typeof icons]}
@@ -139,7 +139,7 @@ export default function InterventionsPage() {
   }), [interventions]);
 
   return (
-    <div className="pb-4">
+    <div className="pb-2">
       <Header 
         title="Interventions" 
         rightAction={
@@ -148,21 +148,22 @@ export default function InterventionsPage() {
             size="icon" 
             onClick={handleRefresh}
             disabled={isRefreshing}
+            className="h-8 w-8"
           >
-            <RefreshCw className={cn("w-5 h-5", isRefreshing && "animate-spin")} />
+            <RefreshCw className={cn("w-4 h-4", isRefreshing && "animate-spin")} />
           </Button>
         }
       />
 
-      <div className="px-4 space-y-4">
-        {/* Toggle mine/all - Only show for admins */}
+      <div className="px-3 space-y-2">
+        {/* Toggle mine/all - Only show for admins - Compact */}
         {isAdmin && (
-          <div className="flex gap-2 mt-4">
+          <div className="flex gap-1.5 mt-2">
             <Button
               variant={!showOnlyMine ? "default" : "outline"}
               size="sm"
               onClick={() => setShowOnlyMine(false)}
-              className="flex-1"
+              className="flex-1 h-8 text-xs"
             >
               Toutes ({counts.all})
             </Button>
@@ -170,42 +171,42 @@ export default function InterventionsPage() {
               variant={showOnlyMine ? "default" : "outline"}
               size="sm"
               onClick={() => setShowOnlyMine(true)}
-              className="flex-1"
+              className="flex-1 h-8 text-xs"
             >
               Mes interventions
             </Button>
           </div>
         )}
 
-        {/* Search */}
-        <div className="relative mt-4">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted-foreground" />
+        {/* Search - Compact */}
+        <div className="relative mt-2">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
           <Input
             type="search"
             placeholder="Rechercher..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-12 h-12 rounded-xl"
+            className="pl-9 h-9 rounded-lg text-sm"
           />
         </div>
 
-        {/* Filters */}
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+        {/* Filters - Compact */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-hide -mx-3 px-3">
           {filters.map((filter) => (
             <button
               key={filter.value}
               onClick={() => setActiveFilter(filter.value)}
               className={cn(
-                "px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-all duration-200 btn-press flex items-center gap-1",
+                "px-2.5 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all duration-200 btn-press flex items-center gap-1",
                 activeFilter === filter.value
-                  ? "bg-primary text-primary-foreground shadow-md"
+                  ? "bg-primary text-primary-foreground shadow-sm"
                   : "bg-secondary text-muted-foreground hover:bg-secondary/80"
               )}
             >
               {filter.label}
               {counts[filter.value as keyof typeof counts] > 0 && (
                 <span className={cn(
-                  "text-xs px-1.5 py-0.5 rounded-full",
+                  "text-[10px] px-1 py-0.5 rounded-full min-w-[16px] text-center",
                   activeFilter === filter.value 
                     ? "bg-primary-foreground/20" 
                     : "bg-muted-foreground/20"
@@ -217,49 +218,51 @@ export default function InterventionsPage() {
           ))}
         </div>
 
-        {/* Info bar with pagination and cache indicator */}
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <div className="flex items-center gap-2">
+        {/* Info bar with pagination and cache indicator - Compact */}
+        <div className="flex items-center justify-between text-[11px] text-muted-foreground py-1">
+          <div className="flex items-center gap-1.5">
             <span>
-              Page {currentPage}/{totalPages || 1} ({filteredInterventions.length})
+              {currentPage}/{totalPages || 1} ({filteredInterventions.length})
             </span>
             <CacheIndicator source={cacheSource} isOffline={isOffline} />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1">
             <Button
               variant="outline"
               size="sm"
               onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
               disabled={currentPage === 1}
+              className="h-6 px-2 text-[10px]"
             >
-              ← Préc
+              ←
             </Button>
             <Button
               variant="outline"
               size="sm"
               onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
               disabled={currentPage >= totalPages}
+              className="h-6 px-2 text-[10px]"
             >
-              Suiv →
+              →
             </Button>
           </div>
         </div>
 
-        {/* List */}
+        {/* List - Compact */}
         {isLoading ? (
-          <div className="space-y-3">
+          <div className="space-y-1.5">
             {[1, 2, 3, 4].map((i) => (
-              <Skeleton key={i} className="h-36 rounded-2xl" />
+              <Skeleton key={i} className="h-24 rounded-lg" />
             ))}
           </div>
         ) : displayedInterventions.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <ClipboardList className="w-12 h-12 mx-auto mb-3 opacity-50" />
-            <p>Aucune intervention trouvée</p>
+          <div className="text-center py-8 text-muted-foreground">
+            <ClipboardList className="w-10 h-10 mx-auto mb-2 opacity-50" />
+            <p className="text-sm">Aucune intervention trouvée</p>
           </div>
         ) : (
           <>
-            <div className="space-y-3 stagger-children">
+            <div className="space-y-1.5 stagger-children">
               {displayedInterventions.map((intervention) => (
                 <InterventionCard 
                   key={intervention.id} 
@@ -269,27 +272,29 @@ export default function InterventionsPage() {
               ))}
             </div>
             
-            {/* Bottom pagination */}
+            {/* Bottom pagination - Compact */}
             {totalPages > 1 && (
-              <div className="flex items-center justify-center gap-2 pt-4 pb-20">
+              <div className="flex items-center justify-center gap-2 pt-3 pb-16">
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                   disabled={currentPage === 1}
+                  className="h-7 text-xs"
                 >
-                  ← Précédent
+                  ← Préc
                 </Button>
-                <span className="px-4 py-2 text-sm text-muted-foreground">
-                  {currentPage} / {totalPages}
+                <span className="px-2 py-1 text-xs text-muted-foreground">
+                  {currentPage}/{totalPages}
                 </span>
                 <Button
                   variant="outline"
                   size="sm"
                   onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                   disabled={currentPage >= totalPages}
+                  className="h-7 text-xs"
                 >
-                  Suivant →
+                  Suiv →
                 </Button>
               </div>
             )}

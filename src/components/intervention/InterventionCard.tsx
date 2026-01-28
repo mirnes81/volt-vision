@@ -161,53 +161,52 @@ export function InterventionCard({ intervention, supabaseAssignments = [], onSta
 
   return (
     <Link to={`/intervention/${intervention.id}`}>
-      <article className="bg-card rounded-2xl p-4 shadow-card card-hover border border-border/50">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3 mb-2">
+      <article className="bg-card rounded-lg p-2.5 shadow-sm border border-border/50 transition-all hover:border-primary/30">
+        {/* Header - Compact */}
+        <div className="flex items-start justify-between gap-2 mb-1.5">
           <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 mb-1 flex-wrap">
-              <span className="text-xs font-semibold text-primary bg-primary/10 px-2 py-0.5 rounded-full">
+            <div className="flex items-center gap-1.5 mb-0.5 flex-wrap">
+              <span className="text-[10px] font-semibold text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">
                 {intervention.ref}
               </span>
               {intervention.priority === 'urgent' && (
-                <span className="flex items-center gap-1 text-xs font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
-                  <AlertTriangle className="w-3 h-3" />
+                <span className="flex items-center gap-0.5 text-[10px] font-semibold text-destructive bg-destructive/10 px-1.5 py-0.5 rounded-full">
+                  <AlertTriangle className="w-2.5 h-2.5" />
                   Urgent
                 </span>
               )}
             </div>
-            <h3 className="font-bold text-foreground text-base leading-tight">{intervention.clientName}</h3>
-            <p className="text-sm font-medium text-foreground/80 truncate">{intervention.label}</p>
+            <h3 className="font-bold text-foreground text-sm leading-tight truncate">{intervention.clientName}</h3>
+            <p className="text-xs text-foreground/80 truncate">{intervention.label}</p>
           </div>
           
           {/* Right side: Status (editable for admin) + Bon number */}
-          <div className="flex flex-col items-end gap-1.5 shrink-0 relative">
+          <div className="flex flex-col items-end gap-1 shrink-0 relative">
             {isAdmin ? (
               <div className="relative">
                 <button
                   onClick={handleDropdownToggle}
                   disabled={isUpdating}
                   className={cn(
-                    "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold transition-all",
+                    "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold transition-all",
                     status.color,
                     isUpdating && "opacity-50 cursor-not-allowed",
                     !isUpdating && "hover:ring-2 hover:ring-primary/30 cursor-pointer"
                   )}
                 >
-                  <StatusIcon className="w-3.5 h-3.5" />
-                  {isUpdating ? 'Mise à jour...' : status.label}
-                  <ChevronDown className={cn("w-3 h-3 transition-transform", showDropdown && "rotate-180")} />
+                  <StatusIcon className="w-3 h-3" />
+                  <span className="hidden sm:inline">{status.label}</span>
+                  <ChevronDown className={cn("w-2.5 h-2.5 transition-transform", showDropdown && "rotate-180")} />
                 </button>
                 
                 {/* Dropdown menu */}
                 {showDropdown && (
                   <>
-                    {/* Backdrop to close dropdown */}
                     <div 
                       className="fixed inset-0 z-40" 
                       onClick={handleDropdownClose}
                     />
-                    <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[140px]">
+                    <div className="absolute right-0 top-full mt-1 z-50 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[120px]">
                       {statusOptions.map((option) => {
                         const optConfig = statusConfig[option.value];
                         const OptIcon = optConfig.icon;
@@ -216,11 +215,11 @@ export function InterventionCard({ intervention, supabaseAssignments = [], onSta
                             key={option.value}
                             onClick={(e) => handleStatusChange(e, option.value)}
                             className={cn(
-                              "w-full flex items-center gap-2 px-3 py-2 text-xs font-medium hover:bg-secondary/80 transition-colors text-left",
+                              "w-full flex items-center gap-1.5 px-2 py-1.5 text-[10px] font-medium hover:bg-secondary/80 transition-colors text-left",
                               option.value === currentStatus && "bg-secondary"
                             )}
                           >
-                            <OptIcon className="w-3.5 h-3.5" />
+                            <OptIcon className="w-3 h-3" />
                             {option.label}
                           </button>
                         );
@@ -231,163 +230,131 @@ export function InterventionCard({ intervention, supabaseAssignments = [], onSta
               </div>
             ) : (
               <div className={cn(
-                "flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold",
+                "flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold",
                 status.color
               )}>
-                <StatusIcon className="w-3.5 h-3.5" />
-                {status.label}
+                <StatusIcon className="w-3 h-3" />
               </div>
             )}
             {hasBon && (
-              <div className="flex items-center gap-1 text-xs font-medium text-muted-foreground bg-secondary px-2 py-0.5 rounded">
-                <Hash className="w-3 h-3" />
-                <span>Bon: {intervention.extraBon}</span>
+              <div className="flex items-center gap-0.5 text-[9px] font-medium text-muted-foreground bg-secondary px-1.5 py-0.5 rounded">
+                <Hash className="w-2.5 h-2.5" />
+                <span>{intervention.extraBon}</span>
               </div>
             )}
           </div>
         </div>
 
-        {/* Date with day of week and time */}
+        {/* Date with day of week and time - Compact */}
         {interventionDate && (
-          <div className="flex items-center gap-2 text-sm mb-2">
-            <Calendar className="w-4 h-4 shrink-0 text-primary" />
-            <span className="font-semibold text-foreground">{interventionDate.date}</span>
+          <div className="flex items-center gap-1.5 text-[11px] mb-1">
+            <Calendar className="w-3 h-3 shrink-0 text-primary" />
+            <span className="font-medium text-foreground">{interventionDate.date}</span>
             {interventionDate.time && (
               <span className="text-primary font-medium">• {interventionDate.time}</span>
             )}
           </div>
         )}
 
-        {/* Briefing / Description - show more text */}
-        {briefing && (
-          <div className="flex items-start gap-2 text-sm text-muted-foreground mb-2">
-            <FileText className="w-4 h-4 shrink-0 mt-0.5" />
-            <p className="line-clamp-3">{briefing}</p>
+        {/* Location - Compact (only show one) */}
+        {(hasExtraAdresse || intervention.location) && (
+          <div className="flex items-center gap-1 text-[11px] text-muted-foreground mb-1">
+            <MapPin className="w-3 h-3 shrink-0 text-primary" />
+            <span className="truncate">{hasExtraAdresse ? intervention.extraAdresse : intervention.location}</span>
           </div>
         )}
 
-        {/* Extra Adresse (from intervention extrafield) */}
-        {hasExtraAdresse && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <MapPin className="w-4 h-4 shrink-0 text-primary" />
-            <span className="truncate font-medium">{intervention.extraAdresse}</span>
+        {/* Concierge/Immeuble - Compact inline */}
+        {(hasExtraContact || hasExtraNoImm) && (
+          <div className="flex items-center gap-2 text-[10px] text-muted-foreground mb-1 flex-wrap">
+            {hasExtraContact && (
+              <div className="flex items-center gap-0.5">
+                <Building2 className="w-2.5 h-2.5 text-primary/70" />
+                <span className="truncate max-w-[100px]">{intervention.extraContact}</span>
+              </div>
+            )}
+            {hasExtraNoImm && (
+              <div className="flex items-center gap-0.5">
+                <Home className="w-2.5 h-2.5 text-primary/70" />
+                <span>Imm: {intervention.extraNoImm}</span>
+              </div>
+            )}
           </div>
         )}
 
-        {/* Fallback to client address if no extra adresse */}
-        {!hasExtraAdresse && intervention.location && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <MapPin className="w-4 h-4 shrink-0" />
-            <span className="truncate">{intervention.location}</span>
-          </div>
-        )}
-
-        {/* Extra Contact / Concierge (from intervention extrafield) */}
-        {hasExtraContact && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Building2 className="w-4 h-4 shrink-0 text-primary" />
-            <span className="truncate font-medium">Concierge: {intervention.extraContact}</span>
-          </div>
-        )}
-
-        {/* N° immeuble / Appartement */}
-        {hasExtraNoImm && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Home className="w-4 h-4 shrink-0 text-primary" />
-            <span className="truncate font-medium">Immeuble/Appt: {intervention.extraNoImm}</span>
-          </div>
-        )}
-
-        {/* Adresse complète */}
-        {hasExtraAdresseComplete && !hasExtraAdresse && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <MapPin className="w-4 h-4 shrink-0 text-accent" />
-            <span className="truncate">{intervention.extraAdresseComplete}</span>
-          </div>
-        )}
-
-        {/* N° compteur */}
-        {hasExtraNCompt && (
-          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-            <Gauge className="w-4 h-4 shrink-0 text-primary" />
-            <span className="truncate font-medium">Compteur: {intervention.extraNCompt}</span>
-          </div>
-        )}
-
-        {/* Access codes (clé, code) */}
+        {/* Access codes - Compact inline */}
         {(hasExtraCle || hasExtraCode) && (
-          <div className="flex items-center gap-3 text-sm mb-2 flex-wrap">
+          <div className="flex items-center gap-1.5 text-[10px] mb-1 flex-wrap">
             {hasExtraCle && (
-              <div className="flex items-center gap-1.5 text-muted-foreground bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded-md">
-                <Key className="w-3 h-3" />
-                <span className="text-xs font-medium">Clé: {intervention.extraCle}</span>
+              <div className="flex items-center gap-0.5 text-amber-700 dark:text-amber-300 bg-amber-100 dark:bg-amber-900/30 px-1.5 py-0.5 rounded">
+                <Key className="w-2.5 h-2.5" />
+                <span>{intervention.extraCle}</span>
               </div>
             )}
             {hasExtraCode && (
-              <div className="flex items-center gap-1.5 text-muted-foreground bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-md">
-                <Lock className="w-3 h-3" />
-                <span className="text-xs font-medium">Code: {intervention.extraCode}</span>
+              <div className="flex items-center gap-0.5 text-blue-700 dark:text-blue-300 bg-blue-100 dark:bg-blue-900/30 px-1.5 py-0.5 rounded">
+                <Lock className="w-2.5 h-2.5" />
+                <span>{intervention.extraCode}</span>
               </div>
             )}
           </div>
         )}
 
-        {/* Assigned to - Priority to Supabase assignments */}
-        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-          {supabaseAssignments.length > 0 ? (
-            <>
-              <Users className="w-4 h-4 shrink-0 text-primary" />
-              <span className="truncate">
-                Assigné à :{' '}
-                {supabaseAssignments.map((a, idx) => (
-                  <span 
-                    key={a.id} 
-                    className={cn(
-                      "font-medium",
-                      a.is_primary && "text-primary",
-                      a.priority === 'urgent' && "text-warning",
-                      a.priority === 'critical' && "text-destructive"
-                    )}
-                  >
-                    {a.is_primary && <Crown className="w-3 h-3 inline mr-0.5 text-yellow-500" />}
-                    {a.user_name}
-                    {idx < supabaseAssignments.length - 1 ? ', ' : ''}
-                  </span>
-                ))}
-              </span>
-            </>
-          ) : assigneeName ? (
-            <>
-              <User className="w-4 h-4 shrink-0" />
-              <span className="truncate">Assigné à : <span className="font-medium text-foreground">{assigneeName}</span></span>
-            </>
-          ) : (
-            <>
-              <User className="w-4 h-4 shrink-0" />
-              <span className="truncate text-amber-600 dark:text-amber-400 font-medium">Non assigné</span>
-            </>
-          )}
-        </div>
+        {/* Footer: Assigned + Type + Progress - Compact */}
+        <div className="flex items-center justify-between pt-1.5 border-t border-border/30 mt-1.5">
+          {/* Assigned workers */}
+          <div className="flex items-center gap-1 text-[10px] min-w-0 flex-1">
+            {supabaseAssignments.length > 0 ? (
+              <>
+                <Users className="w-3 h-3 shrink-0 text-primary" />
+                <span className="truncate text-muted-foreground">
+                  {supabaseAssignments.slice(0, 2).map((a, idx) => (
+                    <span 
+                      key={a.id} 
+                      className={cn(
+                        "font-medium",
+                        a.is_primary && "text-primary"
+                      )}
+                    >
+                      {a.user_name.split(' ')[0]}{idx < Math.min(supabaseAssignments.length - 1, 1) ? ', ' : ''}
+                    </span>
+                  ))}
+                  {supabaseAssignments.length > 2 && ` +${supabaseAssignments.length - 2}`}
+                </span>
+              </>
+            ) : assigneeName ? (
+              <>
+                <User className="w-3 h-3 shrink-0" />
+                <span className="truncate font-medium">{assigneeName.split(' ')[0]}</span>
+              </>
+            ) : (
+              <>
+                <User className="w-3 h-3 shrink-0 text-amber-500" />
+                <span className="text-amber-600 dark:text-amber-400 font-medium">Non assigné</span>
+              </>
+            )}
+          </div>
 
-        {/* Footer */}
-        <div className="flex items-center justify-between pt-3 border-t border-border/50">
-          <span className="text-xs font-medium px-2 py-1 bg-secondary rounded-md">
-            {typeLabels[intervention.type] || intervention.type}
-          </span>
-          
-          {totalTasks > 0 && (
-            <div className="flex items-center gap-2">
-              <div className="w-20 h-1.5 bg-secondary rounded-full overflow-hidden">
-                <div 
-                  className="h-full bg-primary transition-all duration-300 rounded-full"
-                  style={{ width: `${progress}%` }}
-                />
+          {/* Type + Progress */}
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[9px] font-medium px-1.5 py-0.5 bg-secondary rounded text-muted-foreground">
+              {typeLabels[intervention.type] || intervention.type}
+            </span>
+            
+            {totalTasks > 0 && (
+              <div className="flex items-center gap-1">
+                <div className="w-10 h-1 bg-secondary rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-primary transition-all duration-300 rounded-full"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <span className="text-[9px] font-medium text-muted-foreground">
+                  {completedTasks}/{totalTasks}
+                </span>
               </div>
-              <span className="text-xs font-medium text-muted-foreground">
-                {completedTasks}/{totalTasks}
-              </span>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </article>
     </Link>
