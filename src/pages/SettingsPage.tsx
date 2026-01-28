@@ -1,6 +1,6 @@
 import * as React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, Wifi } from 'lucide-react';
+import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, Wifi, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +14,7 @@ import {
   testDolibarrConnection,
   DolibarrConfig 
 } from '@/lib/dolibarrConfig';
+import { clearPendingSync, getPendingSyncCount } from '@/lib/offlineStorage';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
@@ -24,12 +25,16 @@ export default function SettingsPage() {
   const [apiKey, setApiKey] = React.useState(config.apiKey || '');
   const [isTesting, setIsTesting] = React.useState(false);
   const [testResult, setTestResult] = React.useState<{ success: boolean; message: string; version?: string } | null>(null);
+  const [pendingSyncCount, setPendingSyncCount] = React.useState(0);
   
   React.useEffect(() => {
     const storedConfig = getDolibarrConfig();
     setConfig(storedConfig);
     setUrl(storedConfig.baseUrl);
     setApiKey(storedConfig.apiKey || '');
+    
+    // Load pending sync count
+    getPendingSyncCount().then(setPendingSyncCount).catch(console.error);
   }, []);
 
   const handleTest = async () => {
@@ -97,6 +102,23 @@ export default function SettingsPage() {
       title: 'Configuration réinitialisée',
       description: 'Veuillez reconfigurer la connexion Dolibarr',
     });
+  };
+
+  const handleClearPendingSync = async () => {
+    try {
+      await clearPendingSync();
+      setPendingSyncCount(0);
+      toast({
+        title: 'File de synchronisation vidée',
+        description: 'Toutes les opérations en attente ont été supprimées',
+      });
+    } catch (error) {
+      toast({
+        title: 'Erreur',
+        description: 'Impossible de vider la file de synchronisation',
+        variant: 'destructive',
+      });
+    }
   };
 
   return (
@@ -237,6 +259,37 @@ export default function SettingsPage() {
                 className="w-full text-muted-foreground"
               >
                 Réinitialiser la configuration
+              </Button>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Pending Sync */}
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Trash2 className="h-5 w-5" />
+              Synchronisation en attente
+            </CardTitle>
+            <CardDescription>
+              Opérations hors-ligne en attente de synchronisation
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="flex items-center justify-between">
+              <span className="text-sm">Opérations en attente:</span>
+              <Badge variant={pendingSyncCount > 0 ? "destructive" : "secondary"}>
+                {pendingSyncCount}
+              </Badge>
+            </div>
+            {pendingSyncCount > 0 && (
+              <Button 
+                variant="outline" 
+                onClick={handleClearPendingSync}
+                className="w-full text-destructive border-destructive/50 hover:bg-destructive/10"
+              >
+                <Trash2 className="h-4 w-4 mr-2" />
+                Vider la file de synchronisation
               </Button>
             )}
           </CardContent>

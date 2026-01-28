@@ -134,6 +134,28 @@ export async function clearPendingSync(): Promise<void> {
   await database.clear('pendingSync');
 }
 
+// Clean up corrupted pending sync items (e.g., with undefined interventionId)
+export async function cleanupCorruptedPendingSync(): Promise<number> {
+  const database = await initDB();
+  const pending = await database.getAll('pendingSync');
+  let removedCount = 0;
+  
+  for (const item of pending) {
+    // Remove items with invalid interventionId
+    if (!item.interventionId || isNaN(item.interventionId)) {
+      await database.delete('pendingSync', item.id);
+      removedCount++;
+      console.log('[OfflineStorage] Removed corrupted sync item:', item.id, item.type);
+    }
+  }
+  
+  if (removedCount > 0) {
+    console.log(`[OfflineStorage] Cleaned up ${removedCount} corrupted sync items`);
+  }
+  
+  return removedCount;
+}
+
 // Voice notes
 export async function saveVoiceNote(
   interventionId: number,
