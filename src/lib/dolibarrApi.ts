@@ -270,6 +270,8 @@ export async function fetchProducts(search?: string): Promise<Product[]> {
     label: product.label,
     price: parseFloat(product.price) || 0,
     unit: product.unit || 'pce',
+    barcode: product.barcode || '',
+    photo: product.photo || null,
   }));
 }
 
