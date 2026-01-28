@@ -435,16 +435,20 @@ export async function dolibarrSaveSignature(
   console.log('[Signature] Saved locally. Status update not available via API.');
 }
 
-// PDF
+// PDF - Generate locally using jsPDF
 export async function generatePdf(interventionId: number): Promise<{ filePath: string; fileName: string; downloadUrl?: string }> {
-  // Note: Dolibarr REST API may not support document generation for all module parts
-  // This is a known limitation - PDF generation should be done directly in Dolibarr
-  console.log('[PDF] Document generation requested for intervention:', interventionId);
+  console.log('[PDF] Generating PDF locally for intervention:', interventionId);
   
-  // Return a placeholder - actual PDF should be generated/accessed via Dolibarr
+  // Fetch the intervention data
+  const intervention = await fetchIntervention(interventionId);
+  
+  // Import and use the local PDF generator
+  const { generateInterventionPDF } = await import('@/lib/pdfGenerator');
+  generateInterventionPDF(intervention);
+  
   return { 
-    filePath: `/documents/intervention_${interventionId}.pdf`, 
-    fileName: `intervention_${interventionId}.pdf` 
+    filePath: `intervention_${intervention.ref}.pdf`, 
+    fileName: `intervention_${intervention.ref}.pdf` 
   };
 }
 
