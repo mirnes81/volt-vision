@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Plus, Package, Trash2, WifiOff, ImageOff } from 'lucide-react';
+import { Plus, Package, Trash2, WifiOff, Camera, X, ZoomIn } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Intervention, Product, Material } from '@/types/intervention';
@@ -7,14 +7,30 @@ import { getProducts } from '@/lib/api';
 import { toast } from '@/components/ui/sonner';
 import { addPendingSync } from '@/lib/offlineStorage';
 import { callDolibarrApi } from '@/lib/dolibarrApi';
+import { cn } from '@/lib/utils';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 
 interface MaterialsSectionProps {
   intervention: Intervention;
   onUpdate: () => void;
 }
 
-// LocalStorage key for materials
+// LocalStorage keys
 const getMaterialsKey = (interventionId: number) => `intervention_materials_${interventionId}`;
+const getMaterialPhotosKey = (interventionId: number) => `intervention_material_photos_${interventionId}`;
+
+interface MaterialPhoto {
+  id: string;
+  materialId: number;
+  dataUrl: string;
+  timestamp: string;
+  caption?: string;
+}
 
 // Get locally stored materials
 function getLocalMaterials(interventionId: number): Material[] {
@@ -29,6 +45,21 @@ function getLocalMaterials(interventionId: number): Material[] {
 // Save materials locally
 function saveLocalMaterials(interventionId: number, materials: Material[]) {
   localStorage.setItem(getMaterialsKey(interventionId), JSON.stringify(materials));
+}
+
+// Get locally stored material photos
+function getLocalMaterialPhotos(interventionId: number): MaterialPhoto[] {
+  try {
+    const stored = localStorage.getItem(getMaterialPhotosKey(interventionId));
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+// Save material photos locally
+function saveMaterialPhotos(interventionId: number, photos: MaterialPhoto[]) {
+  localStorage.setItem(getMaterialPhotosKey(interventionId), JSON.stringify(photos));
 }
 
 // Product photo component with fallback
@@ -68,21 +99,26 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
   const [isLoading, setIsLoading] = React.useState(false);
   const [localMaterials, setLocalMaterials] = React.useState<Material[]>([]);
   const [searchQuery, setSearchQuery] = React.useState('');
+  
+  // Photo capture state
+  const [materialPhotos, setMaterialPhotos] = React.useState<MaterialPhoto[]>([]);
+  const [capturingForMaterial, setCapturingForMaterial] = React.useState<number | null>(null);
+  const [viewingPhoto, setViewingPhoto] = React.useState<MaterialPhoto | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Load products and local materials on mount
+  // Load products, local materials, and photos on mount
   React.useEffect(() => {
     getProducts().then(setProducts).catch(console.error);
     setLocalMaterials(getLocalMaterials(intervention.id));
+    setMaterialPhotos(getLocalMaterialPhotos(intervention.id));
   }, [intervention.id]);
 
   // Combine API materials with locally added ones, enriching with product photos
   const allMaterials = React.useMemo(() => {
     const apiMaterials = intervention.materials || [];
     const apiIds = new Set(apiMaterials.map(m => m.id));
-    // Only add local materials that don't exist in API response
     const uniqueLocalMaterials = localMaterials.filter(m => !apiIds.has(m.id));
     
-    // Enrich materials with product photos from the products list
     const enriched = [...apiMaterials, ...uniqueLocalMaterials].map(m => {
       const product = products.find(p => p.id === m.productId);
       return {
@@ -115,7 +151,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
 
     setIsLoading(true);
     
-    // Create local material object for immediate feedback
     const newMaterial: Material = {
       id: Date.now(),
       productId: selectedProduct,
@@ -129,12 +164,10 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
     };
 
     try {
-      // Save locally first (immediate feedback)
       const updatedLocalMaterials = [...localMaterials, newMaterial];
       setLocalMaterials(updatedLocalMaterials);
       saveLocalMaterials(intervention.id, updatedLocalMaterials);
       
-      // Reset form immediately for good UX
       setShowAdd(false);
       setSelectedProduct(null);
       setQty('1');
@@ -145,7 +178,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
         description: `${product.label} x${qty}`,
       });
 
-      // Try to sync with Dolibarr in background
       try {
         await callDolibarrApi('add-intervention-line', {
           interventionId: intervention.id,
@@ -153,19 +185,14 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
           qty: parseFloat(qty),
           description: comment || product.label,
         });
-        
-        // Mark as synced (optional: you could add a sync status field)
         console.log('[Materials] Synced with Dolibarr');
       } catch (syncError) {
         console.warn('[Materials] API sync failed, queuing for later:', syncError);
-        
-        // Queue for offline sync
         await addPendingSync('material', intervention.id, {
           productId: selectedProduct,
           qtyUsed: parseFloat(qty),
           comment: comment || undefined,
         });
-        
         toast.info('Enregistré localement', {
           description: 'Sera synchronisé automatiquement',
           icon: <WifiOff className="w-4 h-4" />,
@@ -185,11 +212,80 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
     const updatedMaterials = localMaterials.filter(m => m.id !== materialId);
     setLocalMaterials(updatedMaterials);
     saveLocalMaterials(intervention.id, updatedMaterials);
+    
+    const updatedPhotos = materialPhotos.filter(p => p.materialId !== materialId);
+    setMaterialPhotos(updatedPhotos);
+    saveMaterialPhotos(intervention.id, updatedPhotos);
+    
     toast.success('Matériel supprimé');
+  };
+
+  // Handle photo capture for a material
+  const handleCapturePhoto = (materialId: number) => {
+    setCapturingForMaterial(materialId);
+    fileInputRef.current?.click();
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || capturingForMaterial === null) return;
+
+    try {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const dataUrl = reader.result as string;
+        
+        const newPhoto: MaterialPhoto = {
+          id: `photo_${Date.now()}`,
+          materialId: capturingForMaterial,
+          dataUrl,
+          timestamp: new Date().toISOString(),
+        };
+        
+        const updatedPhotos = [...materialPhotos, newPhoto];
+        setMaterialPhotos(updatedPhotos);
+        saveMaterialPhotos(intervention.id, updatedPhotos);
+        
+        toast.success('Photo ajoutée au matériel');
+        
+        setCapturingForMaterial(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = '';
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (error) {
+      console.error('[Materials] Error capturing photo:', error);
+      toast.error('Erreur lors de la capture');
+      setCapturingForMaterial(null);
+    }
+  };
+
+  const handleDeletePhoto = (photoId: string) => {
+    const updatedPhotos = materialPhotos.filter(p => p.id !== photoId);
+    setMaterialPhotos(updatedPhotos);
+    saveMaterialPhotos(intervention.id, updatedPhotos);
+    setViewingPhoto(null);
+    toast.success('Photo supprimée');
+  };
+
+  // Get photos for a specific material
+  const getPhotosForMaterial = (materialId: number) => {
+    return materialPhotos.filter(p => p.materialId === materialId);
   };
 
   return (
     <div className="space-y-4">
+      {/* Hidden file input for camera */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handlePhotoChange}
+        className="hidden"
+      />
+
       {/* Add Button */}
       <Button
         variant="worker"
@@ -204,7 +300,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
       {/* Add Form */}
       {showAdd && (
         <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50 space-y-4 animate-slide-up">
-          {/* Search Input */}
           <div>
             <label className="text-sm font-medium mb-2 block">Rechercher un produit</label>
             <Input
@@ -215,7 +310,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             />
           </div>
 
-          {/* Selected Product Preview */}
           {selectedProductData && (
             <div className="flex items-center gap-3 p-3 bg-primary/5 rounded-xl border border-primary/20">
               <ProductPhoto src={selectedProductData.photo} alt={selectedProductData.label} size="lg" />
@@ -229,7 +323,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             </div>
           )}
 
-          {/* Product Select */}
           <div>
             <label className="text-sm font-medium mb-2 block">
               Produit {filteredProducts.length > 0 && `(${filteredProducts.length})`}
@@ -248,7 +341,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             </select>
           </div>
 
-          {/* Quantity & Unit */}
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Quantité</label>
@@ -271,7 +363,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             </div>
           </div>
 
-          {/* Comment */}
           <div>
             <label className="text-sm font-medium mb-2 block">Commentaire (optionnel)</label>
             <Input
@@ -282,7 +373,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             />
           </div>
 
-          {/* Buttons */}
           <div className="flex gap-3">
             <Button
               variant="worker-ghost"
@@ -318,20 +408,19 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
             <p className="text-sm">Aucun matériel enregistré</p>
           </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {allMaterials.map((material) => {
               const isLocal = localMaterials.some(m => m.id === material.id);
+              const photos = getPhotosForMaterial(material.id);
               
               return (
                 <div
                   key={material.id}
-                  className="bg-card rounded-xl p-3 border border-border/50"
+                  className="bg-card rounded-xl p-3 border border-border/50 space-y-3"
                 >
                   <div className="flex items-center gap-3">
-                    {/* Product Photo */}
                     <ProductPhoto src={material.photo} alt={material.productName} size="md" />
                     
-                    {/* Product Info */}
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
                         <p className="font-semibold truncate text-sm">{material.productName}</p>
@@ -349,7 +438,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
                       )}
                     </div>
                     
-                    {/* Quantity & Actions */}
                     <div className="flex items-center gap-2 shrink-0">
                       <div className="text-right">
                         <p className="text-lg font-bold text-primary">
@@ -369,12 +457,81 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
                       )}
                     </div>
                   </div>
+
+                  {/* Photos section for this material */}
+                  <div className="flex items-center gap-2 pt-2 border-t border-border/30">
+                    {/* Photo thumbnails */}
+                    {photos.map((photo) => (
+                      <button
+                        key={photo.id}
+                        onClick={() => setViewingPhoto(photo)}
+                        className="relative w-12 h-12 rounded-lg overflow-hidden border border-border/50 hover:border-primary transition-colors"
+                      >
+                        <img
+                          src={photo.dataUrl}
+                          alt="Photo matériel"
+                          className="w-full h-full object-cover"
+                        />
+                        <div className="absolute inset-0 bg-black/0 hover:bg-black/20 transition-colors flex items-center justify-center">
+                          <ZoomIn className="w-4 h-4 text-white opacity-0 hover:opacity-100" />
+                        </div>
+                      </button>
+                    ))}
+                    
+                    {/* Add photo button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => handleCapturePhoto(material.id)}
+                      className={cn(
+                        "h-12 gap-2 border-dashed",
+                        photos.length === 0 ? "flex-1" : "w-12 p-0"
+                      )}
+                    >
+                      <Camera className="w-4 h-4" />
+                      {photos.length === 0 && <span className="text-xs">Prendre photo</span>}
+                    </Button>
+                  </div>
                 </div>
               );
             })}
           </div>
         )}
       </div>
+
+      {/* Photo viewer dialog */}
+      <Dialog open={!!viewingPhoto} onOpenChange={() => setViewingPhoto(null)}>
+        <DialogContent className="max-w-lg p-0 overflow-hidden">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="flex items-center justify-between">
+              <span>Photo du matériel</span>
+            </DialogTitle>
+          </DialogHeader>
+          {viewingPhoto && (
+            <div className="relative">
+              <img
+                src={viewingPhoto.dataUrl}
+                alt="Photo matériel"
+                className="w-full max-h-[60vh] object-contain"
+              />
+              <div className="p-4 flex justify-between items-center">
+                <p className="text-xs text-muted-foreground">
+                  {new Date(viewingPhoto.timestamp).toLocaleString('fr-CH')}
+                </p>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleDeletePhoto(viewingPhoto.id)}
+                  className="gap-2"
+                >
+                  <Trash2 className="w-4 h-4" />
+                  Supprimer
+                </Button>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
