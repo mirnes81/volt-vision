@@ -10,10 +10,66 @@ interface OIBTData {
   comments: string;
 }
 
+interface VoiceNoteTranscription {
+  id: number;
+  transcription: string;
+  createdAt: string;
+}
+
+// Get voice notes transcriptions from localStorage
+function getVoiceNotesTranscriptions(interventionId: number): VoiceNoteTranscription[] {
+  const transcriptions: VoiceNoteTranscription[] = [];
+  
+  // Get all localStorage keys that match transcription pattern
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key && key.startsWith('transcription_')) {
+      const noteId = parseInt(key.replace('transcription_', ''));
+      const text = localStorage.getItem(key);
+      if (text) {
+        transcriptions.push({
+          id: noteId,
+          transcription: text,
+          createdAt: new Date().toISOString() // Fallback date
+        });
+      }
+    }
+  }
+  
+  return transcriptions;
+}
+
+// Get signature from localStorage or intervention
+function getSignatureData(intervention: Intervention): string | null {
+  // First check if there's a local signature
+  const localSignature = localStorage.getItem(`signature_${intervention.id}`);
+  if (localSignature) return localSignature;
+  
+  // Then check intervention signaturePath
+  if (intervention.signaturePath) {
+    // If it's a data URL, return it directly
+    if (intervention.signaturePath.startsWith('data:')) {
+      return intervention.signaturePath;
+    }
+    // Otherwise it's a Dolibarr path, we can't use it directly
+    return null;
+  }
+  
+  return null;
+}
+
 export function generateInterventionPDF(intervention: Intervention): void {
   const doc = new jsPDF();
   const pageWidth = doc.internal.pageSize.getWidth();
+  const pageHeight = doc.internal.pageSize.getHeight();
   let y = 20;
+  
+  const checkNewPage = (neededSpace: number = 30) => {
+    if (y + neededSpace > pageHeight - 20) {
+      doc.addPage();
+      y = 20;
+    }
+  };
   
   // Header
   doc.setFontSize(20);
@@ -58,12 +114,14 @@ export function generateInterventionPDF(intervention: Intervention): void {
   y += descLines.length * 6 + 10;
   
   // Tasks
+  checkNewPage(40);
   doc.setFont('helvetica', 'bold');
   doc.text('Tâches effectuées:', 20, y);
   y += 8;
   doc.setFont('helvetica', 'normal');
   
   intervention.tasks.forEach(task => {
+    checkNewPage(10);
     const status = task.status === 'fait' ? '✓' : '○';
     doc.text(`${status} ${task.label}`, 25, y);
     y += 6;
@@ -72,12 +130,14 @@ export function generateInterventionPDF(intervention: Intervention): void {
   
   // Materials
   if (intervention.materials.length > 0) {
+    checkNewPage(40);
     doc.setFont('helvetica', 'bold');
     doc.text('Matériel utilisé:', 20, y);
     y += 8;
     doc.setFont('helvetica', 'normal');
     
     intervention.materials.forEach(material => {
+      checkNewPage(10);
       doc.text(`- ${material.qtyUsed} ${material.unit} ${material.productName}`, 25, y);
       y += 6;
     });
@@ -85,6 +145,7 @@ export function generateInterventionPDF(intervention: Intervention): void {
   }
   
   // Hours
+  checkNewPage(20);
   const totalHours = intervention.hours.reduce((acc, h) => acc + (h.durationHours || 0), 0);
   doc.setFont('helvetica', 'bold');
   doc.text(`Heures travaillées: ${totalHours.toFixed(1)}h`, 20, y);
@@ -92,6 +153,7 @@ export function generateInterventionPDF(intervention: Intervention): void {
   
   // AI Summary if available
   if (intervention.aiSummary) {
+    checkNewPage(40);
     doc.setFont('helvetica', 'bold');
     doc.text('Résumé:', 20, y);
     y += 8;
@@ -101,19 +163,80 @@ export function generateInterventionPDF(intervention: Intervention): void {
     y += summaryLines.length * 6 + 10;
   }
   
-  // Signature space
-  if (y > 240) {
-    doc.addPage();
-    y = 20;
+  // Voice Notes Transcriptions
+  const transcriptions = getVoiceNotesTranscriptions(intervention.id);
+  if (transcriptions.length > 0) {
+    checkNewPage(50);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Notes vocales:', 20, y);
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    
+    transcriptions.forEach((note, index) => {
+      checkNewPage(30);
+      doc.setFont('helvetica', 'italic');
+      doc.text(`Note ${index + 1}:`, 25, y);
+      y += 6;
+      doc.setFont('helvetica', 'normal');
+      
+      const noteLines = doc.splitTextToSize(note.transcription, pageWidth - 50);
+      doc.text(noteLines, 30, y);
+      y += noteLines.length * 6 + 5;
+    });
+    y += 5;
   }
   
-  y = Math.max(y, 250);
-  doc.setFont('helvetica', 'normal');
-  doc.text('Signature client:', 20, y);
-  doc.line(20, y + 20, 90, y + 20);
+  // Intervention notes from localStorage
+  const interventionNotes = localStorage.getItem(`intervention_notes_${intervention.id}`);
+  if (interventionNotes) {
+    checkNewPage(50);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Notes du technicien:', 20, y);
+    y += 8;
+    doc.setFont('helvetica', 'normal');
+    const notesLines = doc.splitTextToSize(interventionNotes, pageWidth - 40);
+    doc.text(notesLines, 25, y);
+    y += notesLines.length * 6 + 10;
+  }
   
-  doc.text('Signature technicien:', 110, y);
-  doc.line(110, y + 20, 180, y + 20);
+  // Signature section
+  checkNewPage(80);
+  
+  // Client signature
+  const signatureData = getSignatureData(intervention);
+  if (signatureData) {
+    y += 10;
+    doc.setFont('helvetica', 'bold');
+    doc.text('Signature client:', 20, y);
+    y += 5;
+    
+    try {
+      // Add signature image
+      doc.addImage(signatureData, 'PNG', 20, y, 70, 35);
+      y += 40;
+    } catch (error) {
+      console.error('Error adding signature to PDF:', error);
+      doc.setFont('helvetica', 'normal');
+      doc.text('[Signature enregistrée]', 25, y + 15);
+      y += 25;
+    }
+  } else {
+    // Empty signature line
+    y = Math.max(y, 250);
+    doc.setFont('helvetica', 'normal');
+    doc.text('Signature client:', 20, y);
+    doc.line(20, y + 20, 90, y + 20);
+  }
+  
+  // Technician signature placeholder
+  if (signatureData) {
+    doc.setFont('helvetica', 'normal');
+    doc.text('Signature technicien:', 110, y - 35);
+    doc.line(110, y + 5, 180, y + 5);
+  } else {
+    doc.text('Signature technicien:', 110, y);
+    doc.line(110, y + 20, 180, y + 20);
+  }
   
   // Footer
   doc.setFontSize(8);
