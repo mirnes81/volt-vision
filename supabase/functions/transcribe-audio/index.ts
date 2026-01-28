@@ -5,13 +5,24 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Supported languages with their display names and codes
+const SUPPORTED_LANGUAGES: Record<string, { name: string; code: string }> = {
+  fr: { name: "Français", code: "fr" },
+  en: { name: "English", code: "en" },
+  de: { name: "Deutsch", code: "de" },
+  it: { name: "Italiano", code: "it" },
+  es: { name: "Español", code: "es" },
+  pt: { name: "Português", code: "pt" },
+  auto: { name: "Auto-detect", code: "auto" },
+};
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const { audioBase64, mimeType } = await req.json();
+    const { audioBase64, mimeType, targetLanguage = "fr", sourceLanguage = "auto" } = await req.json();
 
     if (!audioBase64) {
       throw new Error("No audio data provided");
@@ -21,6 +32,21 @@ serve(async (req) => {
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
+
+    // Build the system prompt based on language preferences
+    const targetLangName = SUPPORTED_LANGUAGES[targetLanguage]?.name || "Français";
+    const sourceLangInfo = sourceLanguage === "auto" 
+      ? "Détecte automatiquement la langue parlée."
+      : `La langue source est: ${SUPPORTED_LANGUAGES[sourceLanguage]?.name || sourceLanguage}`;
+
+    const systemPrompt = `Tu es un assistant de transcription audio professionnel multilingue. Ta tâche est de:
+1. Écouter l'audio et transcrire EXACTEMENT ce qui est dit
+2. ${sourceLangInfo}
+3. Traduis et écris le résultat final en ${targetLangName} avec une grammaire et orthographe correctes
+4. Corrige automatiquement la grammaire et la ponctuation
+5. Ne rajoute AUCUN commentaire, SEULEMENT le texte transcrit
+6. Si l'audio est inaudible ou vide, réponds simplement: "[Audio inaudible]"
+7. Si tu détectes plusieurs locuteurs, sépare leurs interventions par des retours à la ligne`;
 
     // Use Gemini model which supports audio input
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -34,20 +60,14 @@ serve(async (req) => {
         messages: [
           {
             role: "system",
-            content: `Tu es un assistant de transcription audio professionnel. Ta tâche est de:
-1. Écouter l'audio et transcrire EXACTEMENT ce qui est dit
-2. Écrire le texte en français correct, sans fautes d'orthographe
-3. Si l'audio est dans une autre langue, traduis-le en français
-4. Corrige automatiquement la grammaire et la ponctuation
-5. Ne rajoute AUCUN commentaire, SEULEMENT le texte transcrit
-6. Si l'audio est inaudible ou vide, réponds simplement: "[Audio inaudible]"`
+            content: systemPrompt
           },
           {
             role: "user",
             content: [
               {
                 type: "text",
-                text: "Transcris cet audio en français correct:"
+                text: `Transcris cet audio et traduis-le en ${targetLangName}:`
               },
               {
                 type: "input_audio",
@@ -85,7 +105,11 @@ serve(async (req) => {
     const data = await response.json();
     const transcription = data.choices?.[0]?.message?.content || "[Transcription impossible]";
 
-    return new Response(JSON.stringify({ text: transcription.trim() }), {
+    return new Response(JSON.stringify({ 
+      text: transcription.trim(),
+      targetLanguage,
+      sourceLanguage 
+    }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
