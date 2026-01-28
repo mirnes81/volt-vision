@@ -1,4 +1,4 @@
-import { Home, ClipboardList, Calendar, User, Clock, Zap } from 'lucide-react';
+import { Home, ClipboardList, CalendarDays, User, Clock, Zap } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
@@ -8,10 +8,10 @@ export function BottomNav() {
   const { t } = useLanguage();
   const { openCount } = useEmergencyInterventions();
   
-  const navItems = [
+  const navItems: { to: string; icon: typeof Home; label: string; badge?: number }[] = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: 'Mes Int.' },
-    { to: '/emergencies', icon: Zap, label: 'Urgences', badge: openCount },
+    { to: '/calendar', icon: CalendarDays, label: 'Planning' },
     { to: '/time-tracking', icon: Clock, label: 'Heures' },
     { to: '/profile', icon: User, label: t('nav.profile') },
   ];

@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  Home, ClipboardList, Calendar, User, Settings, ChevronLeft, ChevronRight,
+  Home, ClipboardList, CalendarDays, User, Settings, ChevronLeft, ChevronRight,
   Zap, LogOut, Moon, Sun, Plus, Clock
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -28,8 +28,8 @@ export function DesktopSidebar() {
   const mainNavItems: NavItem[] = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: t('nav.interventions') },
+    { to: '/calendar', icon: CalendarDays, label: 'Planning' },
     { to: '/time-tracking', icon: Clock, label: 'Suivi heures' },
-    { to: '/calendar', icon: Calendar, label: t('nav.calendar') },
     { to: '/profile', icon: User, label: t('nav.profile') },
   ];
 
