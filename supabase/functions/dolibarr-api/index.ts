@@ -705,10 +705,9 @@ serve(async (req) => {
         body = JSON.stringify(params.data);
         break;
 
-      // Products - with photo base64 via documents/download API
+      // Products - FAST version without photos (photos loaded on-demand)
       case 'get-products': {
         // Filter only PRODUCTS (type=0), not services (type=1)
-        // Dolibarr API: type=0 for products, type=1 for services
         const productsEndpoint = '/products?limit=500&type=0';
         
         const productsResponse = await fetchWithTimeout(`${baseUrl}${productsEndpoint}`, { method: 'GET', headers }, 15000);
@@ -722,107 +721,184 @@ serve(async (req) => {
         }
         
         const productsData = await productsResponse.json();
-        // Double filter: ensure we only have products (type=0 or fk_product_type=0)
+        // Filter: only products (type=0)
         const productsList = Array.isArray(productsData) 
           ? productsData.filter((p: any) => String(p.type) === '0' || String(p.fk_product_type) === '0' || (!p.type && !p.fk_product_type))
           : [];
         
         console.log(`[GET-PRODUCTS] Fetched ${productsList.length} products (filtered from ${productsData?.length || 0})`);
         
-        // Fetch photos for ALL products (increased from 20 to all)
-        // Use batched parallel requests to avoid overwhelming the server
-        const photoMap = new Map<number, string | null>();
-        
-        console.log(`[GET-PRODUCTS] Enriching ALL ${productsList.length} products with photos`);
-        
-        // Process ALL products in batches of 15 to get photos
-        for (let i = 0; i < productsList.length; i += 15) {
-          const batch = productsList.slice(i, i + 15);
-          
-          const batchResults = await Promise.all(batch.map(async (p: any) => {
-            try {
-              // Get document list for this product
-              const docResponse = await fetchWithTimeout(
-                `${baseUrl}/documents?modulepart=product&id=${p.id}`, 
-                { method: 'GET', headers }, 
-                4000
-              );
-              if (!docResponse.ok) {
-                return { id: parseInt(p.id), dataUrl: null };
-              }
-              
-              const docs = await docResponse.json();
-              const imageDoc = Array.isArray(docs) ? docs.find((d: any) => 
-                /\.(jpg|jpeg|png|gif|webp)$/i.test(d.name || d.filename || '')
-              ) : null;
-              
-              if (!imageDoc) {
-                return { id: parseInt(p.id), dataUrl: null };
-              }
-              
-              // Build the correct path
-              const filePath = imageDoc.filepath || '';
-              const fileName = imageDoc.name || imageDoc.filename || '';
-              const relativePath = filePath.replace(/^produit\/?/, '');
-              const originalFile = relativePath ? `${relativePath}/${fileName}` : fileName;
-              
-              // Download via /documents/download
-              const downloadUrl = `${baseUrl}/documents/download?modulepart=product&original_file=${encodeURIComponent(originalFile)}`;
-              
-              const imgResponse = await fetchWithTimeout(downloadUrl, { 
-                method: 'GET',
-                headers
-              }, 5000);
-              
-              if (!imgResponse.ok) {
-                console.log(`[GET-PRODUCTS] Download failed for ${p.id}: ${imgResponse.status}`);
-                return { id: parseInt(p.id), dataUrl: null };
-              }
-              
-              const responseData = await imgResponse.json();
-              
-              if (responseData.content) {
-                let mimeType = responseData['content-type'] || 'image/jpeg';
-                const dataUrl = `data:${mimeType};base64,${responseData.content}`;
-                console.log(`[GET-PRODUCTS] Got photo for product ${p.id}`);
-                return { id: parseInt(p.id), dataUrl };
-              }
-              
-              return { id: parseInt(p.id), dataUrl: null };
-            } catch (e: any) {
-              console.log(`[GET-PRODUCTS] Error for ${p.id}: ${e.message}`);
-              return { id: parseInt(p.id), dataUrl: null };
-            }
-          }));
-          
-          // Add results to map
-          batchResults.forEach((result: { id: number; dataUrl: string | null }) => {
-            if (result && result.dataUrl) {
-              photoMap.set(result.id, result.dataUrl);
-            }
-          });
-        }
-        
-        const enrichedProducts = productsList.map((p: any) => {
-          const productId = parseInt(p.id);
-          const dataUrl = photoMap.get(productId) || null;
-          
-          return {
-            id: productId,
-            ref: p.ref || '',
-            label: p.label || p.description || '',
-            unit: p.fk_unit_label || p.unit || 'pce',
-            price: parseFloat(p.price || p.price_ttc || '0'),
-            barcode: p.barcode || '',
-            photo: dataUrl,
-          };
-        });
-        
-        const photosCount = Array.from(photoMap.values()).filter(v => v).length;
-        console.log(`[GET-PRODUCTS] Enriched ${enrichedProducts.length} products, ${photosCount} with photos`);
+        // Return products WITHOUT photos for fast response
+        // Photos are loaded on-demand via get-product-photo endpoint
+        const products = productsList.map((p: any) => ({
+          id: parseInt(p.id),
+          ref: p.ref || '',
+          label: p.label || p.description || '',
+          unit: p.fk_unit_label || p.unit || 'pce',
+          price: parseFloat(p.price || p.price_ttc || '0'),
+          barcode: p.barcode || '',
+          photo: null, // Photos loaded on-demand
+        }));
         
         return new Response(
-          JSON.stringify(enrichedProducts),
+          JSON.stringify(products),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      
+      // Get photo for a single product (on-demand)
+      case 'get-product-photo': {
+        const productId = params.productId;
+        if (!productId) {
+          return new Response(
+            JSON.stringify({ error: 'productId required' }),
+            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        try {
+          // Get document list for this product
+          const docResponse = await fetchWithTimeout(
+            `${baseUrl}/documents?modulepart=product&id=${productId}`, 
+            { method: 'GET', headers }, 
+            5000
+          );
+          
+          if (!docResponse.ok) {
+            return new Response(
+              JSON.stringify({ productId, photo: null }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          const docs = await docResponse.json();
+          const imageDoc = Array.isArray(docs) ? docs.find((d: any) => 
+            /\.(jpg|jpeg|png|gif|webp)$/i.test(d.name || d.filename || '')
+          ) : null;
+          
+          if (!imageDoc) {
+            return new Response(
+              JSON.stringify({ productId, photo: null }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          // Build the correct path
+          const filePath = imageDoc.filepath || '';
+          const fileName = imageDoc.name || imageDoc.filename || '';
+          const relativePath = filePath.replace(/^produit\/?/, '');
+          const originalFile = relativePath ? `${relativePath}/${fileName}` : fileName;
+          
+          // Download via /documents/download
+          const downloadUrl = `${baseUrl}/documents/download?modulepart=product&original_file=${encodeURIComponent(originalFile)}`;
+          
+          const imgResponse = await fetchWithTimeout(downloadUrl, { 
+            method: 'GET',
+            headers
+          }, 8000);
+          
+          if (!imgResponse.ok) {
+            console.log(`[GET-PRODUCT-PHOTO] Download failed for ${productId}: ${imgResponse.status}`);
+            return new Response(
+              JSON.stringify({ productId, photo: null }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          const responseData = await imgResponse.json();
+          
+          if (responseData.content) {
+            const mimeType = responseData['content-type'] || 'image/jpeg';
+            const dataUrl = `data:${mimeType};base64,${responseData.content}`;
+            console.log(`[GET-PRODUCT-PHOTO] Got photo for product ${productId}`);
+            return new Response(
+              JSON.stringify({ productId, photo: dataUrl }),
+              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+            );
+          }
+          
+          return new Response(
+            JSON.stringify({ productId, photo: null }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        } catch (e: any) {
+          console.log(`[GET-PRODUCT-PHOTO] Error for ${productId}: ${e.message}`);
+          return new Response(
+            JSON.stringify({ productId, photo: null }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+      }
+      
+      // Batch get photos for multiple products
+      case 'get-products-photos': {
+        const productIds: number[] = params.productIds || [];
+        if (!Array.isArray(productIds) || productIds.length === 0) {
+          return new Response(
+            JSON.stringify({ photos: {} }),
+            { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          );
+        }
+        
+        // Limit to 10 products per batch to avoid timeouts
+        const idsToFetch = productIds.slice(0, 10);
+        const photosMap: Record<number, string | null> = {};
+        
+        console.log(`[GET-PRODUCTS-PHOTOS] Fetching photos for ${idsToFetch.length} products`);
+        
+        await Promise.all(idsToFetch.map(async (productId: number) => {
+          try {
+            const docResponse = await fetchWithTimeout(
+              `${baseUrl}/documents?modulepart=product&id=${productId}`, 
+              { method: 'GET', headers }, 
+              4000
+            );
+            
+            if (!docResponse.ok) {
+              photosMap[productId] = null;
+              return;
+            }
+            
+            const docs = await docResponse.json();
+            const imageDoc = Array.isArray(docs) ? docs.find((d: any) => 
+              /\.(jpg|jpeg|png|gif|webp)$/i.test(d.name || d.filename || '')
+            ) : null;
+            
+            if (!imageDoc) {
+              photosMap[productId] = null;
+              return;
+            }
+            
+            const filePath = imageDoc.filepath || '';
+            const fileName = imageDoc.name || imageDoc.filename || '';
+            const relativePath = filePath.replace(/^produit\/?/, '');
+            const originalFile = relativePath ? `${relativePath}/${fileName}` : fileName;
+            
+            const downloadUrl = `${baseUrl}/documents/download?modulepart=product&original_file=${encodeURIComponent(originalFile)}`;
+            const imgResponse = await fetchWithTimeout(downloadUrl, { method: 'GET', headers }, 5000);
+            
+            if (!imgResponse.ok) {
+              photosMap[productId] = null;
+              return;
+            }
+            
+            const responseData = await imgResponse.json();
+            if (responseData.content) {
+              const mimeType = responseData['content-type'] || 'image/jpeg';
+              photosMap[productId] = `data:${mimeType};base64,${responseData.content}`;
+            } else {
+              photosMap[productId] = null;
+            }
+          } catch (e) {
+            photosMap[productId] = null;
+          }
+        }));
+        
+        const successCount = Object.values(photosMap).filter(v => v).length;
+        console.log(`[GET-PRODUCTS-PHOTOS] Got ${successCount}/${idsToFetch.length} photos`);
+        
+        return new Response(
+          JSON.stringify({ photos: photosMap }),
           { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }

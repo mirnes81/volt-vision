@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Plus, Package, Trash2, WifiOff, Camera, X, ZoomIn } from 'lucide-react';
+import { Plus, Package, Trash2, WifiOff, Camera, X, ZoomIn, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Intervention, Product, Material } from '@/types/intervention';
@@ -23,6 +23,7 @@ interface MaterialsSectionProps {
 // LocalStorage keys
 const getMaterialsKey = (interventionId: number) => `intervention_materials_${interventionId}`;
 const getMaterialPhotosKey = (interventionId: number) => `intervention_material_photos_${interventionId}`;
+const PRODUCT_PHOTOS_CACHE_KEY = 'product_photos_cache';
 
 interface MaterialPhoto {
   id: string;
@@ -62,9 +63,42 @@ function saveMaterialPhotos(interventionId: number, photos: MaterialPhoto[]) {
   localStorage.setItem(getMaterialPhotosKey(interventionId), JSON.stringify(photos));
 }
 
-// Product photo component with fallback - mobile optimized
-function ProductPhoto({ src, alt, size = 'md' }: { src?: string | null; alt: string; size?: 'sm' | 'md' | 'lg' }) {
+// Product photos cache management
+function getProductPhotosCache(): Record<number, string | null> {
+  try {
+    const stored = localStorage.getItem(PRODUCT_PHOTOS_CACHE_KEY);
+    return stored ? JSON.parse(stored) : {};
+  } catch {
+    return {};
+  }
+}
+
+function saveProductPhotosCache(cache: Record<number, string | null>) {
+  try {
+    localStorage.setItem(PRODUCT_PHOTOS_CACHE_KEY, JSON.stringify(cache));
+  } catch (e) {
+    console.warn('[MaterialsSection] Failed to save photos cache:', e);
+  }
+}
+
+// Product photo component with lazy loading
+function ProductPhoto({ 
+  productId, 
+  src, 
+  alt, 
+  size = 'md',
+  onPhotoLoaded
+}: { 
+  productId?: number;
+  src?: string | null; 
+  alt: string; 
+  size?: 'sm' | 'md' | 'lg';
+  onPhotoLoaded?: (productId: number, photo: string | null) => void;
+}) {
+  const [photoUrl, setPhotoUrl] = React.useState<string | null>(src || null);
+  const [isLoading, setIsLoading] = React.useState(false);
   const [hasError, setHasError] = React.useState(false);
+  const [attempted, setAttempted] = React.useState(false);
   
   const sizeClasses = {
     sm: 'w-7 h-7',
@@ -72,7 +106,53 @@ function ProductPhoto({ src, alt, size = 'md' }: { src?: string | null; alt: str
     lg: 'w-12 h-12',
   };
   
-  if (!src || hasError) {
+  // Try to load photo if we have a productId and no photo yet
+  React.useEffect(() => {
+    if (src) {
+      setPhotoUrl(src);
+      return;
+    }
+    
+    if (!productId || attempted || photoUrl) return;
+    
+    // Check cache first
+    const cache = getProductPhotosCache();
+    if (cache[productId] !== undefined) {
+      setPhotoUrl(cache[productId]);
+      setAttempted(true);
+      return;
+    }
+    
+    // Load photo on-demand
+    setIsLoading(true);
+    setAttempted(true);
+    
+    callDolibarrApi<{ productId: number; photo: string | null }>('get-product-photo', { productId })
+      .then((result) => {
+        setPhotoUrl(result.photo);
+        // Update cache
+        const newCache = getProductPhotosCache();
+        newCache[productId] = result.photo;
+        saveProductPhotosCache(newCache);
+        onPhotoLoaded?.(productId, result.photo);
+      })
+      .catch((err) => {
+        console.warn(`[ProductPhoto] Failed to load photo for ${productId}:`, err);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [productId, src, attempted, photoUrl, onPhotoLoaded]);
+  
+  if (isLoading) {
+    return (
+      <div className={`${sizeClasses[size]} bg-muted rounded-md flex items-center justify-center shrink-0`}>
+        <Loader2 className="w-1/2 h-1/2 text-muted-foreground/50 animate-spin" />
+      </div>
+    );
+  }
+  
+  if (!photoUrl || hasError) {
     return (
       <div className={`${sizeClasses[size]} bg-muted rounded-md flex items-center justify-center shrink-0`}>
         <Package className="w-1/2 h-1/2 text-muted-foreground/50" />
@@ -82,7 +162,7 @@ function ProductPhoto({ src, alt, size = 'md' }: { src?: string | null; alt: str
   
   return (
     <img
-      src={src}
+      src={photoUrl}
       alt={alt}
       className={`${sizeClasses[size]} rounded-md object-cover shrink-0 border border-border/50`}
       onError={() => setHasError(true)}
@@ -92,11 +172,13 @@ function ProductPhoto({ src, alt, size = 'md' }: { src?: string | null; alt: str
 
 export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionProps) {
   const [products, setProducts] = React.useState<Product[]>([]);
+  const [productPhotos, setProductPhotos] = React.useState<Record<number, string | null>>({});
   const [showAdd, setShowAdd] = React.useState(false);
   const [selectedProduct, setSelectedProduct] = React.useState<number | null>(null);
   const [qty, setQty] = React.useState('1');
   const [comment, setComment] = React.useState('');
   const [isLoading, setIsLoading] = React.useState(false);
+  const [isLoadingProducts, setIsLoadingProducts] = React.useState(false);
   const [localMaterials, setLocalMaterials] = React.useState<Material[]>([]);
   const [searchQuery, setSearchQuery] = React.useState('');
   
@@ -108,10 +190,26 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
 
   // Load products, local materials, and photos on mount
   React.useEffect(() => {
-    getProducts().then(setProducts).catch(console.error);
+    setIsLoadingProducts(true);
+    // Load cached photos
+    setProductPhotos(getProductPhotosCache());
+    
+    getProducts()
+      .then((prods) => {
+        setProducts(prods);
+        console.log(`[MaterialsSection] Loaded ${prods.length} products`);
+      })
+      .catch(console.error)
+      .finally(() => setIsLoadingProducts(false));
+      
     setLocalMaterials(getLocalMaterials(intervention.id));
     setMaterialPhotos(getLocalMaterialPhotos(intervention.id));
   }, [intervention.id]);
+
+  // Handle photo loaded callback
+  const handlePhotoLoaded = React.useCallback((productId: number, photo: string | null) => {
+    setProductPhotos(prev => ({ ...prev, [productId]: photo }));
+  }, []);
 
   // Combine API materials with locally added ones, enriching with product photos
   const allMaterials = React.useMemo(() => {
@@ -120,23 +218,25 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
     const uniqueLocalMaterials = localMaterials.filter(m => !apiIds.has(m.id));
     
     const enriched = [...apiMaterials, ...uniqueLocalMaterials].map(m => {
+      const cachedPhoto = productPhotos[m.productId];
       const product = products.find(p => p.id === m.productId);
       return {
         ...m,
-        photo: m.photo || product?.photo || null,
+        photo: m.photo || cachedPhoto || product?.photo || null,
       };
     });
     
     return enriched;
-  }, [intervention.materials, localMaterials, products]);
+  }, [intervention.materials, localMaterials, products, productPhotos]);
 
-  // Filter products by search
+  // Filter products by search - works immediately
   const filteredProducts = React.useMemo(() => {
     if (!searchQuery.trim()) return products;
-    const query = searchQuery.toLowerCase();
+    const query = searchQuery.toLowerCase().trim();
     return products.filter(p => 
       p.label.toLowerCase().includes(query) || 
-      p.ref.toLowerCase().includes(query)
+      p.ref.toLowerCase().includes(query) ||
+      (p.barcode && p.barcode.toLowerCase().includes(query))
     );
   }, [products, searchQuery]);
 
@@ -312,7 +412,13 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
 
           {selectedProductData && (
             <div className="flex items-center gap-2 p-2 bg-primary/5 rounded-lg border border-primary/20">
-              <ProductPhoto src={selectedProductData.photo} alt={selectedProductData.label} size="md" />
+              <ProductPhoto 
+                productId={selectedProductData.id}
+                src={productPhotos[selectedProductData.id] || selectedProductData.photo} 
+                alt={selectedProductData.label} 
+                size="md"
+                onPhotoLoaded={handlePhotoLoaded}
+              />
               <div className="min-w-0 flex-1">
                 <p className="font-semibold truncate text-sm">{selectedProductData.label}</p>
                 <p className="text-xs text-muted-foreground">{selectedProductData.ref}</p>
@@ -323,13 +429,23 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
           {/* Product selection grid with photos - Compact for mobile */}
           <div>
             <label className="text-xs font-medium mb-1.5 block text-muted-foreground">
-              Produit {filteredProducts.length > 0 && `(${filteredProducts.length})`}
+              Produit {isLoadingProducts ? '(chargement...)' : filteredProducts.length > 0 ? `(${filteredProducts.length})` : ''}
             </label>
             <div className="max-h-48 overflow-y-auto rounded-lg border border-border/50 bg-secondary/30">
-              {filteredProducts.length === 0 ? (
+              {isLoadingProducts ? (
+                <div className="p-4 text-center text-muted-foreground">
+                  <Loader2 className="w-6 h-6 mx-auto mb-1 animate-spin opacity-50" />
+                  <p className="text-xs">Chargement des produits...</p>
+                </div>
+              ) : filteredProducts.length === 0 ? (
                 <div className="p-4 text-center text-muted-foreground">
                   <Package className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                  <p className="text-xs">Aucun produit trouvé</p>
+                  <p className="text-xs">
+                    {products.length === 0 ? 'Aucun produit disponible' : 'Aucun produit trouvé'}
+                  </p>
+                  {searchQuery && (
+                    <p className="text-[10px] mt-1">Essayez avec d'autres termes</p>
+                  )}
                 </div>
               ) : (
                 <div className="divide-y divide-border/30">
@@ -343,7 +459,13 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
                         selectedProduct === product.id && "bg-primary/10 border-l-3 border-primary"
                       )}
                     >
-                      <ProductPhoto src={product.photo} alt={product.label} size="sm" />
+                      <ProductPhoto 
+                        productId={product.id}
+                        src={productPhotos[product.id] || product.photo} 
+                        alt={product.label} 
+                        size="sm"
+                        onPhotoLoaded={handlePhotoLoaded}
+                      />
                       <div className="min-w-0 flex-1">
                         <p className={cn(
                           "font-medium truncate text-xs",
@@ -357,7 +479,7 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
                   ))}
                   {filteredProducts.length > 50 && (
                     <p className="text-[10px] text-center text-muted-foreground py-1.5">
-                      +{filteredProducts.length - 50} autres
+                      +{filteredProducts.length - 50} autres produits
                     </p>
                   )}
                 </div>
@@ -445,7 +567,13 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
                   className="bg-card rounded-lg p-2 border border-border/50 space-y-2"
                 >
                   <div className="flex items-center gap-2">
-                    <ProductPhoto src={material.photo} alt={material.productName} size="sm" />
+                    <ProductPhoto 
+                      productId={material.productId}
+                      src={productPhotos[material.productId] || material.photo} 
+                      alt={material.productName} 
+                      size="sm"
+                      onPhotoLoaded={handlePhotoLoaded}
+                    />
                     
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
