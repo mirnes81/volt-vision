@@ -707,38 +707,45 @@ serve(async (req) => {
 
       // Products - with photo base64 via documents/download API
       case 'get-products': {
-        const productsEndpoint = '/products?limit=500';
+        // Filter only PRODUCTS (type=0), not services (type=1)
+        // Dolibarr API: type=0 for products, type=1 for services
+        const productsEndpoint = '/products?limit=500&type=0';
         
         const productsResponse = await fetchWithTimeout(`${baseUrl}${productsEndpoint}`, { method: 'GET', headers }, 15000);
         
         if (!productsResponse.ok) {
           const errText = await productsResponse.text();
           return new Response(
-            JSON.stringify({ error: `Erreur Dolibarr ${productsResponse.status}`, details: errText }),
+            JSON.stringify({ error: `Erreur Dolibarr ${productsEndpoint}`, details: errText }),
             { status: productsResponse.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
           );
         }
         
         const productsData = await productsResponse.json();
-        const productsList = Array.isArray(productsData) ? productsData : [];
+        // Double filter: ensure we only have products (type=0 or fk_product_type=0)
+        const productsList = Array.isArray(productsData) 
+          ? productsData.filter((p: any) => String(p.type) === '0' || String(p.fk_product_type) === '0' || (!p.type && !p.fk_product_type))
+          : [];
         
-        // Fetch documents for first 20 products only (avoid timeout)
-        const productsToEnrich = productsList.slice(0, 20);
+        console.log(`[GET-PRODUCTS] Fetched ${productsList.length} products (filtered from ${productsData?.length || 0})`);
+        
+        // Fetch photos for ALL products (increased from 20 to all)
+        // Use batched parallel requests to avoid overwhelming the server
         const photoMap = new Map<number, string | null>();
         
-        console.log(`[GET-PRODUCTS] Enriching ${productsToEnrich.length} products`);
+        console.log(`[GET-PRODUCTS] Enriching ALL ${productsList.length} products with photos`);
         
-        // Process in smaller batches to avoid timeouts
-        for (let i = 0; i < productsToEnrich.length; i += 10) {
-          const batch = productsToEnrich.slice(i, i + 10);
+        // Process ALL products in batches of 15 to get photos
+        for (let i = 0; i < productsList.length; i += 15) {
+          const batch = productsList.slice(i, i + 15);
           
           const batchResults = await Promise.all(batch.map(async (p: any) => {
             try {
-              // Get document list for this product - increase timeout to 3s
+              // Get document list for this product
               const docResponse = await fetchWithTimeout(
                 `${baseUrl}/documents?modulepart=product&id=${p.id}`, 
                 { method: 'GET', headers }, 
-                3000
+                4000
               );
               if (!docResponse.ok) {
                 return { id: parseInt(p.id), dataUrl: null };
@@ -789,7 +796,7 @@ serve(async (req) => {
           }));
           
           // Add results to map
-          batchResults.forEach((result) => {
+          batchResults.forEach((result: { id: number; dataUrl: string | null }) => {
             if (result && result.dataUrl) {
               photoMap.set(result.id, result.dataUrl);
             }
