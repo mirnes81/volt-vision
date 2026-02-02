@@ -81,24 +81,27 @@ function saveProductPhotosCache(cache: Record<number, string | null>) {
   }
 }
 
-// Product photo component with lazy loading
+// Product photo component with immediate loading
 function ProductPhoto({ 
   productId, 
   src, 
   alt, 
   size = 'md',
-  onPhotoLoaded
+  onPhotoLoaded,
+  isVisible = true
 }: { 
   productId?: number;
   src?: string | null; 
   alt: string; 
   size?: 'sm' | 'md' | 'lg';
   onPhotoLoaded?: (productId: number, photo: string | null) => void;
+  isVisible?: boolean;
 }) {
   const [photoUrl, setPhotoUrl] = React.useState<string | null>(src || null);
   const [isLoading, setIsLoading] = React.useState(false);
   const [hasError, setHasError] = React.useState(false);
   const [attempted, setAttempted] = React.useState(false);
+  const containerRef = React.useRef<HTMLDivElement>(null);
   
   const sizeClasses = {
     sm: 'w-7 h-7',
@@ -106,14 +109,17 @@ function ProductPhoto({
     lg: 'w-12 h-12',
   };
   
-  // Try to load photo if we have a productId and no photo yet
+  // Update photo when src prop changes
   React.useEffect(() => {
     if (src) {
       setPhotoUrl(src);
-      return;
     }
-    
-    if (!productId || attempted || photoUrl) return;
+  }, [src]);
+  
+  // Load photo when visible and not already loaded
+  React.useEffect(() => {
+    if (src || !productId || attempted || photoUrl) return;
+    if (!isVisible) return;
     
     // Check cache first
     const cache = getProductPhotosCache();
@@ -138,15 +144,16 @@ function ProductPhoto({
       })
       .catch((err) => {
         console.warn(`[ProductPhoto] Failed to load photo for ${productId}:`, err);
+        setHasError(true);
       })
       .finally(() => {
         setIsLoading(false);
       });
-  }, [productId, src, attempted, photoUrl, onPhotoLoaded]);
+  }, [productId, src, attempted, photoUrl, onPhotoLoaded, isVisible]);
   
   if (isLoading) {
     return (
-      <div className={`${sizeClasses[size]} bg-muted rounded-md flex items-center justify-center shrink-0`}>
+      <div ref={containerRef} className={`${sizeClasses[size]} bg-muted rounded-md flex items-center justify-center shrink-0`}>
         <Loader2 className="w-1/2 h-1/2 text-muted-foreground/50 animate-spin" />
       </div>
     );
@@ -154,7 +161,7 @@ function ProductPhoto({
   
   if (!photoUrl || hasError) {
     return (
-      <div className={`${sizeClasses[size]} bg-muted rounded-md flex items-center justify-center shrink-0`}>
+      <div ref={containerRef} className={`${sizeClasses[size]} bg-muted rounded-md flex items-center justify-center shrink-0`}>
         <Package className="w-1/2 h-1/2 text-muted-foreground/50" />
       </div>
     );
@@ -170,9 +177,68 @@ function ProductPhoto({
   );
 }
 
+// Batch load photos for visible products
+function useVisibleProductPhotos(
+  products: Product[], 
+  maxConcurrent: number = 5
+): Record<number, string | null> {
+  const [photos, setPhotos] = React.useState<Record<number, string | null>>(() => getProductPhotosCache());
+  const loadingRef = React.useRef<Set<number>>(new Set());
+  const queueRef = React.useRef<number[]>([]);
+  const activeRef = React.useRef<number>(0);
+  
+  const processQueue = React.useCallback(async () => {
+    while (queueRef.current.length > 0 && activeRef.current < maxConcurrent) {
+      const productId = queueRef.current.shift();
+      if (!productId || loadingRef.current.has(productId)) continue;
+      
+      loadingRef.current.add(productId);
+      activeRef.current++;
+      
+      try {
+        const result = await callDolibarrApi<{ productId: number; photo: string | null }>('get-product-photo', { productId });
+        setPhotos(prev => {
+          const updated = { ...prev, [productId]: result.photo };
+          saveProductPhotosCache(updated);
+          return updated;
+        });
+      } catch (err) {
+        console.warn(`[useVisibleProductPhotos] Failed for ${productId}:`, err);
+      } finally {
+        activeRef.current--;
+        loadingRef.current.delete(productId);
+        processQueue();
+      }
+    }
+  }, [maxConcurrent]);
+  
+  const loadPhotosForProducts = React.useCallback((productIds: number[]) => {
+    const cache = getProductPhotosCache();
+    const toLoad = productIds.filter(id => 
+      cache[id] === undefined && 
+      !loadingRef.current.has(id) && 
+      !queueRef.current.includes(id)
+    );
+    
+    if (toLoad.length > 0) {
+      queueRef.current.push(...toLoad);
+      processQueue();
+    }
+  }, [processQueue]);
+  
+  // Preload first 10 visible products
+  React.useEffect(() => {
+    if (products.length > 0) {
+      const firstIds = products.slice(0, 10).map(p => p.id);
+      loadPhotosForProducts(firstIds);
+    }
+  }, [products, loadPhotosForProducts]);
+  
+  return photos;
+}
+
 export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionProps) {
   const [products, setProducts] = React.useState<Product[]>([]);
-  const [productPhotos, setProductPhotos] = React.useState<Record<number, string | null>>({});
   const [showAdd, setShowAdd] = React.useState(false);
   const [selectedProduct, setSelectedProduct] = React.useState<number | null>(null);
   const [qty, setQty] = React.useState('1');
@@ -188,11 +254,12 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
   const [viewingPhoto, setViewingPhoto] = React.useState<MaterialPhoto | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
+  // Use hook for preloading product photos
+  const productPhotos = useVisibleProductPhotos(products);
+
   // Load products, local materials, and photos on mount
   React.useEffect(() => {
     setIsLoadingProducts(true);
-    // Load cached photos
-    setProductPhotos(getProductPhotosCache());
     
     getProducts()
       .then((prods) => {
@@ -208,7 +275,7 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
 
   // Handle photo loaded callback
   const handlePhotoLoaded = React.useCallback((productId: number, photo: string | null) => {
-    setProductPhotos(prev => ({ ...prev, [productId]: photo }));
+    // Photos are now managed by the hook
   }, []);
 
   // Combine API materials with locally added ones, enriching with product photos
