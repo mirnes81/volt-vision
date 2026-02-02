@@ -347,13 +347,17 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
       .then((prods) => {
         setProducts(prods);
         console.log(`[MaterialsSection] Loaded ${prods.length} products`);
+        
+        // Précharger les photos des 20 premiers produits
+        const first20Ids = prods.slice(0, 20).map(p => p.id);
+        loadPhotosForProducts(first20Ids);
       })
       .catch(console.error)
       .finally(() => setIsLoadingProducts(false));
       
     setLocalMaterials(getLocalMaterials(intervention.id));
     setMaterialPhotos(getLocalMaterialPhotos(intervention.id));
-  }, [intervention.id]);
+  }, [intervention.id, loadPhotosForProducts]);
 
   // Combine API materials with locally added ones, enriching with product photos
   const allMaterials = React.useMemo(() => {
