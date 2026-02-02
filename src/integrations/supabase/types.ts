@@ -629,6 +629,105 @@ export type Database = {
           },
         ]
       }
+      supplier_products: {
+        Row: {
+          category: string | null
+          created_at: string
+          currency: string | null
+          description: string | null
+          id: string
+          last_sync_at: string | null
+          name: string
+          photo_url: string | null
+          price: number | null
+          product_url: string | null
+          reference: string
+          specifications: Json | null
+          stock_status: string | null
+          subcategory: string | null
+          supplier: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          category?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          id?: string
+          last_sync_at?: string | null
+          name: string
+          photo_url?: string | null
+          price?: number | null
+          product_url?: string | null
+          reference: string
+          specifications?: Json | null
+          stock_status?: string | null
+          subcategory?: string | null
+          supplier: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Update: {
+          category?: string | null
+          created_at?: string
+          currency?: string | null
+          description?: string | null
+          id?: string
+          last_sync_at?: string | null
+          name?: string
+          photo_url?: string | null
+          price?: number | null
+          product_url?: string | null
+          reference?: string
+          specifications?: Json | null
+          stock_status?: string | null
+          subcategory?: string | null
+          supplier?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      supplier_sync_logs: {
+        Row: {
+          completed_at: string | null
+          error_message: string | null
+          id: string
+          products_added: number | null
+          products_removed: number | null
+          products_updated: number | null
+          started_at: string
+          status: string
+          supplier: string
+          tenant_id: string
+        }
+        Insert: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          products_added?: number | null
+          products_removed?: number | null
+          products_updated?: number | null
+          started_at?: string
+          status: string
+          supplier: string
+          tenant_id?: string
+        }
+        Update: {
+          completed_at?: string | null
+          error_message?: string | null
+          id?: string
+          products_added?: number | null
+          products_removed?: number | null
+          products_updated?: number | null
+          started_at?: string
+          status?: string
+          supplier?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       tenant_configurations: {
         Row: {
           created_at: string
