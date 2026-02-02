@@ -177,11 +177,13 @@ function ProductPhoto({
   );
 }
 
-// Batch load photos for visible products
+// Hook to load photos for products as they become visible
 function useVisibleProductPhotos(
-  products: Product[], 
   maxConcurrent: number = 5
-): Record<number, string | null> {
+): {
+  photos: Record<number, string | null>;
+  loadPhotosForProducts: (productIds: number[]) => void;
+} {
   const [photos, setPhotos] = React.useState<Record<number, string | null>>(() => getProductPhotosCache());
   const loadingRef = React.useRef<Set<number>>(new Set());
   const queueRef = React.useRef<number[]>([]);
@@ -204,6 +206,8 @@ function useVisibleProductPhotos(
         });
       } catch (err) {
         console.warn(`[useVisibleProductPhotos] Failed for ${productId}:`, err);
+        // Mark as null so we don't retry
+        setPhotos(prev => ({ ...prev, [productId]: null }));
       } finally {
         activeRef.current--;
         loadingRef.current.delete(productId);
@@ -216,6 +220,7 @@ function useVisibleProductPhotos(
     const cache = getProductPhotosCache();
     const toLoad = productIds.filter(id => 
       cache[id] === undefined && 
+      photos[id] === undefined &&
       !loadingRef.current.has(id) && 
       !queueRef.current.includes(id)
     );
@@ -224,17 +229,89 @@ function useVisibleProductPhotos(
       queueRef.current.push(...toLoad);
       processQueue();
     }
-  }, [processQueue]);
+  }, [processQueue, photos]);
   
-  // Preload first 10 visible products
+  return { photos, loadPhotosForProducts };
+}
+
+// Product item with intersection observer for lazy loading photos
+function ProductListItem({
+  product,
+  isSelected,
+  onSelect,
+  photo,
+  onVisible
+}: {
+  product: Product;
+  isSelected: boolean;
+  onSelect: () => void;
+  photo: string | null | undefined;
+  onVisible: (productId: number) => void;
+}) {
+  const itemRef = React.useRef<HTMLButtonElement>(null);
+  const hasTriggeredRef = React.useRef(false);
+  
   React.useEffect(() => {
-    if (products.length > 0) {
-      const firstIds = products.slice(0, 10).map(p => p.id);
-      loadPhotosForProducts(firstIds);
-    }
-  }, [products, loadPhotosForProducts]);
+    const element = itemRef.current;
+    if (!element || hasTriggeredRef.current) return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && !hasTriggeredRef.current) {
+          hasTriggeredRef.current = true;
+          onVisible(product.id);
+          observer.disconnect();
+        }
+      },
+      { threshold: 0.1 }
+    );
+    
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [product.id, onVisible]);
   
-  return photos;
+  const isLoading = photo === undefined;
+  const hasPhoto = photo && photo !== null;
+  
+  return (
+    <button
+      ref={itemRef}
+      type="button"
+      onClick={onSelect}
+      className={cn(
+        "w-full flex items-center gap-2 p-2 text-left transition-colors active:bg-primary/10",
+        isSelected && "bg-primary/10 border-l-3 border-primary"
+      )}
+    >
+      {isLoading ? (
+        <div className="w-7 h-7 bg-muted rounded-md flex items-center justify-center shrink-0">
+          <Loader2 className="w-3 h-3 text-muted-foreground/50 animate-spin" />
+        </div>
+      ) : hasPhoto ? (
+        <img
+          src={photo}
+          alt={product.label}
+          className="w-7 h-7 rounded-md object-cover shrink-0 border border-border/50"
+          onError={(e) => {
+            (e.target as HTMLImageElement).style.display = 'none';
+          }}
+        />
+      ) : (
+        <div className="w-7 h-7 bg-muted rounded-md flex items-center justify-center shrink-0">
+          <Package className="w-3 h-3 text-muted-foreground/50" />
+        </div>
+      )}
+      <div className="min-w-0 flex-1">
+        <p className={cn(
+          "font-medium truncate text-xs",
+          isSelected && "text-primary"
+        )}>
+          {product.label}
+        </p>
+        <p className="text-[10px] text-muted-foreground">{product.ref}</p>
+      </div>
+    </button>
+  );
 }
 
 export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionProps) {
@@ -254,8 +331,13 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
   const [viewingPhoto, setViewingPhoto] = React.useState<MaterialPhoto | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  // Use hook for preloading product photos
-  const productPhotos = useVisibleProductPhotos(products);
+  // Use hook for loading product photos on scroll
+  const { photos: productPhotos, loadPhotosForProducts } = useVisibleProductPhotos();
+
+  // Callback when a product becomes visible
+  const handleProductVisible = React.useCallback((productId: number) => {
+    loadPhotosForProducts([productId]);
+  }, [loadPhotosForProducts]);
 
   // Load products, local materials, and photos on mount
   React.useEffect(() => {
@@ -272,11 +354,6 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
     setLocalMaterials(getLocalMaterials(intervention.id));
     setMaterialPhotos(getLocalMaterialPhotos(intervention.id));
   }, [intervention.id]);
-
-  // Handle photo loaded callback
-  const handlePhotoLoaded = React.useCallback((productId: number, photo: string | null) => {
-    // Photos are now managed by the hook
-  }, []);
 
   // Combine API materials with locally added ones, enriching with product photos
   const allMaterials = React.useMemo(() => {
@@ -479,13 +556,17 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
 
           {selectedProductData && (
             <div className="flex items-center gap-2 p-2 bg-primary/5 rounded-lg border border-primary/20">
-              <ProductPhoto 
-                productId={selectedProductData.id}
-                src={productPhotos[selectedProductData.id] || selectedProductData.photo} 
-                alt={selectedProductData.label} 
-                size="md"
-                onPhotoLoaded={handlePhotoLoaded}
-              />
+              {productPhotos[selectedProductData.id] ? (
+                <img
+                  src={productPhotos[selectedProductData.id]!}
+                  alt={selectedProductData.label}
+                  className="w-10 h-10 rounded-md object-cover shrink-0 border border-border/50"
+                />
+              ) : (
+                <div className="w-10 h-10 bg-muted rounded-md flex items-center justify-center shrink-0">
+                  <Package className="w-5 h-5 text-muted-foreground/50" />
+                </div>
+              )}
               <div className="min-w-0 flex-1">
                 <p className="font-semibold truncate text-sm">{selectedProductData.label}</p>
                 <p className="text-xs text-muted-foreground">{selectedProductData.ref}</p>
@@ -516,39 +597,16 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
                 </div>
               ) : (
                 <div className="divide-y divide-border/30">
-                  {filteredProducts.slice(0, 50).map((product) => (
-                    <button
+                  {filteredProducts.map((product) => (
+                    <ProductListItem
                       key={product.id}
-                      type="button"
-                      onClick={() => setSelectedProduct(product.id)}
-                      className={cn(
-                        "w-full flex items-center gap-2 p-2 text-left transition-colors active:bg-primary/10",
-                        selectedProduct === product.id && "bg-primary/10 border-l-3 border-primary"
-                      )}
-                    >
-                      <ProductPhoto 
-                        productId={product.id}
-                        src={productPhotos[product.id] || product.photo} 
-                        alt={product.label} 
-                        size="sm"
-                        onPhotoLoaded={handlePhotoLoaded}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <p className={cn(
-                          "font-medium truncate text-xs",
-                          selectedProduct === product.id && "text-primary"
-                        )}>
-                          {product.label}
-                        </p>
-                        <p className="text-[10px] text-muted-foreground">{product.ref}</p>
-                      </div>
-                    </button>
+                      product={product}
+                      isSelected={selectedProduct === product.id}
+                      onSelect={() => setSelectedProduct(product.id)}
+                      photo={productPhotos[product.id]}
+                      onVisible={handleProductVisible}
+                    />
                   ))}
-                  {filteredProducts.length > 50 && (
-                    <p className="text-[10px] text-center text-muted-foreground py-1.5">
-                      +{filteredProducts.length - 50} autres produits
-                    </p>
-                  )}
                 </div>
               )}
             </div>
@@ -634,13 +692,17 @@ export function MaterialsSection({ intervention, onUpdate }: MaterialsSectionPro
                   className="bg-card rounded-lg p-2 border border-border/50 space-y-2"
                 >
                   <div className="flex items-center gap-2">
-                    <ProductPhoto 
-                      productId={material.productId}
-                      src={productPhotos[material.productId] || material.photo} 
-                      alt={material.productName} 
-                      size="sm"
-                      onPhotoLoaded={handlePhotoLoaded}
-                    />
+                    {productPhotos[material.productId] ? (
+                      <img
+                        src={productPhotos[material.productId]!}
+                        alt={material.productName}
+                        className="w-7 h-7 rounded-md object-cover shrink-0 border border-border/50"
+                      />
+                    ) : (
+                      <div className="w-7 h-7 bg-muted rounded-md flex items-center justify-center shrink-0">
+                        <Package className="w-3 h-3 text-muted-foreground/50" />
+                      </div>
+                    )}
                     
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-1">
