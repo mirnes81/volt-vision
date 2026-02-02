@@ -13,17 +13,17 @@ const SUPPLIERS = {
   feller: {
     name: 'Feller',
     baseUrl: 'https://online-katalog.feller.ch',
-    photoPattern: 'https://online-katalog.feller.ch/pict/FET/FET_{reference}.PNG',
+    catalogUrl: 'https://online-katalog.feller.ch/kat.php',
   },
   hager: {
     name: 'Hager',
     baseUrl: 'https://hager.com/ch-fr',
-    photoPattern: 'https://media.hager.com/pm/{reference}.jpg',
+    catalogUrl: 'https://hager.com/ch-fr/catalogue',
   },
   em: {
     name: 'Électromatériel',
     baseUrl: 'https://www.em-schweiz.ch',
-    photoPattern: null, // Will need to scrape from page
+    catalogUrl: 'https://www.em-schweiz.ch/fr/catalogue',
   }
 };
 
@@ -42,39 +42,47 @@ interface SupplierProduct {
   specifications?: Record<string, unknown>;
 }
 
-// Parse Feller catalog HTML
+// Parse Feller catalog HTML - simplified pattern matching
 function parseFellerCatalog(html: string): SupplierProduct[] {
   const products: SupplierProduct[] = [];
-  
-  // Match product entries in the HTML
-  // Pattern: <a href="/fr/[category]/[subcategory]/[reference]"...>
-  const productPattern = /<a[^>]*href="\/fr\/([^\/]+)\/([^\/]+)\/([^"]+)"[^>]*>([^<]*)<\/a>/gi;
-  
-  let match;
   const seen = new Set<string>();
   
-  while ((match = productPattern.exec(html)) !== null) {
-    const [, category, subcategory, reference, name] = match;
+  // Match product image URLs to extract references
+  // Pattern: FET_REFERENCE.PNG
+  const imgPattern = /pict\/FET\/FET_([A-Z0-9][A-Z0-9\-\.]+)\.PNG/gi;
+  
+  let match;
+  while ((match = imgPattern.exec(html)) !== null) {
+    const reference = match[1];
     
-    if (reference && !seen.has(reference) && name?.trim()) {
+    if (reference && !seen.has(reference) && reference.length > 3) {
       seen.add(reference);
       
-      // Generate photo URL from reference
-      const photoUrl = SUPPLIERS.feller.photoPattern.replace('{reference}', reference.replace(/\./g, '').toUpperCase());
+      // Try to find the description for this reference
+      const descRegex = new RegExp(`${reference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}<br>\\s*<span class="cx-ProduktKurztextBox"[^>]*title="([^"]*)"`, 'i');
+      const descMatch = descRegex.exec(html);
+      
+      // Try to find category
+      const catRegex = new RegExp(`<b>([^<]+)<\\/b><br>\\s*${reference.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`, 'i');
+      const catMatch = catRegex.exec(html);
+      
+      const description = descMatch?.[1]?.trim();
+      const category = catMatch?.[1]?.trim();
       
       products.push({
         supplier: 'feller',
         reference: reference.trim(),
-        name: name.trim(),
-        category: decodeURIComponent(category).replace(/-/g, ' '),
-        subcategory: decodeURIComponent(subcategory).replace(/-/g, ' '),
+        name: description || reference.trim(),
+        description,
+        category,
         currency: 'CHF',
-        photo_url: photoUrl,
-        product_url: `${SUPPLIERS.feller.baseUrl}/fr/${category}/${subcategory}/${reference}`,
+        photo_url: `https://online-katalog.feller.ch/pict/FET/FET_${reference}.PNG`,
+        product_url: `https://online-katalog.feller.ch/kat_details.php?fnr=${encodeURIComponent(reference)}&sc_lang=fr`,
       });
     }
   }
   
+  console.log(`Parsed ${products.length} products from Feller HTML`);
   return products;
 }
 
@@ -104,29 +112,6 @@ function parseHagerCatalog(html: string): SupplierProduct[] {
       }
     } catch {
       // Ignore parsing errors
-    }
-  }
-  
-  // Fallback: parse HTML structure
-  const productCardPattern = /<article[^>]*class="[^"]*product[^"]*"[^>]*>([\s\S]*?)<\/article>/gi;
-  
-  while ((match = productCardPattern.exec(html)) !== null) {
-    const cardHtml = match[1];
-    
-    const refMatch = /data-ref="([^"]+)"/i.exec(cardHtml);
-    const nameMatch = /<h[23][^>]*>([^<]+)<\/h[23]>/i.exec(cardHtml);
-    const priceMatch = /CHF\s*([\d.,]+)/i.exec(cardHtml);
-    const imgMatch = /<img[^>]*src="([^"]+)"[^>]*>/i.exec(cardHtml);
-    
-    if (refMatch && nameMatch) {
-      products.push({
-        supplier: 'hager',
-        reference: refMatch[1],
-        name: nameMatch[1].trim(),
-        price: priceMatch ? parseFloat(priceMatch[1].replace(',', '.')) : undefined,
-        currency: 'CHF',
-        photo_url: imgMatch?.[1],
-      });
     }
   }
   
@@ -166,68 +151,6 @@ function parseEMCatalog(html: string): SupplierProduct[] {
     }
   }
   
-  // Parse product cards from HTML
-  // Pattern for EM product listings
-  const productCardPattern = /<div[^>]*class="[^"]*product[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi;
-  
-  while ((match = productCardPattern.exec(html)) !== null) {
-    const cardHtml = match[1];
-    
-    // Extract reference (article number)
-    const refMatch = /(?:Art\.?\s*(?:Nr\.?|no\.?|n°)?|Réf\.?|SKU)[\s:]*([A-Z0-9\-\.]+)/i.exec(cardHtml);
-    // Extract name from heading or title
-    const nameMatch = /<(?:h[1-6]|span|a)[^>]*class="[^"]*(?:title|name|product-name)[^"]*"[^>]*>([^<]+)/i.exec(cardHtml);
-    // Extract price
-    const priceMatch = /(?:CHF|Fr\.?)\s*([\d'.,]+)/i.exec(cardHtml);
-    // Extract image
-    const imgMatch = /<img[^>]*src="([^"]+)"[^>]*>/i.exec(cardHtml);
-    // Extract product URL
-    const urlMatch = /<a[^>]*href="([^"]*\/[a-z0-9\-]+)"[^>]*>/i.exec(cardHtml);
-    
-    const reference = refMatch?.[1]?.trim();
-    const name = nameMatch?.[1]?.trim();
-    
-    if (reference && name && !seen.has(reference)) {
-      seen.add(reference);
-      products.push({
-        supplier: 'em',
-        reference,
-        name,
-        price: priceMatch ? parseFloat(priceMatch[1].replace(/[',]/g, '').replace(',', '.')) : undefined,
-        currency: 'CHF',
-        photo_url: imgMatch?.[1],
-        product_url: urlMatch?.[1] ? `${SUPPLIERS.em.baseUrl}${urlMatch[1]}` : undefined,
-      });
-    }
-  }
-  
-  // Alternative pattern for list-style layouts
-  const listItemPattern = /<li[^>]*class="[^"]*product[^"]*"[^>]*>([\s\S]*?)<\/li>/gi;
-  
-  while ((match = listItemPattern.exec(html)) !== null) {
-    const itemHtml = match[1];
-    
-    const refMatch = /(?:Art|Réf|SKU)[\s.:]*([A-Z0-9\-\.]+)/i.exec(itemHtml);
-    const nameMatch = /<(?:a|span|strong)[^>]*>([^<]{5,80})<\/(?:a|span|strong)>/i.exec(itemHtml);
-    const priceMatch = /(?:CHF|Fr)\s*([\d'.,]+)/i.exec(itemHtml);
-    const imgMatch = /(?:src|data-src)="([^"]+\.(?:jpg|png|webp))"/i.exec(itemHtml);
-    
-    const reference = refMatch?.[1]?.trim();
-    const name = nameMatch?.[1]?.trim();
-    
-    if (reference && name && !seen.has(reference)) {
-      seen.add(reference);
-      products.push({
-        supplier: 'em',
-        reference,
-        name,
-        price: priceMatch ? parseFloat(priceMatch[1].replace(/[',]/g, '')) : undefined,
-        currency: 'CHF',
-        photo_url: imgMatch?.[1],
-      });
-    }
-  }
-  
   return products;
 }
 
@@ -237,14 +160,19 @@ async function fetchWithRetry(url: string, retries = 3): Promise<string | null> 
     try {
       const response = await fetch(url, {
         headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
           'Accept-Language': 'fr-CH,fr;q=0.9,en;q=0.8',
+          'Accept-Encoding': 'gzip, deflate, br',
+          'Connection': 'keep-alive',
+          'Upgrade-Insecure-Requests': '1',
         },
       });
       
       if (response.ok) {
-        return await response.text();
+        const text = await response.text();
+        console.log(`Successfully fetched ${url}, got ${text.length} chars`);
+        return text;
       }
       
       console.log(`Fetch attempt ${i + 1} failed with status ${response.status}`);
@@ -320,18 +248,18 @@ serve(async (req) => {
     try {
       // Fetch catalog pages based on supplier
       if (supplier === 'feller') {
-        // Feller has category pages we can scrape
-        const categories = [
-          '/fr/interrupteurs-et-prises',
-          '/fr/domotique',
-          '/fr/led-et-eclairage',
-        ];
+        // Feller online catalog - limit to one search term, one page to avoid timeout
+        const searchTerms = ['prise', 'interrupteur'];
         
-        for (const category of categories) {
-          const html = await fetchWithRetry(`${supplierConfig.baseUrl}${category}`);
+        for (const term of searchTerms) {
+          const url = `${supplierConfig.catalogUrl}?suchfeld=${encodeURIComponent(term)}&seite=1&anzahl=50&sc_lang=fr`;
+          console.log(`Fetching Feller catalog: ${url}`);
+          
+          const html = await fetchWithRetry(url);
           if (html) {
-            const categoryProducts = parseFellerCatalog(html);
-            products.push(...categoryProducts);
+            const pageProducts = parseFellerCatalog(html);
+            console.log(`Found ${pageProducts.length} products for term "${term}"`);
+            products.push(...pageProducts);
           }
         }
       } else if (supplier === 'hager') {
@@ -369,7 +297,7 @@ serve(async (req) => {
       
       products = Array.from(uniqueProducts.values());
       
-      console.log(`Found ${products.length} products for ${supplier}`);
+      console.log(`Found ${products.length} unique products for ${supplier}`);
       
       // Upsert products to database
       let productsAdded = 0;
