@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useState } from 'react';
+import { Navigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,8 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  ShieldAlert
 } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
@@ -24,6 +26,8 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { SupplierProductCard } from '@/components/catalogs/SupplierProductCard';
 import { SyncStatusCard } from '@/components/catalogs/SyncStatusCard';
+import { useAuth } from '@/contexts/AuthContext';
+import { getCurrentWorker } from '@/lib/api';
 
 interface SupplierProduct {
   id: string;
@@ -60,10 +64,30 @@ const SUPPLIERS = [
 ];
 
 export default function CatalogsPage() {
+  const { worker } = useAuth();
+  const currentWorker = getCurrentWorker() as any;
+  const isAdmin = currentWorker?.isAdmin || currentWorker?.admin || worker?.admin;
+  
   const [activeSupplier, setActiveSupplier] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [syncingSupplier, setSyncingSupplier] = useState<string | null>(null);
   const queryClient = useQueryClient();
+
+  // Redirect non-admin users
+  if (!isAdmin) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] p-4">
+        <ShieldAlert className="w-16 h-16 text-destructive mb-4" />
+        <h1 className="text-2xl font-bold mb-2">Accès restreint</h1>
+        <p className="text-muted-foreground text-center mb-4">
+          Cette page est réservée aux administrateurs.
+        </p>
+        <Button variant="outline" onClick={() => window.history.back()}>
+          Retour
+        </Button>
+      </div>
+    );
+  }
 
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
