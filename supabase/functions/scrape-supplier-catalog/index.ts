@@ -49,7 +49,6 @@ function parseFellerCatalog(html: string): SupplierProduct[] {
   // Match product entries in the HTML
   // Pattern: <a href="/fr/[category]/[subcategory]/[reference]"...>
   const productPattern = /<a[^>]*href="\/fr\/([^\/]+)\/([^\/]+)\/([^"]+)"[^>]*>([^<]*)<\/a>/gi;
-  const pricePattern = /CHF\s*([\d.,]+)/gi;
   
   let match;
   const seen = new Set<string>();
@@ -125,6 +124,104 @@ function parseHagerCatalog(html: string): SupplierProduct[] {
         reference: refMatch[1],
         name: nameMatch[1].trim(),
         price: priceMatch ? parseFloat(priceMatch[1].replace(',', '.')) : undefined,
+        currency: 'CHF',
+        photo_url: imgMatch?.[1],
+      });
+    }
+  }
+  
+  return products;
+}
+
+// Parse EM (Électromatériel) catalog
+function parseEMCatalog(html: string): SupplierProduct[] {
+  const products: SupplierProduct[] = [];
+  const seen = new Set<string>();
+  
+  // Try JSON-LD first
+  const jsonLdPattern = /<script type="application\/ld\+json">([\s\S]*?)<\/script>/gi;
+  let match;
+  
+  while ((match = jsonLdPattern.exec(html)) !== null) {
+    try {
+      const data = JSON.parse(match[1]);
+      if (data['@type'] === 'Product') {
+        const ref = data.sku || data.mpn || '';
+        if (ref && !seen.has(ref)) {
+          seen.add(ref);
+          products.push({
+            supplier: 'em',
+            reference: ref,
+            name: data.name || '',
+            description: data.description,
+            price: data.offers?.price ? parseFloat(data.offers.price) : undefined,
+            currency: data.offers?.priceCurrency || 'CHF',
+            photo_url: data.image,
+            product_url: data.url,
+          });
+        }
+      }
+    } catch {
+      // Ignore parsing errors
+    }
+  }
+  
+  // Parse product cards from HTML
+  // Pattern for EM product listings
+  const productCardPattern = /<div[^>]*class="[^"]*product[^"]*"[^>]*>([\s\S]*?)<\/div>\s*<\/div>/gi;
+  
+  while ((match = productCardPattern.exec(html)) !== null) {
+    const cardHtml = match[1];
+    
+    // Extract reference (article number)
+    const refMatch = /(?:Art\.?\s*(?:Nr\.?|no\.?|n°)?|Réf\.?|SKU)[\s:]*([A-Z0-9\-\.]+)/i.exec(cardHtml);
+    // Extract name from heading or title
+    const nameMatch = /<(?:h[1-6]|span|a)[^>]*class="[^"]*(?:title|name|product-name)[^"]*"[^>]*>([^<]+)/i.exec(cardHtml);
+    // Extract price
+    const priceMatch = /(?:CHF|Fr\.?)\s*([\d'.,]+)/i.exec(cardHtml);
+    // Extract image
+    const imgMatch = /<img[^>]*src="([^"]+)"[^>]*>/i.exec(cardHtml);
+    // Extract product URL
+    const urlMatch = /<a[^>]*href="([^"]*\/[a-z0-9\-]+)"[^>]*>/i.exec(cardHtml);
+    
+    const reference = refMatch?.[1]?.trim();
+    const name = nameMatch?.[1]?.trim();
+    
+    if (reference && name && !seen.has(reference)) {
+      seen.add(reference);
+      products.push({
+        supplier: 'em',
+        reference,
+        name,
+        price: priceMatch ? parseFloat(priceMatch[1].replace(/[',]/g, '').replace(',', '.')) : undefined,
+        currency: 'CHF',
+        photo_url: imgMatch?.[1],
+        product_url: urlMatch?.[1] ? `${SUPPLIERS.em.baseUrl}${urlMatch[1]}` : undefined,
+      });
+    }
+  }
+  
+  // Alternative pattern for list-style layouts
+  const listItemPattern = /<li[^>]*class="[^"]*product[^"]*"[^>]*>([\s\S]*?)<\/li>/gi;
+  
+  while ((match = listItemPattern.exec(html)) !== null) {
+    const itemHtml = match[1];
+    
+    const refMatch = /(?:Art|Réf|SKU)[\s.:]*([A-Z0-9\-\.]+)/i.exec(itemHtml);
+    const nameMatch = /<(?:a|span|strong)[^>]*>([^<]{5,80})<\/(?:a|span|strong)>/i.exec(itemHtml);
+    const priceMatch = /(?:CHF|Fr)\s*([\d'.,]+)/i.exec(itemHtml);
+    const imgMatch = /(?:src|data-src)="([^"]+\.(?:jpg|png|webp))"/i.exec(itemHtml);
+    
+    const reference = refMatch?.[1]?.trim();
+    const name = nameMatch?.[1]?.trim();
+    
+    if (reference && name && !seen.has(reference)) {
+      seen.add(reference);
+      products.push({
+        supplier: 'em',
+        reference,
+        name,
+        price: priceMatch ? parseFloat(priceMatch[1].replace(/[',]/g, '')) : undefined,
         currency: 'CHF',
         photo_url: imgMatch?.[1],
       });
@@ -244,8 +341,21 @@ serve(async (req) => {
           products = parseHagerCatalog(html);
         }
       } else if (supplier === 'em') {
-        // EM catalog - would need specific implementation
-        errorMessage = 'EM catalog scraping not yet implemented';
+        // EM (Électromatériel) catalog
+        const categories = [
+          '/fr/catalogue/appareillage',
+          '/fr/catalogue/eclairage',
+          '/fr/catalogue/cables',
+          '/fr/catalogue/tableaux',
+        ];
+        
+        for (const category of categories) {
+          const html = await fetchWithRetry(`${supplierConfig.baseUrl}${category}`);
+          if (html) {
+            const categoryProducts = parseEMCatalog(html);
+            products.push(...categoryProducts);
+          }
+        }
       }
       
       // Remove duplicates
