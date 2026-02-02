@@ -263,27 +263,15 @@ serve(async (req) => {
           }
         }
       } else if (supplier === 'hager') {
-        // Hager catalog
-        const html = await fetchWithRetry(`${supplierConfig.baseUrl}/catalogue`);
-        if (html) {
-          products = parseHagerCatalog(html);
-        }
+        // Hager requires API access via developer.hager.com
+        // For now, return info about how to access their API
+        console.log('Hager requires developer API access - manual import needed');
+        errorMessage = 'Hager nécessite un accès API via developer.hager.com. Utilisez l\'import CSV/Excel manuel.';
       } else if (supplier === 'em') {
-        // EM (Électromatériel) catalog
-        const categories = [
-          '/fr/catalogue/appareillage',
-          '/fr/catalogue/eclairage',
-          '/fr/catalogue/cables',
-          '/fr/catalogue/tableaux',
-        ];
-        
-        for (const category of categories) {
-          const html = await fetchWithRetry(`${supplierConfig.baseUrl}${category}`);
-          if (html) {
-            const categoryProducts = parseEMCatalog(html);
-            products.push(...categoryProducts);
-          }
-        }
+        // EM (Elektro-Material) requires professional account
+        // Catalog available as PDF only
+        console.log('EM requires professional account - manual import needed');
+        errorMessage = 'EM nécessite un compte professionnel. Téléchargez le catalogue PDF depuis elektro-material.ch et importez-le manuellement.';
       }
       
       // Remove duplicates
