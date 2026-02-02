@@ -765,6 +765,7 @@ serve(async (req) => {
           );
           
           if (!docResponse.ok) {
+            console.log(`[GET-PRODUCT-PHOTO] Doc list failed for ${productId}: ${docResponse.status}`);
             return new Response(
               JSON.stringify({ productId, photo: null }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -772,51 +773,116 @@ serve(async (req) => {
           }
           
           const docs = await docResponse.json();
+          console.log(`[GET-PRODUCT-PHOTO] Product ${productId} has ${Array.isArray(docs) ? docs.length : 0} documents`);
+          
+          // Support more image formats including BMP, TIFF, SVG, HEIC
+          const imageExtensions = /\.(jpg|jpeg|png|gif|webp|bmp|tiff|tif|svg|heic|heif|ico|avif)$/i;
           const imageDoc = Array.isArray(docs) ? docs.find((d: any) => 
-            /\.(jpg|jpeg|png|gif|webp)$/i.test(d.name || d.filename || '')
+            imageExtensions.test(d.name || d.filename || '')
           ) : null;
           
           if (!imageDoc) {
+            // Log what documents were found (if any) for debugging
+            if (Array.isArray(docs) && docs.length > 0) {
+              console.log(`[GET-PRODUCT-PHOTO] Product ${productId} docs:`, docs.map((d: any) => d.name || d.filename).join(', '));
+            }
             return new Response(
               JSON.stringify({ productId, photo: null }),
               { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
             );
           }
           
-          // Build the correct path
-          const filePath = imageDoc.filepath || '';
+          console.log(`[GET-PRODUCT-PHOTO] Found image for ${productId}:`, JSON.stringify(imageDoc));
+          
+          // Build the correct path - Dolibarr can have various path structures
+          const filePath = imageDoc.filepath || imageDoc.path || '';
           const fileName = imageDoc.name || imageDoc.filename || '';
-          const relativePath = filePath.replace(/^produit\/?/, '');
-          const originalFile = relativePath ? `${relativePath}/${fileName}` : fileName;
+          const level1Name = imageDoc.level1name || '';
           
-          // Download via /documents/download
-          const downloadUrl = `${baseUrl}/documents/download?modulepart=product&original_file=${encodeURIComponent(originalFile)}`;
+          // Try multiple path formats as Dolibarr versions differ
+          const pathVariants: string[] = [];
           
-          const imgResponse = await fetchWithTimeout(downloadUrl, { 
-            method: 'GET',
-            headers
-          }, 8000);
-          
-          if (!imgResponse.ok) {
-            console.log(`[GET-PRODUCT-PHOTO] Download failed for ${productId}: ${imgResponse.status}`);
-            return new Response(
-              JSON.stringify({ productId, photo: null }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+          // Variant 1: Use relativename if available (most reliable)
+          if (imageDoc.relativename) {
+            pathVariants.push(imageDoc.relativename);
           }
           
-          const responseData = await imgResponse.json();
-          
-          if (responseData.content) {
-            const mimeType = responseData['content-type'] || 'image/jpeg';
-            const dataUrl = `data:${mimeType};base64,${responseData.content}`;
-            console.log(`[GET-PRODUCT-PHOTO] Got photo for product ${productId}`);
-            return new Response(
-              JSON.stringify({ productId, photo: dataUrl }),
-              { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-            );
+          // Variant 2: level1name/filename (for product subfolders)
+          if (level1Name && fileName) {
+            pathVariants.push(`${level1Name}/${fileName}`);
           }
           
+          // Variant 3: Just the filepath + filename
+          if (filePath && fileName) {
+            // Remove 'produit/' prefix if present
+            const cleanPath = filePath.replace(/^produit\/?/, '').replace(/^product\/?/, '');
+            if (cleanPath) {
+              pathVariants.push(`${cleanPath}/${fileName}`);
+            }
+            pathVariants.push(`${filePath}/${fileName}`);
+          }
+          
+          // Variant 4: Just the filename (for root-level files)
+          if (fileName) {
+            pathVariants.push(fileName);
+          }
+          
+          // Variant 5: Use fullname if available
+          if (imageDoc.fullname) {
+            const fullnameClean = imageDoc.fullname.replace(/^.*\/produit\/?/, '').replace(/^.*\/product\/?/, '');
+            pathVariants.push(fullnameClean);
+          }
+          
+          // Try each path variant until one works
+          for (const originalFile of pathVariants) {
+            if (!originalFile) continue;
+            
+            const downloadUrl = `${baseUrl}/documents/download?modulepart=product&original_file=${encodeURIComponent(originalFile)}`;
+            
+            try {
+              const imgResponse = await fetchWithTimeout(downloadUrl, { 
+                method: 'GET',
+                headers
+              }, 5000);
+              
+              if (imgResponse.ok) {
+                const responseData = await imgResponse.json();
+                
+                if (responseData.content) {
+                  // Detect MIME type from extension or use provided content-type
+                  const ext = (fileName.split('.').pop() || 'jpg').toLowerCase();
+                  const mimeTypes: Record<string, string> = {
+                    'jpg': 'image/jpeg',
+                    'jpeg': 'image/jpeg',
+                    'png': 'image/png',
+                    'gif': 'image/gif',
+                    'webp': 'image/webp',
+                    'bmp': 'image/bmp',
+                    'tiff': 'image/tiff',
+                    'tif': 'image/tiff',
+                    'svg': 'image/svg+xml',
+                    'heic': 'image/heic',
+                    'heif': 'image/heif',
+                    'ico': 'image/x-icon',
+                    'avif': 'image/avif',
+                  };
+                  const mimeType = responseData['content-type'] || mimeTypes[ext] || 'image/jpeg';
+                  const dataUrl = `data:${mimeType};base64,${responseData.content}`;
+                  console.log(`[GET-PRODUCT-PHOTO] SUCCESS for ${productId} using path: ${originalFile}`);
+                  return new Response(
+                    JSON.stringify({ productId, photo: dataUrl }),
+                    { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+                  );
+                }
+              } else {
+                console.log(`[GET-PRODUCT-PHOTO] Path failed for ${productId}: ${originalFile} -> ${imgResponse.status}`);
+              }
+            } catch (pathError) {
+              console.log(`[GET-PRODUCT-PHOTO] Path error for ${productId}: ${originalFile}`);
+            }
+          }
+          
+          console.log(`[GET-PRODUCT-PHOTO] All paths failed for ${productId}`);
           return new Response(
             JSON.stringify({ productId, photo: null }),
             { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
