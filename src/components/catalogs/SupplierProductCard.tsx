@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,8 +30,8 @@ const supplierColors: Record<string, string> = {
 };
 
 export function SupplierProductCard({ product }: SupplierProductCardProps) {
-  const [imageError, setImageError] = useState(false);
-  const [imageLoading, setImageLoading] = useState(true);
+  const [imageError, setImageError] = React.useState(false);
+  const [imageLoading, setImageLoading] = React.useState(true);
 
   const handleImageLoad = () => {
     setImageLoading(false);

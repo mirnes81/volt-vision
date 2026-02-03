@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { Zap, Loader2 } from 'lucide-react';
 import {
   Dialog,
@@ -24,11 +24,11 @@ interface CreateEmergencyDialogProps {
 const BONUS_PRESETS = [50, 75, 100, 150, 200];
 
 export function CreateEmergencyDialog({ intervention, trigger }: CreateEmergencyDialogProps) {
-  const [open, setOpen] = useState(false);
-  const [bonusAmount, setBonusAmount] = useState(50);
-  const [customBonus, setCustomBonus] = useState('');
-  const [description, setDescription] = useState('');
-  const [isCreating, setIsCreating] = useState(false);
+  const [open, setOpen] = React.useState(false);
+  const [bonusAmount, setBonusAmount] = React.useState(50);
+  const [customBonus, setCustomBonus] = React.useState('');
+  const [description, setDescription] = React.useState('');
+  const [isCreating, setIsCreating] = React.useState(false);
   const { createEmergency } = useEmergencyInterventions();
 
   const handleCreate = async () => {
