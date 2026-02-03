@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import * as React from 'react';
 import { Zap, Clock, User, MapPin, Check, X, RefreshCw, Trophy, Plus } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -159,7 +159,7 @@ function EmergencyCard({
 
 export default function EmergenciesPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState('open');
+  const [activeTab, setActiveTab] = React.useState('open');
   const { 
     emergencies, 
     openEmergencies, 
