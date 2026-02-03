@@ -25,6 +25,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { SupplierProductCard } from '@/components/catalogs/SupplierProductCard';
 import { SyncStatusCard } from '@/components/catalogs/SyncStatusCard';
+import { HagerImportDialog } from '@/components/catalogs/HagerImportDialog';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCurrentWorker } from '@/lib/api';
 
@@ -261,14 +262,22 @@ export default function CatalogsPage() {
                     'Jamais synchronisé'
                   )}
                 </div>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => handleSync(supplier.id)}
-                  disabled={syncingSupplier !== null}
-                >
-                  <RefreshCw className={`w-4 h-4 ${syncingSupplier === supplier.id ? 'animate-spin' : ''}`} />
-                </Button>
+                <div className="flex items-center gap-1">
+                  {supplier.id === 'hager' && (
+                    <HagerImportDialog onImportComplete={() => {
+                      queryClient.invalidateQueries({ queryKey: ['supplier-products'] });
+                      queryClient.invalidateQueries({ queryKey: ['supplier-product-counts'] });
+                    }} />
+                  )}
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => handleSync(supplier.id)}
+                    disabled={syncingSupplier !== null}
+                  >
+                    <RefreshCw className={`w-4 h-4 ${syncingSupplier === supplier.id ? 'animate-spin' : ''}`} />
+                  </Button>
+                </div>
               </div>
             </CardContent>
           </Card>
