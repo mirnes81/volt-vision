@@ -63,6 +63,20 @@ const SUPPLIERS = [
   { id: 'em', name: 'Électromatériel', color: 'bg-orange-500' },
 ];
 
+const HAGER_CATEGORIES = [
+  'Systèmes de distribution et armoires',
+  'Appareils modulaires',
+  'Disjoncteurs, interrupteurs et appareils de protection',
+  'Bornes de charge pour véhicule électrique (EVCS)',
+  'Gestion et surveillance de l\'énergie',
+  'Cheminement de câbles tehalit',
+  'Prises et interrupteurs',
+  'Technologie de sécurité',
+  'Système de gestion du bâtiment KNX',
+  'Interphonie',
+  'Détecteurs de mouvements et de présence',
+];
+
 export default function CatalogsPage() {
   const { worker } = useAuth();
   const currentWorker = getCurrentWorker() as any;
@@ -70,6 +84,7 @@ export default function CatalogsPage() {
   
   const [activeSupplier, setActiveSupplier] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [syncingSupplier, setSyncingSupplier] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
@@ -91,7 +106,7 @@ export default function CatalogsPage() {
 
   // Fetch products
   const { data: products, isLoading: productsLoading } = useQuery({
-    queryKey: ['supplier-products', activeSupplier, searchQuery],
+    queryKey: ['supplier-products', activeSupplier, searchQuery, selectedCategory],
     queryFn: async () => {
       let query = supabase
         .from('supplier_products')
@@ -104,6 +119,10 @@ export default function CatalogsPage() {
 
       if (searchQuery.trim()) {
         query = query.or(`name.ilike.%${searchQuery}%,reference.ilike.%${searchQuery}%`);
+      }
+
+      if (selectedCategory) {
+        query = query.eq('category', selectedCategory);
       }
 
       const { data, error } = await query.limit(100);
@@ -258,7 +277,10 @@ export default function CatalogsPage() {
       </div>
 
       {/* Tabs for products */}
-      <Tabs value={activeSupplier} onValueChange={setActiveSupplier}>
+      <Tabs value={activeSupplier} onValueChange={(v) => {
+        setActiveSupplier(v);
+        if (v !== 'hager') setSelectedCategory(null);
+      }}>
         <div className="flex items-center gap-4 flex-wrap">
           <TabsList>
             <TabsTrigger value="all">Tous</TabsTrigger>
@@ -280,6 +302,29 @@ export default function CatalogsPage() {
             />
           </div>
         </div>
+
+        {/* Hager Categories Filter */}
+        {activeSupplier === 'hager' && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <Badge
+              variant={selectedCategory === null ? "default" : "outline"}
+              className="cursor-pointer hover:bg-primary/80"
+              onClick={() => setSelectedCategory(null)}
+            >
+              Toutes catégories
+            </Badge>
+            {HAGER_CATEGORIES.map((category) => (
+              <Badge
+                key={category}
+                variant={selectedCategory === category ? "default" : "outline"}
+                className="cursor-pointer hover:bg-primary/80"
+                onClick={() => setSelectedCategory(category)}
+              >
+                {category}
+              </Badge>
+            ))}
+          </div>
+        )}
 
         <TabsContent value={activeSupplier} className="mt-4">
           {productsLoading ? (
