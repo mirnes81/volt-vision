@@ -4,7 +4,7 @@ import path from "path";
 import { componentTagger } from "lovable-tagger";
 import { VitePWA } from 'vite-plugin-pwa';
 
-// Force rebuild: v13 - PWA avec auto-update
+// Force rebuild: v14 - Fix React hooks
 export default defineConfig(({ mode }) => ({
   server: {
     host: "::",
