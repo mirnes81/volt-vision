@@ -1,5 +1,4 @@
 import * as React from 'react';
-import { useState } from 'react';
 import { Navigate } from 'react-router-dom';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -82,10 +81,10 @@ export default function CatalogsPage() {
   const currentWorker = getCurrentWorker() as any;
   const isAdmin = currentWorker?.isAdmin || currentWorker?.admin || worker?.admin;
   
-  const [activeSupplier, setActiveSupplier] = useState<string>('all');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [syncingSupplier, setSyncingSupplier] = useState<string | null>(null);
+  const [activeSupplier, setActiveSupplier] = React.useState<string>('all');
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [selectedCategory, setSelectedCategory] = React.useState<string | null>(null);
+  const [syncingSupplier, setSyncingSupplier] = React.useState<string | null>(null);
   const queryClient = useQueryClient();
 
   // Redirect non-admin users
