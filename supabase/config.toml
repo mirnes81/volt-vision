@@ -11,3 +11,6 @@ verify_jwt = false
 
 [functions.scrape-supplier-catalog]
 verify_jwt = false
+
+[functions.extract-voucher]
+verify_jwt = true
