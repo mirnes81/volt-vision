@@ -1,4 +1,4 @@
-// App.tsx - v14 - Emergency system
+// App.tsx - v15 - Voucher scan feature
 import * as React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
@@ -26,6 +26,7 @@ import DiagnosticPage from "./pages/DiagnosticPage";
 import InstallPage from "./pages/InstallPage";
 import EmergenciesPage from "./pages/EmergenciesPage";
 import CatalogsPage from "./pages/CatalogsPage";
+import VoucherScanPage from "./pages/VoucherScanPage";
 import NotFound from "./pages/NotFound";
 import { rescheduleRemindersOnStart } from "@/lib/interventionReminders";
 import { cleanupCorruptedPendingSync } from "@/lib/offlineStorage";
@@ -67,6 +68,7 @@ const AppRoutes = () => (
       <Route path="/time-tracking" element={<TimeTrackingPage />} />
       <Route path="/emergencies" element={<EmergenciesPage />} />
       <Route path="/catalogs" element={<CatalogsPage />} />
+      <Route path="/voucher-scan" element={<VoucherScanPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/settings" element={<SettingsPage />} />
     </Route>

@@ -902,6 +902,110 @@ export type Database = {
         }
         Relationships: []
       }
+      voucher_extraction_templates: {
+        Row: {
+          client_pattern: string | null
+          created_at: string
+          field_mappings: Json
+          id: string
+          sample_extractions: Json | null
+          success_count: number | null
+          template_name: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          client_pattern?: string | null
+          created_at?: string
+          field_mappings?: Json
+          id?: string
+          sample_extractions?: Json | null
+          success_count?: number | null
+          template_name: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          client_pattern?: string | null
+          created_at?: string
+          field_mappings?: Json
+          id?: string
+          sample_extractions?: Json | null
+          success_count?: number | null
+          template_name?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_extraction_templates_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      voucher_scans: {
+        Row: {
+          corrected_data: Json | null
+          created_at: string
+          extracted_data: Json
+          id: string
+          intervention_id: number | null
+          original_file_url: string
+          raw_ocr_text: string | null
+          scanned_by: string | null
+          status: string
+          template_id: string | null
+          tenant_id: string
+          validated_at: string | null
+        }
+        Insert: {
+          corrected_data?: Json | null
+          created_at?: string
+          extracted_data?: Json
+          id?: string
+          intervention_id?: number | null
+          original_file_url: string
+          raw_ocr_text?: string | null
+          scanned_by?: string | null
+          status?: string
+          template_id?: string | null
+          tenant_id: string
+          validated_at?: string | null
+        }
+        Update: {
+          corrected_data?: Json | null
+          created_at?: string
+          extracted_data?: Json
+          id?: string
+          intervention_id?: number | null
+          original_file_url?: string
+          raw_ocr_text?: string | null
+          scanned_by?: string | null
+          status?: string
+          template_id?: string | null
+          tenant_id?: string
+          validated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "voucher_scans_template_id_fkey"
+            columns: ["template_id"]
+            isOneToOne: false
+            referencedRelation: "voucher_extraction_templates"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "voucher_scans_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "tenants"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       work_time_entries: {
         Row: {
           clock_in: string

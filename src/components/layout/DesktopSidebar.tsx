@@ -2,7 +2,7 @@ import * as React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   Home, ClipboardList, CalendarDays, User, Settings, ChevronLeft, ChevronRight,
-  Zap, LogOut, Moon, Sun, Plus, Clock, Package
+  Zap, LogOut, Moon, Sun, Plus, Clock, Package, ScanLine
 } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -36,6 +36,7 @@ export function DesktopSidebar() {
   ];
 
   const bottomNavItems: NavItem[] = [
+    { to: '/voucher-scan', icon: ScanLine, label: 'Scan bons de régie' },
     { to: '/catalogs', icon: Package, label: 'Catalogues' },
     { to: '/settings', icon: Settings, label: 'Configuration' },
   ];
