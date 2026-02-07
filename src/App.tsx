@@ -27,6 +27,7 @@ import InstallPage from "./pages/InstallPage";
 import EmergenciesPage from "./pages/EmergenciesPage";
 import CatalogsPage from "./pages/CatalogsPage";
 import VoucherScanPage from "./pages/VoucherScanPage";
+import AdminPage from "./pages/AdminPage";
 import NotFound from "./pages/NotFound";
 import { rescheduleRemindersOnStart } from "@/lib/interventionReminders";
 import { cleanupCorruptedPendingSync } from "@/lib/offlineStorage";
@@ -69,6 +70,7 @@ const AppRoutes = () => (
       <Route path="/emergencies" element={<EmergenciesPage />} />
       <Route path="/catalogs" element={<CatalogsPage />} />
       <Route path="/voucher-scan" element={<VoucherScanPage />} />
+      <Route path="/admin" element={<AdminPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/settings" element={<SettingsPage />} />
     </Route>
