@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { 
   Shield, ScanLine, Package, Users, Clock, Bell, 
-  AlertTriangle, Settings, ChevronRight, FileText,
+  AlertTriangle, Settings, ChevronRight,
   UserCog, Timer, Smartphone, RefreshCw
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -11,6 +11,10 @@ import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/contexts/AuthContext';
 import { getCurrentWorker } from '@/lib/api';
 import { cn } from '@/lib/utils';
+import { getHoursSettings, saveHoursSettings, formatMinutesToHM } from '@/lib/hoursSettings';
+import { isInstalledPWA } from '@/lib/pwaUtils';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/components/ui/sonner';
 
 interface AdminMenuItem {
   title: string;
@@ -263,7 +267,6 @@ function HoursSettingsSection() {
   const [alertMinutesInput, setAlertMinutesInput] = React.useState('30');
 
   React.useEffect(() => {
-    const { getHoursSettings } = require('@/lib/hoursSettings');
     const settings = getHoursSettings();
     const hours = Math.floor(settings.maxDailyHours / 60);
     const mins = settings.maxDailyHours % 60;
@@ -272,9 +275,6 @@ function HoursSettingsSection() {
   }, []);
 
   const handleSave = () => {
-    const { saveHoursSettings, formatMinutesToHM } = require('@/lib/hoursSettings');
-    const { toast } = require('@/components/ui/sonner');
-    
     let maxMinutes = 510;
     const match = maxHoursInput.match(/^(\d+)[h:](\d+)$/i);
     if (match) {
@@ -348,7 +348,6 @@ function DolibarrUsersSection() {
   React.useEffect(() => {
     async function fetchUsers() {
       try {
-        const { supabase } = await import('@/integrations/supabase/client');
         const { data, error } = await supabase.functions.invoke('dolibarr-api', {
           body: { action: 'get-users' },
         });
@@ -411,7 +410,6 @@ function PWAStatusSection() {
   const [isInstalled, setIsInstalled] = React.useState(false);
 
   React.useEffect(() => {
-    const { isInstalledPWA } = require('@/lib/pwaUtils');
     setIsInstalled(isInstalledPWA());
   }, []);
 
