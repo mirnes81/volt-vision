@@ -1,18 +1,23 @@
-import { Home, ClipboardList, CalendarDays, User, Clock } from 'lucide-react';
+import { Home, ClipboardList, CalendarDays, User, Clock, Shield } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import { useTodayInterventionsCount } from '@/hooks/useTodayInterventionsCount';
 
 export function BottomNav() {
   const { t } = useLanguage();
+  const { worker } = useAuth();
   const { todayCount } = useTodayInterventionsCount();
+  
+  const currentWorker = worker as any;
+  const isAdmin = currentWorker?.isAdmin || currentWorker?.admin;
   
   const navItems: { to: string; icon: typeof Home; label: string; badge?: number }[] = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
     { to: '/interventions', icon: ClipboardList, label: 'Mes Int.' },
     { to: '/calendar', icon: CalendarDays, label: 'Planning', badge: todayCount },
-    { to: '/time-tracking', icon: Clock, label: 'Heures' },
+    ...(isAdmin ? [{ to: '/admin', icon: Shield, label: 'Admin' }] : [{ to: '/time-tracking', icon: Clock, label: 'Heures' }]),
     { to: '/profile', icon: User, label: t('nav.profile') },
   ];
 
