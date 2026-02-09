@@ -20,6 +20,7 @@ interface DolibarrAssignmentPanelProps {
   location?: string;
   datePlanned?: string;
   priority?: 'normal' | 'urgent' | 'critical';
+  description?: string;
   onAssignmentsChange?: () => void;
   initialAssignmentsCount?: number; // Count from parent to show immediately
 }
@@ -59,6 +60,7 @@ export function DolibarrAssignmentPanel({
   location,
   datePlanned,
   priority = 'normal',
+  description,
   onAssignmentsChange,
   initialAssignmentsCount = 0,
 }: DolibarrAssignmentPanelProps) {
@@ -210,6 +212,7 @@ export function DolibarrAssignmentPanel({
           date_planned: datePlanned || null,
           location: location || null,
           client_name: clientName || null,
+          description: description || null,
           assigned_by: currentWorker?.id?.toString() || null,
           notification_sent: false,
           notification_acknowledged: false,
