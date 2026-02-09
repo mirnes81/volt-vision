@@ -437,7 +437,7 @@ function AnimatedCounter({ value, label, icon, color }: { value: number; label: 
 }
 
 // ─── Ticker messages builder ─────────────────────────────────────────
-function useTickerMessages(todayAssignments: DayAssignment[], counters: LiveCounters, travels: TravelInfo[]) {
+function useTickerMessages(todayAssignments: DayAssignment[], counters: LiveCounters) {
   return React.useMemo(() => {
     const msgs: string[] = [];
 
@@ -448,12 +448,6 @@ function useTickerMessages(todayAssignments: DayAssignment[], counters: LiveCoun
       for (const u of urgents.slice(0, 3)) {
         msgs.push(`⚡ URGENT : ${u.intervention_label} — ${u.client_name || 'Client'} ${u.location ? `(${u.location})` : ''}`);
       }
-    }
-
-    // Traffic delays
-    const delays = travels.filter(t => t.estimatedWithTraffic - t.durationMin >= 10);
-    for (const d of delays) {
-      msgs.push(`🚗 Retard estimé vers ${d.client} : +${d.estimatedWithTraffic - d.durationMin} min (trafic)`);
     }
 
     // Daily recap
@@ -473,7 +467,7 @@ function useTickerMessages(todayAssignments: DayAssignment[], counters: LiveCoun
 
     // Repeat to make it scroll smoothly
     return [...msgs, ...msgs];
-  }, [todayAssignments, counters, travels]);
+  }, [todayAssignments, counters]);
 }
 
 // ─── Scrolling Ticker Component ──────────────────────────────────────
@@ -569,45 +563,80 @@ function PhotoCarousel({ assignments }: { assignments: DayAssignment[] }) {
   );
 }
 
-// ─── Travel Widget (compact) ─────────────────────────────────────────
-function TravelWidget({ travels, loading, lastUpdate, weather }: { travels: TravelInfo[]; loading: boolean; lastUpdate: Date | null; weather: WeatherData | null; }) {
+// ─── Road Conditions Widget (Cossonay area) ─────────────────────────
+function RoadConditionsWidget({ weather }: { weather: WeatherData | null }) {
   const now = new Date();
   const traffic = getTrafficFactor(now.getHours());
-  const hasDelays = travels.some(t => t.delayWarning && t.estimatedWithTraffic - t.durationMin >= 15);
+  const weatherPenalty = getWeatherTrafficPenalty(weather?.description ?? null);
+  const totalFactor = traffic.factor + weatherPenalty;
+
+  const severity = totalFactor >= 1.4 ? 'high' : totalFactor > 1.1 ? 'medium' : 'low';
+  const colors = {
+    high: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-300', dot: 'bg-red-400', icon: 'text-red-400' },
+    medium: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-300', dot: 'bg-amber-400', icon: 'text-amber-400' },
+    low: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-300', dot: 'bg-emerald-400', icon: 'text-emerald-400' },
+  };
+  const c = colors[severity];
+
+  // Road conditions around Cossonay
+  const conditions: { road: string; info: string }[] = [];
+  
+  if (weather) {
+    const d = weather.description.toLowerCase();
+    if (d.includes('neige') || d.includes('verglas')) {
+      conditions.push({ road: 'Routes régionales', info: '⚠️ Risque de verglas/neige' });
+      conditions.push({ road: 'A1 Lausanne-Yverdon', info: '⚠️ Chaussée glissante possible' });
+    } else if (d.includes('pluie forte') || d.includes('orage')) {
+      conditions.push({ road: 'Routes régionales', info: '⚠️ Visibilité réduite' });
+      conditions.push({ road: 'A1 Lausanne-Yverdon', info: '🌧️ Prudence - pluie forte' });
+    } else if (d.includes('pluie') || d.includes('averse') || d.includes('bruine')) {
+      conditions.push({ road: 'Routes régionales', info: '🌧️ Chaussée humide' });
+    } else if (d.includes('brouillard')) {
+      conditions.push({ road: 'RC 177 Cossonay', info: '🌫️ Brouillard - visibilité réduite' });
+      conditions.push({ road: 'A1 Lausanne-Yverdon', info: '🌫️ Risque de brouillard' });
+    }
+  }
+
+  const hour = now.getHours();
+  if (hour >= 7 && hour <= 9) {
+    conditions.push({ road: 'A1 dir. Lausanne', info: '🚗 Heure de pointe (+40%)' });
+    conditions.push({ road: 'RC Cossonay-Morges', info: '🚗 Trafic dense' });
+  } else if (hour >= 16 && hour <= 18) {
+    conditions.push({ road: 'A1 dir. Yverdon', info: '🚗 Heure de pointe (+45%)' });
+    conditions.push({ road: 'RC Cossonay-Morges', info: '🚗 Trafic dense' });
+  } else if (hour >= 11 && hour <= 13) {
+    conditions.push({ road: 'Centre Cossonay', info: '🚙 Trafic modéré midi' });
+  }
+
+  if (conditions.length === 0) {
+    conditions.push({ road: 'Toutes routes', info: '✅ Conditions normales' });
+  }
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className={`rounded-lg border p-2 ${hasDelays ? 'bg-red-500/10 border-red-500/30' : traffic.factor > 1.1 ? 'bg-amber-500/10 border-amber-500/30' : 'bg-emerald-500/10 border-emerald-500/30'}`}>
+      <div className={`rounded-lg border p-2 ${c.bg} ${c.border}`}>
         <div className="flex items-center gap-1.5 mb-0.5">
-          <Car className={`h-3.5 w-3.5 ${hasDelays ? 'text-red-400' : traffic.factor > 1.1 ? 'text-amber-400' : 'text-emerald-400'}`} />
-          <span className={`text-xs font-bold ${hasDelays ? 'text-red-300' : traffic.factor > 1.1 ? 'text-amber-300' : 'text-emerald-300'}`}>{traffic.label}</span>
+          <Car className={`h-3.5 w-3.5 ${c.icon}`} />
+          <span className={`text-xs font-bold ${c.text}`}>{traffic.label}</span>
         </div>
-        {lastUpdate && <div className="text-[9px] text-white/20">MAJ {lastUpdate.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}</div>}
+        {weatherPenalty > 0 && (
+          <div className="text-[9px] text-amber-400 mt-0.5">
+            +{Math.round(weatherPenalty * 100)}% météo ({weather?.description})
+          </div>
+        )}
       </div>
 
-      {loading ? (
-        <div className="text-white/30 text-[10px] text-center py-2">Calcul…</div>
-      ) : travels.length === 0 ? (
-        <div className="text-white/20 text-[10px] text-center py-2">Aucun trajet</div>
-      ) : (
-        <div className="space-y-1 max-h-[200px] overflow-auto">
-          {travels.slice(0, 5).map((t, idx) => {
-            const isDelayed = t.estimatedWithTraffic - t.durationMin >= 15;
-            return (
-              <div key={idx} className={`rounded-md border p-2 ${isDelayed ? 'bg-red-500/10 border-red-500/25' : 'bg-white/5 border-white/10'}`}>
-                <div className="flex items-center justify-between gap-1">
-                  <span className="text-[10px] text-white/70 truncate flex-1">{t.client}</span>
-                  <span className={`text-xs font-bold tabular-nums ${isDelayed ? 'text-red-300' : 'text-white/70'}`}>{t.estimatedWithTraffic}′</span>
-                </div>
-                <div className="text-[9px] text-white/30 truncate">{t.distanceKm}km • {t.location}</div>
-                {t.delayWarning && <div className={`text-[9px] mt-0.5 ${isDelayed ? 'text-red-400' : 'text-amber-400'}`}>{t.delayWarning}</div>}
-              </div>
-            );
-          })}
-        </div>
-      )}
+      <div className="space-y-1 max-h-[200px] overflow-auto">
+        {conditions.map((c, idx) => (
+          <div key={idx} className="rounded-md border bg-white/5 border-white/10 p-2">
+            <div className="text-[10px] font-bold text-white/70">{c.road}</div>
+            <div className="text-[9px] text-white/50 mt-0.5">{c.info}</div>
+          </div>
+        ))}
+      </div>
+
       <div className="text-[9px] text-white/15 flex items-center gap-1">
-        <Navigation className="h-2 w-2" /> {ENES_ORIGIN.label}
+        <Navigation className="h-2 w-2" /> Rayon 5km • {ENES_ORIGIN.label}
       </div>
     </div>
   );
@@ -647,10 +676,10 @@ export default function TVDisplayPage() {
   const now = useClock();
   const weather = useWeather();
   const { techPlans, weekDays, allTodayAssignments, overdueCount, unplannedCount, loading } = useWeekAssignments();
-  const { travels, loading: travelLoading, lastUpdate } = useTravelInfo(allTodayAssignments, weather?.description ?? null);
+  // Travel info removed - replaced by RoadConditionsWidget
   const counters = useLiveCounters();
   const leaders = useLeaderboard();
-  const tickerMessages = useTickerMessages(allTodayAssignments, counters, travels);
+  const tickerMessages = useTickerMessages(allTodayAssignments, counters);
 
   React.useEffect(() => { enterFullscreen(); }, [enterFullscreen]);
 
@@ -875,9 +904,9 @@ export default function TVDisplayPage() {
           <div className="flex-shrink-0">
             <div className="flex items-center gap-1.5 mb-1">
               <Car className="h-3.5 w-3.5 text-amber-400" />
-              <span className="text-[11px] font-bold">Trajets</span>
+              <span className="text-[11px] font-bold">Conditions routières</span>
             </div>
-            <TravelWidget travels={travels} loading={travelLoading} lastUpdate={lastUpdate} weather={weather} />
+            <RoadConditionsWidget weather={weather} />
           </div>
 
           {/* Leaderboard */}
