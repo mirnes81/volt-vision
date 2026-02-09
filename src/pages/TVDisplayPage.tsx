@@ -265,18 +265,30 @@ function useLiveCounters() {
       const today = new Date();
       const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
       const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+      const endOf7Days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7).toISOString();
 
-      // Today's assignments
-      const { data: todayData } = await supabase
-        .from('intervention_assignments')
-        .select('priority, user_name')
-        .eq('tenant_id', TENANT_ID)
-        .gte('date_planned', startOfToday)
-        .lt('date_planned', endOfToday);
+      // Fetch today's assignments AND all 7-day assignments in parallel
+      const [todayResult, weekAssignResult] = await Promise.all([
+        supabase
+          .from('intervention_assignments')
+          .select('priority, user_name')
+          .eq('tenant_id', TENANT_ID)
+          .gte('date_planned', startOfToday)
+          .lt('date_planned', endOfToday),
+        supabase
+          .from('intervention_assignments')
+          .select('priority, user_name, date_planned')
+          .eq('tenant_id', TENANT_ID)
+          .lt('date_planned', endOf7Days),
+      ]);
+
+      const todayData = todayResult.data;
+      const weekAssignData = weekAssignResult.data;
 
       const todayTotal = todayData?.length || 0;
-      const todayUrgent = todayData?.filter(d => d.priority === 'urgent' || d.priority === 'critical').length || 0;
-      const activeTechs = new Set(todayData?.map(d => d.user_name)).size;
+      // Count ALL urgent/critical across 7 days (includes overdue)
+      const todayUrgent = weekAssignData?.filter(d => d.priority === 'urgent' || d.priority === 'critical').length || 0;
+      const activeTechs = new Set(weekAssignData?.map(d => d.user_name)).size;
 
       // Weekly hours from summary view
       const monday = new Date(today);
