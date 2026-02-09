@@ -148,58 +148,7 @@ export default function LoginPage() {
         </div>
 
         {/* Connection Status */}
-        <div className="hidden lg:block w-full max-w-sm mb-6 animate-slide-up" style={{ animationDelay: '0.05s' }}>
-          <div className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
-            connectionStatus === 'testing' 
-              ? 'bg-muted/30 border-muted-foreground/20'
-              : connectionStatus === 'success' 
-              ? 'bg-success/5 border-success/30'
-              : 'bg-destructive/5 border-destructive/30'
-          }`}>
-            {connectionStatus === 'testing' ? (
-              <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
-              </div>
-            ) : connectionStatus === 'success' ? (
-              <div className="w-10 h-10 rounded-xl bg-success/10 flex items-center justify-center">
-                <CheckCircle className="w-5 h-5 text-success" />
-              </div>
-            ) : (
-              <div className="w-10 h-10 rounded-xl bg-destructive/10 flex items-center justify-center">
-                <RefreshCw className="w-5 h-5 text-destructive" />
-              </div>
-            )}
-            <div className="flex-1">
-              <p className={`text-sm font-semibold ${
-                connectionStatus === 'testing' 
-                  ? 'text-muted-foreground'
-                  : connectionStatus === 'success' 
-                  ? 'text-success'
-                  : 'text-destructive'
-              }`}>
-                {connectionStatus === 'testing' 
-                  ? 'Connexion au serveur...'
-                  : connectionStatus === 'success' 
-                  ? 'Serveur connecté'
-                  : 'Serveur non disponible'}
-              </p>
-              {connectionStatus === 'success' && dolibarrVersion && (
-                <p className="text-xs text-muted-foreground">Dolibarr {dolibarrVersion}</p>
-              )}
-            </div>
-            {connectionStatus === 'error' && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={testConnection}
-                disabled={isTestingConnection}
-                className="h-10 w-10 p-0 rounded-xl"
-              >
-                <RefreshCw className={`w-4 h-4 ${isTestingConnection ? 'animate-spin' : ''}`} />
-              </Button>
-            )}
-          </div>
-        </div>
+        {/* Connection status hidden from UI but still checked internally */}
 
         {/* Login Error Alert */}
         {loginError && (
@@ -288,16 +237,8 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        {/* Footer Links */}
+        {/* Footer */}
         <div className="mt-8 flex flex-col items-center gap-3">
-          <a 
-            href="/diagnostic" 
-            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-          >
-            <Wrench className="w-4 h-4" />
-            Diagnostic de connexion
-          </a>
-          
           <p className="text-xs text-muted-foreground/50">
             ENES Électricité v1.0.0
           </p>
