@@ -147,10 +147,12 @@ function useTravelInfo(todayAssignments: DayAssignment[], weatherDesc: string | 
   return { travels, loading, lastUpdate };
 }
 
-// ─── Week assignments hook ───────────────────────────────────────────
+// ─── Week assignments hook (ALL non-completed) ──────────────────────
 function useWeekAssignments() {
   const [techPlans, setTechPlans] = React.useState<TechWeekPlan[]>([]);
   const [allTodayAssignments, setAllTodayAssignments] = React.useState<DayAssignment[]>([]);
+  const [overdueCount, setOverdueCount] = React.useState(0);
+  const [unplannedCount, setUnplannedCount] = React.useState(0);
   const [loading, setLoading] = React.useState(true);
   const [weekDays, setWeekDays] = React.useState<Date[]>([]);
 
@@ -160,29 +162,46 @@ function useWeekAssignments() {
       const days: Date[] = [];
       for (let i = 0; i < 7; i++) { const d = new Date(today); d.setDate(today.getDate() + i); days.push(d); }
       setWeekDays(days);
-      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-      const endOf7Days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7).toISOString();
 
+      const todayStr = today.toISOString().split('T')[0];
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+
+      // Fetch ALL assignments (no date filter = all non-completed interventions)
       const { data, error } = await supabase
         .from('intervention_assignments')
         .select('user_name, intervention_label, client_name, location, priority, date_planned')
         .eq('tenant_id', TENANT_ID)
-        .gte('date_planned', startOfToday)
-        .lt('date_planned', endOf7Days)
         .order('user_name')
         .order('date_planned', { ascending: true });
 
       if (error) { console.error('TV planning error:', error); setLoading(false); return; }
 
-      const todayStr = today.toISOString().split('T')[0];
       const todayItems: DayAssignment[] = [];
       const techMap = new Map<string, TechWeekPlan>();
+      let overdue = 0;
+      let unplanned = 0;
+      const endOf7Days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7).toISOString().split('T')[0];
 
       for (const row of (data || [])) {
         const name = row.user_name || 'Non assigné';
         if (!techMap.has(name)) techMap.set(name, { userName: name, days: new Map() });
         const plan = techMap.get(name)!;
-        const dateKey = row.date_planned ? new Date(row.date_planned).toISOString().split('T')[0] : todayStr;
+
+        let dateKey: string;
+        if (!row.date_planned) {
+          // No planned date → show as "unplanned" (use special key)
+          dateKey = '__unplanned__';
+          unplanned++;
+        } else {
+          dateKey = new Date(row.date_planned).toISOString().split('T')[0];
+          // Check if overdue (before today)
+          if (dateKey < todayStr) {
+            overdue++;
+            // Move overdue items to a special "overdue" column
+            dateKey = '__overdue__';
+          }
+        }
+
         if (!plan.days.has(dateKey)) plan.days.set(dateKey, []);
         const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name };
         plan.days.get(dateKey)!.push(assignment);
@@ -191,6 +210,8 @@ function useWeekAssignments() {
 
       setTechPlans(Array.from(techMap.values()));
       setAllTodayAssignments(todayItems);
+      setOverdueCount(overdue);
+      setUnplannedCount(unplanned);
     } catch (err) { console.error('TV week planning error:', err); }
     finally { setLoading(false); }
   }, []);
@@ -201,7 +222,7 @@ function useWeekAssignments() {
     return () => clearInterval(interval);
   }, [fetchAssignments]);
 
-  return { techPlans, weekDays, allTodayAssignments, loading };
+  return { techPlans, weekDays, allTodayAssignments, overdueCount, unplannedCount, loading };
 }
 
 // ─── Live counters hook ──────────────────────────────────────────────
@@ -582,7 +603,7 @@ export default function TVDisplayPage() {
   const { enterFullscreen } = useFullscreen();
   const now = useClock();
   const weather = useWeather();
-  const { techPlans, weekDays, allTodayAssignments, loading } = useWeekAssignments();
+  const { techPlans, weekDays, allTodayAssignments, overdueCount, unplannedCount, loading } = useWeekAssignments();
   const { travels, loading: travelLoading, lastUpdate } = useTravelInfo(allTodayAssignments, weather?.description ?? null);
   const counters = useLiveCounters();
   const leaders = useLeaderboard();
@@ -640,8 +661,20 @@ export default function TVDisplayPage() {
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
           <div className="flex items-center gap-2 mb-1.5 flex-shrink-0">
             <Calendar className="h-4 w-4 text-blue-400" />
-            <h2 className="text-sm font-bold">Planning 7 jours</h2>
-            <span className="text-[10px] text-white/20 ml-auto">Auto-refresh 2min</span>
+            <h2 className="text-sm font-bold">Toutes les interventions en cours</h2>
+            <div className="flex items-center gap-2 ml-auto">
+              {overdueCount > 0 && (
+                <span className="text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full border border-red-500/30 font-bold">
+                  ⚠️ {overdueCount} en retard
+                </span>
+              )}
+              {unplannedCount > 0 && (
+                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-bold">
+                  📋 {unplannedCount} non planifié(es)
+                </span>
+              )}
+              <span className="text-[10px] text-white/20">Auto-refresh 2min</span>
+            </div>
           </div>
 
           {loading ? (
@@ -649,16 +682,34 @@ export default function TVDisplayPage() {
           ) : techPlans.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-white/30 gap-2">
               <Calendar className="h-12 w-12 opacity-30" />
-              <p className="text-sm">Aucune intervention cette semaine</p>
+              <p className="text-sm">Aucune intervention en cours</p>
             </div>
-          ) : (
+          ) : (() => {
+            const hasOverdue = techPlans.some(t => (t.days.get('__overdue__') || []).length > 0);
+            const hasUnplanned = techPlans.some(t => (t.days.get('__unplanned__') || []).length > 0);
+            const extraCols = (hasOverdue ? 1 : 0) + (hasUnplanned ? 1 : 0);
+            const gridCols = `120px ${hasOverdue ? '1fr ' : ''}${hasUnplanned ? '1fr ' : ''}repeat(7, 1fr)`;
+
+            return (
             <div className="flex-1 overflow-auto min-h-0">
               <div className="grid gap-0.5 sticky top-0 z-10 bg-gradient-to-br from-[hsl(217,91%,8%)] via-[hsl(217,91%,14%)] to-[hsl(220,80%,18%)]"
-                style={{ gridTemplateColumns: '120px repeat(7, 1fr)' }}
+                style={{ gridTemplateColumns: gridCols }}
               >
                 <div className="p-1.5 text-[10px] font-bold text-white/40 uppercase flex items-center gap-1">
                   <User className="h-3 w-3" /> Tech
                 </div>
+                {hasOverdue && (
+                  <div className="p-1.5 text-center rounded bg-red-500/15 border border-red-500/30">
+                    <div className="text-[10px] font-bold uppercase text-red-400">En retard</div>
+                    <div className="text-base font-bold text-red-300">⚠️</div>
+                  </div>
+                )}
+                {hasUnplanned && (
+                  <div className="p-1.5 text-center rounded bg-amber-500/15 border border-amber-500/30">
+                    <div className="text-[10px] font-bold uppercase text-amber-400">À planifier</div>
+                    <div className="text-base font-bold text-amber-300">📋</div>
+                  </div>
+                )}
                 {weekDays.map((day) => {
                   const isToday = day.toISOString().split('T')[0] === todayStr;
                   const { dayName, dayNum } = formatDayHeader(day);
@@ -674,44 +725,81 @@ export default function TVDisplayPage() {
               <div className="space-y-0.5 mt-0.5">
                 {techPlans.map((tech, techIdx) => {
                   const color = TECH_COLORS[techIdx % TECH_COLORS.length];
+                  const overdueItems = tech.days.get('__overdue__') || [];
+                  const unplannedItems = tech.days.get('__unplanned__') || [];
+
+                  const renderCell = (assignments: DayAssignment[], isToday: boolean, isSpecial?: 'overdue' | 'unplanned') => (
+                    <div className={`rounded border p-1 min-h-[50px] ${
+                      isSpecial === 'overdue' && assignments.length > 0
+                        ? 'bg-red-500/8 border-red-500/20'
+                        : isSpecial === 'unplanned' && assignments.length > 0
+                          ? 'bg-amber-500/8 border-amber-500/20'
+                          : isToday
+                            ? 'bg-blue-500/8 border-blue-500/25'
+                            : assignments.length > 0
+                              ? 'bg-white/5 border-white/10'
+                              : 'bg-white/[0.02] border-white/5'
+                    }`}>
+                      {assignments.length === 0 ? (
+                        <div className="h-full flex items-center justify-center"><span className="text-white/10 text-[10px]">—</span></div>
+                      ) : (
+                        <div className="space-y-0.5">
+                          {assignments.map((a, aIdx) => (
+                            <div key={aIdx} className={`rounded px-1 py-0.5 text-[10px] leading-tight ${
+                              a.priority === 'urgent' || a.priority === 'critical'
+                                ? 'bg-red-500/20 border border-red-500/30'
+                                : isSpecial === 'overdue'
+                                  ? 'bg-red-500/10 border border-red-500/20'
+                                  : isSpecial === 'unplanned'
+                                    ? 'bg-amber-500/10 border border-amber-500/20'
+                                    : `${color.bg} border ${color.border}`
+                            }`}>
+                              <div className="flex items-start gap-0.5">
+                                {(a.priority === 'urgent' || a.priority === 'critical') && <AlertTriangle className="h-2.5 w-2.5 text-red-400 flex-shrink-0 mt-0.5" />}
+                                {isSpecial === 'overdue' && a.priority === 'normal' && <Clock className="h-2.5 w-2.5 text-red-300 flex-shrink-0 mt-0.5" />}
+                                <div className="min-w-0">
+                                  <div className={`font-semibold truncate ${
+                                    a.priority !== 'normal' ? 'text-red-300'
+                                    : isSpecial === 'overdue' ? 'text-red-200'
+                                    : isSpecial === 'unplanned' ? 'text-amber-200'
+                                    : 'text-white/80'
+                                  }`}>{a.intervention_label}</div>
+                                  {a.client_name && <div className="text-white/40 truncate">{a.client_name}</div>}
+                                  {isSpecial === 'overdue' && a.date_planned && (
+                                    <div className="text-red-400/60 text-[9px]">
+                                      Prévu: {new Date(a.date_planned).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' })}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+
                   return (
-                    <div key={tech.userName} className="grid gap-0.5" style={{ gridTemplateColumns: '120px repeat(7, 1fr)' }}>
+                    <div key={tech.userName} className="grid gap-0.5" style={{ gridTemplateColumns: gridCols }}>
                       <div className={`${color.bg} ${color.border} border rounded p-1.5 flex items-center gap-1.5`}>
                         <div className={`w-2 h-2 rounded-full ${color.dot} flex-shrink-0`} />
                         <span className={`text-[11px] font-bold ${color.text} truncate`}>{tech.userName}</span>
                       </div>
+                      {hasOverdue && renderCell(overdueItems, false, 'overdue')}
+                      {hasUnplanned && renderCell(unplannedItems, false, 'unplanned')}
                       {weekDays.map((day) => {
                         const dateKey = day.toISOString().split('T')[0];
                         const isToday = dateKey === todayStr;
                         const assignments = tech.days.get(dateKey) || [];
-                        return (
-                          <div key={dateKey} className={`rounded border p-1 min-h-[50px] ${isToday ? 'bg-blue-500/8 border-blue-500/25' : assignments.length > 0 ? 'bg-white/5 border-white/10' : 'bg-white/[0.02] border-white/5'}`}>
-                            {assignments.length === 0 ? (
-                              <div className="h-full flex items-center justify-center"><span className="text-white/10 text-[10px]">—</span></div>
-                            ) : (
-                              <div className="space-y-0.5">
-                                {assignments.map((a, aIdx) => (
-                                  <div key={aIdx} className={`rounded px-1 py-0.5 text-[10px] leading-tight ${a.priority === 'urgent' || a.priority === 'critical' ? 'bg-red-500/20 border border-red-500/30' : `${color.bg} border ${color.border}`}`}>
-                                    <div className="flex items-start gap-0.5">
-                                      {(a.priority === 'urgent' || a.priority === 'critical') && <AlertTriangle className="h-2.5 w-2.5 text-red-400 flex-shrink-0 mt-0.5" />}
-                                      <div className="min-w-0">
-                                        <div className={`font-semibold truncate ${a.priority !== 'normal' ? 'text-red-300' : 'text-white/80'}`}>{a.intervention_label}</div>
-                                        {a.client_name && <div className="text-white/40 truncate">{a.client_name}</div>}
-                                      </div>
-                                    </div>
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        );
+                        return <React.Fragment key={dateKey}>{renderCell(assignments, isToday)}</React.Fragment>;
                       })}
                     </div>
                   );
                 })}
               </div>
             </div>
-          )}
+            );
+          })()}
         </div>
 
         {/* Right sidebar: Travel + Leaderboard + Carousel */}
