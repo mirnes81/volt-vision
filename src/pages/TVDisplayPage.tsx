@@ -697,119 +697,132 @@ export default function TVDisplayPage() {
               <p className="text-sm">Aucune intervention en cours</p>
             </div>
           ) : (() => {
-            const hasOverdue = techPlans.some(t => (t.days.get('__overdue__') || []).length > 0);
-            const hasUnplanned = techPlans.some(t => (t.days.get('__unplanned__') || []).length > 0);
-            const extraCols = (hasOverdue ? 1 : 0) + (hasUnplanned ? 1 : 0);
-            const gridCols = `160px ${hasOverdue ? '1fr ' : ''}${hasUnplanned ? '1fr ' : ''}repeat(7, 1fr)`;
+            // Flatten all assignments into a list grouped by date
+            const allAssignments: (DayAssignment & { dateKey: string })[] = [];
+            for (const tech of techPlans) {
+              for (const [dateKey, assignments] of tech.days) {
+                for (const a of assignments) {
+                  allAssignments.push({ ...a, user_name: tech.userName, dateKey });
+                }
+              }
+            }
+
+            // Group by dateKey
+            const grouped = new Map<string, (DayAssignment & { dateKey: string })[]>();
+            // Order: overdue first, then today, then future days, unplanned last
+            const sortOrder = (key: string) => {
+              if (key === '__overdue__') return '0';
+              if (key === '__unplanned__') return '9';
+              return `1_${key}`;
+            };
+            for (const a of allAssignments) {
+              if (!grouped.has(a.dateKey)) grouped.set(a.dateKey, []);
+              grouped.get(a.dateKey)!.push(a);
+            }
+            const sortedKeys = Array.from(grouped.keys()).sort((a, b) => sortOrder(a).localeCompare(sortOrder(b)));
+
+            const getDayLabel = (key: string) => {
+              if (key === '__overdue__') return '⚠️ En retard';
+              if (key === '__unplanned__') return '📋 Non planifié';
+              const d = new Date(key + 'T00:00:00');
+              const isToday = key === todayStr;
+              const label = d.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' });
+              return isToday ? `📍 Aujourd'hui — ${label}` : label.charAt(0).toUpperCase() + label.slice(1);
+            };
+
+            const getDayStyle = (key: string) => {
+              if (key === '__overdue__') return 'bg-red-500/15 border-red-500/30 text-red-300';
+              if (key === '__unplanned__') return 'bg-amber-500/15 border-amber-500/30 text-amber-300';
+              if (key === todayStr) return 'bg-blue-500/20 border-blue-500/40 text-blue-200';
+              return 'bg-white/5 border-white/10 text-white/60';
+            };
 
             return (
-            <div className="flex-1 overflow-auto min-h-0">
-              <div className="grid gap-1 sticky top-0 z-10 bg-gradient-to-br from-[hsl(217,91%,8%)] via-[hsl(217,91%,14%)] to-[hsl(220,80%,18%)]"
-                style={{ gridTemplateColumns: gridCols }}
-              >
-                <div className="p-2 text-sm font-bold text-white/40 uppercase flex items-center gap-1.5">
-                  <User className="h-4 w-4" /> Technicien
-                </div>
-                {hasOverdue && (
-                  <div className="p-2 text-center rounded bg-red-500/15 border border-red-500/30">
-                    <div className="text-sm font-bold uppercase text-red-400">En retard</div>
-                    <div className="text-xl font-bold text-red-300">⚠️</div>
-                  </div>
-                )}
-                {hasUnplanned && (
-                  <div className="p-2 text-center rounded bg-amber-500/15 border border-amber-500/30">
-                    <div className="text-sm font-bold uppercase text-amber-400">À planifier</div>
-                    <div className="text-xl font-bold text-amber-300">📋</div>
-                  </div>
-                )}
-                {weekDays.map((day) => {
-                  const isToday = day.toISOString().split('T')[0] === todayStr;
-                  const { dayName, dayNum } = formatDayHeader(day);
-                  return (
-                    <div key={day.toISOString()} className={`p-2 text-center rounded ${isToday ? 'bg-blue-500/20 border border-blue-500/40' : ''}`}>
-                      <div className={`text-sm font-bold uppercase ${isToday ? 'text-blue-300' : 'text-white/40'}`}>{dayName}</div>
-                      <div className={`text-xl font-bold ${isToday ? 'text-blue-200' : 'text-white/60'}`}>{dayNum}</div>
+            <div className="flex-1 overflow-auto min-h-0 space-y-3 pr-1">
+              {sortedKeys.map((dateKey) => {
+                const items = grouped.get(dateKey)!;
+                return (
+                  <div key={dateKey}>
+                    {/* Day header */}
+                    <div className={`sticky top-0 z-10 rounded-lg border px-4 py-2 mb-2 font-bold text-base capitalize ${getDayStyle(dateKey)}`}>
+                      {getDayLabel(dateKey)}
+                      <span className="ml-3 text-sm font-normal opacity-60">({items.length} intervention{items.length > 1 ? 's' : ''})</span>
                     </div>
-                  );
-                })}
-              </div>
+                    {/* Intervention list */}
+                    <div className="space-y-1.5">
+                      {items.map((a, idx) => {
+                        const techIdx = techPlans.findIndex(t => t.userName === a.user_name);
+                        const color = TECH_COLORS[(techIdx >= 0 ? techIdx : idx) % TECH_COLORS.length];
+                        const isUrgent = a.priority === 'urgent' || a.priority === 'critical';
+                        const isOverdue = a.dateKey === '__overdue__';
 
-              <div className="space-y-1 mt-1">
-                {techPlans.map((tech, techIdx) => {
-                  const color = TECH_COLORS[techIdx % TECH_COLORS.length];
-                  const overdueItems = tech.days.get('__overdue__') || [];
-                  const unplannedItems = tech.days.get('__unplanned__') || [];
-
-                  const renderCell = (assignments: DayAssignment[], isToday: boolean, isSpecial?: 'overdue' | 'unplanned') => (
-                    <div className={`rounded-lg border p-1.5 min-h-[70px] ${
-                      isSpecial === 'overdue' && assignments.length > 0
-                        ? 'bg-red-500/8 border-red-500/20'
-                        : isSpecial === 'unplanned' && assignments.length > 0
-                          ? 'bg-amber-500/8 border-amber-500/20'
-                          : isToday
-                            ? 'bg-blue-500/8 border-blue-500/25'
-                            : assignments.length > 0
-                              ? 'bg-white/5 border-white/10'
-                              : 'bg-white/[0.02] border-white/5'
-                    }`}>
-                      {assignments.length === 0 ? (
-                        <div className="h-full flex items-center justify-center"><span className="text-white/10 text-sm">—</span></div>
-                      ) : (
-                        <div className="space-y-1">
-                          {assignments.map((a, aIdx) => (
-                            <div key={aIdx} className={`rounded-lg px-2 py-1.5 text-sm leading-snug relative group ${
-                              a.priority === 'urgent' || a.priority === 'critical'
-                                ? 'bg-red-500/20 border border-red-500/30'
-                                : isSpecial === 'overdue'
-                                  ? 'bg-red-500/10 border border-red-500/20'
-                                  : isSpecial === 'unplanned'
-                                    ? 'bg-amber-500/10 border border-amber-500/20'
-                                    : `${color.bg} border ${color.border}`
-                            }`}>
-                              <div className="flex items-start gap-1.5">
-                                {(a.priority === 'urgent' || a.priority === 'critical') && <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />}
-                                {isSpecial === 'overdue' && a.priority === 'normal' && <Clock className="h-4 w-4 text-red-300 flex-shrink-0 mt-0.5" />}
-                                <div className="min-w-0 flex-1">
-                                  <div className={`font-bold truncate text-sm ${
-                                    a.priority !== 'normal' ? 'text-red-300'
-                                    : isSpecial === 'overdue' ? 'text-red-200'
-                                    : isSpecial === 'unplanned' ? 'text-amber-200'
-                                    : 'text-white/90'
-                                  }`}>{a.intervention_label}</div>
-                                  {a.client_name && <div className="text-white/50 truncate text-xs">{a.client_name}</div>}
-                                  {a.description && <div className="text-blue-300/70 text-xs line-clamp-2 mt-0.5">{a.description}</div>}
-                                  {isSpecial === 'overdue' && a.date_planned && (
-                                    <div className="text-red-400/60 text-xs">
-                                      Prévu: {new Date(a.date_planned).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' })}
-                                    </div>
-                                  )}
-                                </div>
-                              </div>
+                        return (
+                          <div key={`${a.intervention_ref}-${a.user_name}-${idx}`}
+                            className={`rounded-xl border px-4 py-3 flex items-start gap-4 ${
+                              isUrgent ? 'bg-red-500/15 border-red-500/30' 
+                              : isOverdue ? 'bg-red-500/8 border-red-500/20'
+                              : 'bg-white/[0.04] border-white/10'
+                            }`}
+                          >
+                            {/* Priority icon */}
+                            <div className="flex-shrink-0 mt-0.5">
+                              {isUrgent ? (
+                                <AlertTriangle className="h-5 w-5 text-red-400" />
+                              ) : isOverdue ? (
+                                <Clock className="h-5 w-5 text-red-300" />
+                              ) : (
+                                <Wrench className="h-5 w-5 text-white/30" />
+                              )}
                             </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  );
 
-                  return (
-                    <div key={tech.userName} className="grid gap-1" style={{ gridTemplateColumns: gridCols }}>
-                      <div className={`${color.bg} ${color.border} border rounded-lg p-2 flex items-center gap-2`}>
-                        <div className={`w-3 h-3 rounded-full ${color.dot} flex-shrink-0`} />
-                        <span className={`text-sm font-bold ${color.text} truncate`}>{tech.userName}</span>
-                      </div>
-                      {hasOverdue && renderCell(overdueItems, false, 'overdue')}
-                      {hasUnplanned && renderCell(unplannedItems, false, 'unplanned')}
-                      {weekDays.map((day) => {
-                        const dateKey = day.toISOString().split('T')[0];
-                        const isToday = dateKey === todayStr;
-                        const assignments = tech.days.get(dateKey) || [];
-                        return <React.Fragment key={dateKey}>{renderCell(assignments, isToday)}</React.Fragment>;
+                            {/* Main info */}
+                            <div className="flex-1 min-w-0">
+                              <div className={`font-bold text-base ${isUrgent ? 'text-red-200' : isOverdue ? 'text-red-200' : 'text-white/90'}`}>
+                                {a.intervention_label}
+                              </div>
+                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                                {a.client_name && (
+                                  <span className="text-sm text-white/60 flex items-center gap-1">
+                                    <User className="h-3.5 w-3.5 text-white/30" /> {a.client_name}
+                                  </span>
+                                )}
+                                {a.location && (
+                                  <span className="text-sm text-white/50 flex items-center gap-1">
+                                    <MapPin className="h-3.5 w-3.5 text-white/30" /> {a.location}
+                                  </span>
+                                )}
+                                {isOverdue && a.date_planned && (
+                                  <span className="text-sm text-red-400/70 flex items-center gap-1">
+                                    <Calendar className="h-3.5 w-3.5" /> Prévu: {new Date(a.date_planned).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' })}
+                                  </span>
+                                )}
+                              </div>
+                              {a.description && (
+                                <div className="text-sm text-blue-300/70 mt-1 line-clamp-2">
+                                  🔧 {a.description}
+                                </div>
+                              )}
+                            </div>
+
+                            {/* Technician badge */}
+                            <div className={`flex-shrink-0 rounded-lg px-3 py-1.5 border ${color.bg} ${color.border} flex items-center gap-2`}>
+                              <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />
+                              <span className={`text-sm font-bold ${color.text} whitespace-nowrap`}>{a.user_name}</span>
+                            </div>
+
+                            {/* Priority badge */}
+                            {isUrgent && (
+                              <span className="flex-shrink-0 text-xs font-bold uppercase bg-red-500/25 text-red-300 px-2.5 py-1 rounded-full border border-red-500/40">
+                                {a.priority === 'critical' ? 'Critique' : 'Urgent'}
+                              </span>
+                            )}
+                          </div>
+                        );
                       })}
                     </div>
-                  );
-                })}
-              </div>
+                  </div>
+                );
+              })}
             </div>
             );
           })()}
