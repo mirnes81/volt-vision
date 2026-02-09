@@ -176,46 +176,65 @@ function useWeekAssignments() {
       setWeekDays(days);
 
       const todayStr = today.toISOString().split('T')[0];
-      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
 
-      // Fetch ALL assignments (no date filter = all non-completed interventions)
-      const { data, error } = await supabase
-        .from('intervention_assignments')
-        .select('user_name, intervention_label, intervention_ref, intervention_id, client_name, location, priority, date_planned, description')
-        .eq('tenant_id', TENANT_ID)
-        .order('user_name')
-        .order('date_planned', { ascending: true });
+      // Fetch assignments AND Dolibarr interventions in PARALLEL
+      const [assignResult, dolibarrResult] = await Promise.all([
+        supabase
+          .from('intervention_assignments')
+          .select('user_name, intervention_label, intervention_ref, intervention_id, client_name, location, priority, date_planned, description')
+          .eq('tenant_id', TENANT_ID)
+          .order('user_name')
+          .order('date_planned', { ascending: true }),
+        supabase.functions.invoke('dolibarr-api', {
+          body: { action: 'get-interventions', params: {} },
+        }).catch(() => ({ data: null, error: 'fetch failed' })),
+      ]);
 
-      if (error) { console.error('TV planning error:', error); setLoading(false); return; }
+      if (assignResult.error) { console.error('TV planning error:', assignResult.error); setLoading(false); return; }
+
+      // Build a map of intervention_id -> description from Dolibarr
+      const descriptionMap = new Map<number, string>();
+      if (dolibarrResult?.data && Array.isArray(dolibarrResult.data)) {
+        for (const int of dolibarrResult.data) {
+          const id = Number(int.id);
+          const desc = int.description || int.note_public || int.note_private || '';
+          if (id && desc) {
+            // Strip HTML tags
+            const cleanDesc = desc.replace(/<[^>]*>/g, '').trim();
+            if (cleanDesc) descriptionMap.set(id, cleanDesc);
+          }
+        }
+      }
+      console.log(`[TV] Dolibarr descriptions loaded: ${descriptionMap.size} interventions`);
 
       const todayItems: DayAssignment[] = [];
       const techMap = new Map<string, TechWeekPlan>();
       let overdue = 0;
       let unplanned = 0;
-      const endOf7Days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7).toISOString().split('T')[0];
 
-      for (const row of (data || [])) {
+      for (const row of (assignResult.data || [])) {
         const name = row.user_name || 'Non assigné';
         if (!techMap.has(name)) techMap.set(name, { userName: name, days: new Map() });
         const plan = techMap.get(name)!;
 
         let dateKey: string;
         if (!row.date_planned) {
-          // No planned date → show as "unplanned" (use special key)
           dateKey = '__unplanned__';
           unplanned++;
         } else {
           dateKey = new Date(row.date_planned).toISOString().split('T')[0];
-          // Check if overdue (before today)
           if (dateKey < todayStr) {
             overdue++;
-            // Move overdue items to a special "overdue" column
             dateKey = '__overdue__';
           }
         }
 
+        // Use Dolibarr description if assignment doesn't have one
+        const dolibarrDesc = row.intervention_id ? descriptionMap.get(row.intervention_id) : undefined;
+        const finalDescription = (row as any).description || dolibarrDesc || null;
+
         if (!plan.days.has(dateKey)) plan.days.set(dateKey, []);
-        const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', intervention_ref: row.intervention_ref || '', intervention_id: row.intervention_id, client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name, description: (row as any).description };
+        const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', intervention_ref: row.intervention_ref || '', intervention_id: row.intervention_id, client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name, description: finalDescription };
         plan.days.get(dateKey)!.push(assignment);
         if (dateKey === todayStr) todayItems.push(assignment);
       }
