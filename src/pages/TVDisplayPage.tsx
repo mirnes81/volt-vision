@@ -1,7 +1,8 @@
 import * as React from 'react';
-import { Monitor, Users, Cloud, Sun, CloudRain, CloudSnow, Wind, Thermometer, MapPin, Clock, Calendar, Zap, ArrowLeft, ChevronRight } from 'lucide-react';
+import { Monitor, Users, Cloud, Sun, CloudRain, CloudSnow, Wind, Thermometer, MapPin, Clock, Calendar, Zap, ArrowLeft, ChevronRight, AlertTriangle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
+import { supabase } from '@/integrations/supabase/client';
 import logoEnes from '@/assets/logo-enes.png';
 
 // ─── Types ───────────────────────────────────────────────────────────
@@ -338,7 +339,7 @@ function WorkersMode({ onBack }: { onBack: () => void }) {
             Planning du jour
           </h2>
           <div className="flex-1 space-y-3 overflow-auto">
-            <PlanningPlaceholder />
+            <DailyPlanning />
           </div>
         </div>
       </div>
@@ -352,29 +353,134 @@ function WorkersMode({ onBack }: { onBack: () => void }) {
   );
 }
 
-function PlanningPlaceholder() {
-  // This will later pull from Supabase/Dolibarr assignments
-  const mockPlanning = [
-    { tech: 'Mirnes V.', tasks: ['Rés. Champel — Tableau élec.', 'Appt. Carouge — Dépannage'], color: 'bg-blue-500/20 border-blue-500/30' },
-    { tech: 'Tech. 2', tasks: ['Immeuble Plainpalais — OIBT', 'Villa Cologny — Éclairage'], color: 'bg-green-500/20 border-green-500/30' },
-    { tech: 'Tech. 3', tasks: ['Bureau Lancy — Réseau', 'Stock — Inventaire'], color: 'bg-purple-500/20 border-purple-500/30' },
-  ];
+const TECH_COLORS = [
+  'bg-blue-500/20 border-blue-500/30',
+  'bg-green-500/20 border-green-500/30',
+  'bg-purple-500/20 border-purple-500/30',
+  'bg-amber-500/20 border-amber-500/30',
+  'bg-cyan-500/20 border-cyan-500/30',
+  'bg-rose-500/20 border-rose-500/30',
+];
+
+interface TechPlanning {
+  userName: string;
+  assignments: { label: string; client: string | null; location: string | null; priority: string }[];
+}
+
+function useTodayAssignments() {
+  const [planning, setPlanning] = React.useState<TechPlanning[]>([]);
+  const [loading, setLoading] = React.useState(true);
+
+  const fetchAssignments = React.useCallback(async () => {
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+
+      const { data, error } = await supabase
+        .from('intervention_assignments')
+        .select('user_name, intervention_label, client_name, location, priority, date_planned')
+        .eq('tenant_id', '00000000-0000-0000-0000-000000000001')
+        .gte('date_planned', startOfDay)
+        .lt('date_planned', endOfDay)
+        .order('user_name');
+
+      if (error) {
+        console.error('TV assignments fetch error:', error);
+        // Fallback: fetch all recent assignments if date filter fails
+        const { data: fallback } = await supabase
+          .from('intervention_assignments')
+          .select('user_name, intervention_label, client_name, location, priority, date_planned')
+          .eq('tenant_id', '00000000-0000-0000-0000-000000000001')
+          .order('date_planned', { ascending: true })
+          .limit(50);
+        
+        if (fallback) {
+          groupByTech(fallback);
+        }
+        return;
+      }
+
+      groupByTech(data || []);
+    } catch (err) {
+      console.error('TV planning error:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  function groupByTech(data: any[]) {
+    const grouped = new Map<string, TechPlanning>();
+    for (const row of data) {
+      const name = row.user_name || 'Non assigné';
+      if (!grouped.has(name)) {
+        grouped.set(name, { userName: name, assignments: [] });
+      }
+      grouped.get(name)!.assignments.push({
+        label: row.intervention_label || 'Intervention',
+        client: row.client_name,
+        location: row.location,
+        priority: row.priority || 'normal',
+      });
+    }
+    setPlanning(Array.from(grouped.values()));
+  }
+
+  // Fetch on mount + refresh every 2 minutes
+  React.useEffect(() => {
+    fetchAssignments();
+    const interval = setInterval(fetchAssignments, 120_000);
+    return () => clearInterval(interval);
+  }, [fetchAssignments]);
+
+  return { planning, loading };
+}
+
+function DailyPlanning() {
+  const { planning, loading } = useTodayAssignments();
+
+  if (loading) {
+    return <div className="text-center text-white/30 text-xl py-8">Chargement du planning...</div>;
+  }
+
+  if (planning.length === 0) {
+    return (
+      <div className="text-center text-white/30 py-8 space-y-3">
+        <Calendar className="h-12 w-12 mx-auto opacity-40" />
+        <p className="text-lg">Aucune intervention planifiée aujourd'hui</p>
+        <p className="text-sm">Les assignations apparaîtront ici automatiquement</p>
+      </div>
+    );
+  }
 
   return (
     <>
-      {mockPlanning.map((p, i) => (
-        <div key={i} className={`rounded-2xl border p-4 ${p.color}`}>
-          <div className="font-bold text-lg mb-2">{p.tech}</div>
-          {p.tasks.map((t, j) => (
-            <div key={j} className="text-white/70 text-sm flex items-center gap-2 ml-2">
-              <ChevronRight className="h-3 w-3 flex-shrink-0" />
-              {t}
+      {planning.map((tech, i) => (
+        <div key={tech.userName} className={`rounded-2xl border p-4 ${TECH_COLORS[i % TECH_COLORS.length]}`}>
+          <div className="font-bold text-lg mb-2 flex items-center justify-between">
+            <span>{tech.userName}</span>
+            <span className="text-sm font-normal text-white/50">{tech.assignments.length} intervention{tech.assignments.length > 1 ? 's' : ''}</span>
+          </div>
+          {tech.assignments.map((a, j) => (
+            <div key={j} className="text-white/70 text-sm flex items-start gap-2 ml-2 mb-1">
+              {a.priority === 'urgent' || a.priority === 'critical' ? (
+                <AlertTriangle className="h-3.5 w-3.5 flex-shrink-0 text-red-400 mt-0.5" />
+              ) : (
+                <ChevronRight className="h-3 w-3 flex-shrink-0 mt-0.5" />
+              )}
+              <div>
+                <span className={a.priority !== 'normal' ? 'text-red-300 font-medium' : ''}>
+                  {a.label}
+                </span>
+                {a.client && <span className="text-white/40 ml-1">— {a.client}</span>}
+                {a.location && <div className="text-white/30 text-xs flex items-center gap-1"><MapPin className="h-2.5 w-2.5" />{a.location}</div>}
+              </div>
             </div>
           ))}
         </div>
       ))}
-      <div className="text-center text-white/20 text-sm mt-4 italic">
-        Données de démonstration — se connecte aux assignations réelles
+      <div className="text-center text-white/20 text-xs mt-2">
+        Mise à jour automatique toutes les 2 min
       </div>
     </>
   );
