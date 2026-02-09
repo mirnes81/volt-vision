@@ -787,175 +787,221 @@ export default function TVDisplayPage() {
         </div>
       </div>
 
-      {/* ─── Main Content ─── */}
+      {/* ─── Main Content: 3 columns ─── */}
       <div className="flex-1 flex min-h-0 p-3 gap-3">
-        {/* Left: Planning grid */}
+
+        {/* ═══ LEFT: 7-day planning ═══ */}
+        <div className="w-[300px] flex-shrink-0 flex flex-col min-h-0">
+          <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+            <Calendar className="h-4 w-4 text-blue-400" />
+            <h2 className="text-sm font-bold">Planning 7 jours</h2>
+          </div>
+
+          <div className="flex-1 overflow-auto min-h-0 space-y-1.5 pr-1">
+            {weekDays.map((day, dayIdx) => {
+              const dayStr = day.toISOString().split('T')[0];
+              const isToday = dayStr === todayStr;
+              const dayName = day.toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+
+              // Collect all assignments for this day across all techs
+              const dayAssignments: (DayAssignment & { techName: string })[] = [];
+              for (const tech of techPlans) {
+                const items = tech.days.get(dayStr);
+                if (items) {
+                  for (const a of items) {
+                    dayAssignments.push({ ...a, techName: tech.userName });
+                  }
+                }
+              }
+
+              return (
+                <div key={dayStr} className={`rounded-lg border p-2 ${
+                  isToday ? 'bg-blue-500/20 border-blue-500/40' : 'bg-white/[0.03] border-white/10'
+                }`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className={`text-xs font-bold capitalize ${isToday ? 'text-blue-200' : 'text-white/60'}`}>
+                      {isToday ? '📍 ' : ''}{dayName}
+                    </span>
+                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                      dayAssignments.length > 0
+                        ? isToday ? 'bg-blue-500/30 text-blue-200' : 'bg-white/10 text-white/50'
+                        : 'text-white/20'
+                    }`}>
+                      {dayAssignments.length}
+                    </span>
+                  </div>
+
+                  {dayAssignments.length === 0 ? (
+                    <div className="text-[9px] text-white/20 py-1">Aucune intervention</div>
+                  ) : (
+                    <div className="space-y-1">
+                      {dayAssignments.slice(0, isToday ? 6 : 4).map((a, idx) => {
+                        const isUrgent = a.priority === 'urgent' || a.priority === 'critical';
+                        const techIdx = techPlans.findIndex(t => t.userName === a.techName);
+                        const color = TECH_COLORS[(techIdx >= 0 ? techIdx : idx) % TECH_COLORS.length];
+                        return (
+                          <div key={`${a.intervention_ref}-${idx}`} className={`rounded-md px-2 py-1 border ${
+                            isUrgent ? 'bg-red-500/15 border-red-500/30' : 'bg-white/[0.03] border-white/5'
+                          }`}>
+                            <div className="flex items-center gap-1.5">
+                              {isUrgent && <AlertTriangle className="h-3 w-3 text-red-400 flex-shrink-0" />}
+                              <span className="text-[10px] font-bold text-white/80 truncate">{a.intervention_label}</span>
+                            </div>
+                            <div className="flex items-center gap-2 mt-0.5">
+                              <div className={`w-1.5 h-1.5 rounded-full ${color.dot} flex-shrink-0`} />
+                              <span className={`text-[9px] ${color.text} truncate`}>{a.techName}</span>
+                              {a.client_name && <span className="text-[9px] text-white/30 truncate ml-auto">{a.client_name}</span>}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      {dayAssignments.length > (isToday ? 6 : 4) && (
+                        <div className="text-[9px] text-white/25 text-center">+{dayAssignments.length - (isToday ? 6 : 4)} autres</div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+
+            {/* Overdue section */}
+            {overdueCount > 0 && (() => {
+              const overdueItems: (DayAssignment & { techName: string })[] = [];
+              for (const tech of techPlans) {
+                const items = tech.days.get('__overdue__');
+                if (items) {
+                  for (const a of items) overdueItems.push({ ...a, techName: tech.userName });
+                }
+              }
+              return (
+                <div className="rounded-lg border p-2 bg-red-500/15 border-red-500/30">
+                  <div className="text-xs font-bold text-red-300 mb-1">⚠️ En retard ({overdueItems.length})</div>
+                  <div className="space-y-1">
+                    {overdueItems.slice(0, 4).map((a, idx) => (
+                      <div key={`ov-${idx}`} className="rounded-md px-2 py-1 bg-red-500/10 border border-red-500/20">
+                        <span className="text-[10px] font-bold text-red-200 truncate block">{a.intervention_label}</span>
+                        <span className="text-[9px] text-red-300/50">{a.techName}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* Unplanned section */}
+            {unplannedCount > 0 && (() => {
+              const unplannedItems: (DayAssignment & { techName: string })[] = [];
+              for (const tech of techPlans) {
+                const items = tech.days.get('__unplanned__');
+                if (items) {
+                  for (const a of items) unplannedItems.push({ ...a, techName: tech.userName });
+                }
+              }
+              return (
+                <div className="rounded-lg border p-2 bg-amber-500/15 border-amber-500/30">
+                  <div className="text-xs font-bold text-amber-300 mb-1">📋 Non planifié ({unplannedItems.length})</div>
+                  <div className="space-y-1">
+                    {unplannedItems.slice(0, 3).map((a, idx) => (
+                      <div key={`up-${idx}`} className="rounded-md px-2 py-1 bg-amber-500/10 border border-amber-500/20">
+                        <span className="text-[10px] font-bold text-amber-200 truncate block">{a.intervention_label}</span>
+                        <span className="text-[9px] text-amber-300/50">{a.techName}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+
+        {/* ═══ CENTER: Today's interventions (detailed) ═══ */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
           <div className="flex items-center gap-3 mb-2 flex-shrink-0">
-            <Calendar className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-bold">Toutes les interventions en cours</h2>
-            <div className="flex items-center gap-2 ml-auto">
-              {overdueCount > 0 && (
-                <span className="text-sm bg-red-500/20 text-red-300 px-3 py-1 rounded-full border border-red-500/30 font-bold">
-                  ⚠️ {overdueCount} en retard
-                </span>
-              )}
-              {unplannedCount > 0 && (
-                <span className="text-sm bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full border border-amber-500/30 font-bold">
-                  📋 {unplannedCount} non planifié(es)
-                </span>
-              )}
-              <span className="text-xs text-white/20">Auto-refresh 2min</span>
-            </div>
+            <Zap className="h-5 w-5 text-blue-400" />
+            <h2 className="text-lg font-bold">Interventions du jour</h2>
+            <span className="text-sm text-white/40 ml-auto">{allTodayAssignments.length} intervention{allTodayAssignments.length !== 1 ? 's' : ''}</span>
           </div>
 
           {loading ? (
             <div className="flex-1 flex items-center justify-center text-white/30 text-sm">Chargement…</div>
-          ) : techPlans.length === 0 ? (
+          ) : allTodayAssignments.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center text-white/30 gap-2">
               <Calendar className="h-12 w-12 opacity-30" />
-              <p className="text-sm">Aucune intervention en cours</p>
+              <p className="text-sm">Aucune intervention aujourd'hui</p>
             </div>
-          ) : (() => {
-            // Flatten all assignments into a list grouped by date
-            const allAssignments: (DayAssignment & { dateKey: string })[] = [];
-            for (const tech of techPlans) {
-              for (const [dateKey, assignments] of tech.days) {
-                for (const a of assignments) {
-                  allAssignments.push({ ...a, user_name: tech.userName, dateKey });
-                }
-              }
-            }
+          ) : (
+            <div className="flex-1 overflow-auto min-h-0 space-y-2 pr-1">
+              {allTodayAssignments.map((a, idx) => {
+                const techIdx = techPlans.findIndex(t => t.userName === a.user_name);
+                const color = TECH_COLORS[(techIdx >= 0 ? techIdx : idx) % TECH_COLORS.length];
+                const isUrgent = a.priority === 'urgent' || a.priority === 'critical';
 
-            // Group by dateKey
-            const grouped = new Map<string, (DayAssignment & { dateKey: string })[]>();
-            // Order: overdue first, then today, then future days, unplanned last
-            const sortOrder = (key: string) => {
-              if (key === '__overdue__') return '0';
-              if (key === '__unplanned__') return '9';
-              return `1_${key}`;
-            };
-            for (const a of allAssignments) {
-              if (!grouped.has(a.dateKey)) grouped.set(a.dateKey, []);
-              grouped.get(a.dateKey)!.push(a);
-            }
-            const sortedKeys = Array.from(grouped.keys()).sort((a, b) => sortOrder(a).localeCompare(sortOrder(b)));
-
-            const getDayLabel = (key: string) => {
-              if (key === '__overdue__') return '⚠️ En retard';
-              if (key === '__unplanned__') return '📋 Non planifié';
-              const d = new Date(key + 'T00:00:00');
-              const isToday = key === todayStr;
-              const label = d.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long' });
-              return isToday ? `📍 Aujourd'hui — ${label}` : label.charAt(0).toUpperCase() + label.slice(1);
-            };
-
-            const getDayStyle = (key: string) => {
-              if (key === '__overdue__') return 'bg-red-500/15 border-red-500/30 text-red-300';
-              if (key === '__unplanned__') return 'bg-amber-500/15 border-amber-500/30 text-amber-300';
-              if (key === todayStr) return 'bg-blue-500/20 border-blue-500/40 text-blue-200';
-              return 'bg-white/5 border-white/10 text-white/60';
-            };
-
-            return (
-            <div className="flex-1 overflow-auto min-h-0 space-y-3 pr-1">
-              {sortedKeys.map((dateKey) => {
-                const items = grouped.get(dateKey)!;
                 return (
-                  <div key={dateKey}>
-                    {/* Day header */}
-                    <div className={`sticky top-0 z-10 rounded-lg border px-4 py-2 mb-2 font-bold text-base capitalize ${getDayStyle(dateKey)}`}>
-                      {getDayLabel(dateKey)}
-                      <span className="ml-3 text-sm font-normal opacity-60">({items.length} intervention{items.length > 1 ? 's' : ''})</span>
+                  <div key={`${a.intervention_ref}-${a.user_name}-${idx}`}
+                    className={`rounded-xl border px-4 py-3 flex items-start gap-4 ${
+                      isUrgent ? 'bg-red-500/15 border-red-500/30' : 'bg-white/[0.04] border-white/10'
+                    }`}
+                  >
+                    {/* Priority icon */}
+                    <div className="flex-shrink-0 mt-0.5">
+                      {isUrgent ? (
+                        <AlertTriangle className="h-5 w-5 text-red-400" />
+                      ) : (
+                        <Wrench className="h-5 w-5 text-white/30" />
+                      )}
                     </div>
-                    {/* Intervention list */}
-                    <div className="space-y-1.5">
-                      {items.map((a, idx) => {
-                        const techIdx = techPlans.findIndex(t => t.userName === a.user_name);
-                        const color = TECH_COLORS[(techIdx >= 0 ? techIdx : idx) % TECH_COLORS.length];
-                        const isUrgent = a.priority === 'urgent' || a.priority === 'critical';
-                        const isOverdue = a.dateKey === '__overdue__';
 
-                        return (
-                          <div key={`${a.intervention_ref}-${a.user_name}-${idx}`}
-                            className={`rounded-xl border px-4 py-3 flex items-start gap-4 ${
-                              isUrgent ? 'bg-red-500/15 border-red-500/30' 
-                              : isOverdue ? 'bg-red-500/8 border-red-500/20'
-                              : 'bg-white/[0.04] border-white/10'
-                            }`}
-                          >
-                            {/* Priority icon */}
-                            <div className="flex-shrink-0 mt-0.5">
-                              {isUrgent ? (
-                                <AlertTriangle className="h-5 w-5 text-red-400" />
-                              ) : isOverdue ? (
-                                <Clock className="h-5 w-5 text-red-300" />
-                              ) : (
-                                <Wrench className="h-5 w-5 text-white/30" />
-                              )}
-                            </div>
-
-                            {/* Main info */}
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2">
-                                {a.intervention_ref && (
-                                  <span className="inline-flex items-center bg-yellow-500/20 border border-yellow-400/40 text-yellow-200 text-xs font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
-                                    #{a.intervention_ref}
-                                  </span>
-                                )}
-                                <span className={`font-bold text-base ${isUrgent ? 'text-red-200' : isOverdue ? 'text-red-200' : 'text-white/90'}`}>
-                                  {a.intervention_label}
-                                </span>
-                              </div>
-                              <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
-                                {a.client_name && (
-                                  <span className="text-sm text-white/60 flex items-center gap-1">
-                                    <User className="h-3.5 w-3.5 text-white/30" /> {a.client_name}
-                                  </span>
-                                )}
-                                {a.location && (
-                                  <span className="text-sm text-white/50 flex items-center gap-1">
-                                    <MapPin className="h-3.5 w-3.5 text-white/30" /> {a.location}
-                                  </span>
-                                )}
-                                {isOverdue && a.date_planned && (
-                                  <span className="text-sm text-red-400/70 flex items-center gap-1">
-                                    <Calendar className="h-3.5 w-3.5" /> Prévu: {new Date(a.date_planned).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' })}
-                                  </span>
-                                )}
-                              </div>
-                              {a.description && (
-                                <div className="mt-2 bg-blue-500/15 border border-blue-400/30 rounded-lg px-3 py-2">
-                                  <div className="text-[11px] text-blue-300/60 font-semibold uppercase tracking-wider mb-0.5">📋 Description / Briefing</div>
-                                  <div className="text-sm text-blue-100/90 leading-relaxed line-clamp-3">
-                                    {decodeHtmlEntities(a.description)}
-                                  </div>
-                                </div>
-                              )}
-                            </div>
-
-                            {/* Technician badge */}
-                            <div className={`flex-shrink-0 rounded-lg px-3 py-1.5 border ${color.bg} ${color.border} flex items-center gap-2`}>
-                              <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />
-                              <span className={`text-sm font-bold ${color.text} whitespace-nowrap`}>{a.user_name}</span>
-                            </div>
-
-                            {/* Priority badge */}
-                            {isUrgent && (
-                              <span className="flex-shrink-0 text-xs font-bold uppercase bg-red-500/25 text-red-300 px-2.5 py-1 rounded-full border border-red-500/40">
-                                {a.priority === 'critical' ? 'Critique' : 'Urgent'}
-                              </span>
-                            )}
+                    {/* Main info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        {a.intervention_ref && (
+                          <span className="inline-flex items-center bg-yellow-500/20 border border-yellow-400/40 text-yellow-200 text-xs font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
+                            #{a.intervention_ref}
+                          </span>
+                        )}
+                        <span className={`font-bold text-base ${isUrgent ? 'text-red-200' : 'text-white/90'}`}>
+                          {a.intervention_label}
+                        </span>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                        {a.client_name && (
+                          <span className="text-sm text-white/60 flex items-center gap-1">
+                            <User className="h-3.5 w-3.5 text-white/30" /> {a.client_name}
+                          </span>
+                        )}
+                        {a.location && (
+                          <span className="text-sm text-white/50 flex items-center gap-1">
+                            <MapPin className="h-3.5 w-3.5 text-white/30" /> {a.location}
+                          </span>
+                        )}
+                      </div>
+                      {a.description && (
+                        <div className="mt-2 bg-blue-500/15 border border-blue-400/30 rounded-lg px-3 py-2">
+                          <div className="text-[11px] text-blue-300/60 font-semibold uppercase tracking-wider mb-0.5">📋 Description</div>
+                          <div className="text-sm text-blue-100/90 leading-relaxed line-clamp-3">
+                            {decodeHtmlEntities(a.description)}
                           </div>
-                        );
-                      })}
+                        </div>
+                      )}
                     </div>
+
+                    {/* Technician badge */}
+                    <div className={`flex-shrink-0 rounded-lg px-3 py-1.5 border ${color.bg} ${color.border} flex items-center gap-2`}>
+                      <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />
+                      <span className={`text-sm font-bold ${color.text} whitespace-nowrap`}>{a.user_name}</span>
+                    </div>
+
+                    {/* Priority badge */}
+                    {isUrgent && (
+                      <span className="flex-shrink-0 text-xs font-bold uppercase bg-red-500/25 text-red-300 px-2.5 py-1 rounded-full border border-red-500/40">
+                        {a.priority === 'critical' ? 'Critique' : 'Urgent'}
+                      </span>
+                    )}
                   </div>
                 );
               })}
             </div>
-            );
-          })()}
+          )}
         </div>
 
         {/* Right sidebar: Travel + Leaderboard + Carousel */}
