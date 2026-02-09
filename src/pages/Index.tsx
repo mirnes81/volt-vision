@@ -21,7 +21,7 @@ const Index = () => {
   // Show a nice loading screen instead of just a spinner
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-background">
-      <div className="flex flex-col items-center gap-4 animate-pulse">
+      <div className="flex flex-col items-center gap-4">
         <img 
           src={logoEnes} 
           alt="ENES Électricité" 
