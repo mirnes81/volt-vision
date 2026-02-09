@@ -46,31 +46,30 @@ function DigitalClock({ now }: { now: Date }) {
   const showColon = now.getSeconds() % 2 === 0;
 
   return (
-    <div className="flex items-center gap-0.5">
-      {/* Hours */}
+    <div className="flex items-center gap-1">
       <div className="flex items-baseline">
-        <span className="text-4xl font-black tabular-nums tracking-tight" style={{
+        <span className="text-7xl font-black tabular-nums tracking-tight" style={{
           fontFamily: "'Inter', monospace",
-          textShadow: '0 0 20px rgba(96,165,250,0.6), 0 0 40px rgba(96,165,250,0.3)',
+          textShadow: '0 0 30px rgba(96,165,250,0.6), 0 0 60px rgba(96,165,250,0.3)',
           color: '#93c5fd',
         }}>
           {hours}
         </span>
-        <span className="text-4xl font-black mx-0.5" style={{
+        <span className="text-7xl font-black mx-1" style={{
           color: showColon ? '#93c5fd' : 'transparent',
-          textShadow: showColon ? '0 0 20px rgba(96,165,250,0.6)' : 'none',
+          textShadow: showColon ? '0 0 30px rgba(96,165,250,0.6)' : 'none',
           transition: 'color 0.15s, text-shadow 0.15s',
         }}>:</span>
-        <span className="text-4xl font-black tabular-nums tracking-tight" style={{
+        <span className="text-7xl font-black tabular-nums tracking-tight" style={{
           fontFamily: "'Inter', monospace",
-          textShadow: '0 0 20px rgba(96,165,250,0.6), 0 0 40px rgba(96,165,250,0.3)',
+          textShadow: '0 0 30px rgba(96,165,250,0.6), 0 0 60px rgba(96,165,250,0.3)',
           color: '#93c5fd',
         }}>
           {minutes}
         </span>
-        <span className="text-lg font-bold tabular-nums ml-1 self-end mb-1" style={{
+        <span className="text-3xl font-bold tabular-nums ml-2 self-end mb-2" style={{
           fontFamily: "'Inter', monospace",
-          textShadow: '0 0 10px rgba(96,165,250,0.4)',
+          textShadow: '0 0 15px rgba(96,165,250,0.4)',
           color: '#60a5fa',
           opacity: 0.7,
         }}>
@@ -472,10 +471,10 @@ function AnimatedCounter({ value, label, icon, color }: { value: number; label: 
   }, [value, displayed]);
 
   return (
-    <div className={`rounded-xl border p-3 ${color} flex flex-col items-center gap-1 min-w-0`}>
+    <div className={`rounded-xl border p-4 ${color} flex flex-col items-center gap-2 min-w-0`}>
       {icon}
-      <div className="text-2xl font-black tabular-nums">{displayed}</div>
-      <div className="text-[10px] text-white/50 text-center leading-tight">{label}</div>
+      <div className="text-4xl font-black tabular-nums">{displayed}</div>
+      <div className="text-sm text-white/50 text-center leading-tight">{label}</div>
     </div>
   );
 }
@@ -519,9 +518,9 @@ function ScrollingTicker({ messages }: { messages: string[] }) {
   const text = messages.join('     •     ');
 
   return (
-    <div className="relative overflow-hidden h-7 bg-gradient-to-r from-blue-900/60 via-indigo-900/40 to-blue-900/60 border-t border-white/10">
+    <div className="relative overflow-hidden h-12 bg-gradient-to-r from-blue-900/60 via-indigo-900/40 to-blue-900/60 border-t border-white/10">
       <div
-        className="absolute whitespace-nowrap h-full flex items-center text-xs font-medium text-blue-200/80"
+        className="absolute whitespace-nowrap h-full flex items-center text-lg font-medium text-blue-200/80"
         style={{
           animation: `ticker-scroll ${Math.max(messages.length * 5, 30)}s linear infinite`,
         }}
@@ -673,32 +672,32 @@ function RoadConditionsWidget({ weather }: { weather: WeatherData | null }) {
 
   return (
     <div className="flex flex-col gap-1.5">
-      <div className={`rounded-lg border p-2 ${c.bg} ${c.border}`}>
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <Car className={`h-3.5 w-3.5 ${c.icon}`} />
-          <span className={`text-xs font-bold ${c.text}`}>{traffic.label}</span>
+      <div className={`rounded-xl border p-3 ${c.bg} ${c.border}`}>
+        <div className="flex items-center gap-2 mb-1">
+          <Car className={`h-5 w-5 ${c.icon}`} />
+          <span className={`text-base font-bold ${c.text}`}>{traffic.label}</span>
         </div>
         {weatherPenalty > 0 && (
-          <div className="text-[9px] text-amber-400 mt-0.5">
+          <div className="text-sm text-amber-400 mt-1">
             +{Math.round(weatherPenalty * 100)}% météo ({weather?.description})
           </div>
         )}
       </div>
 
-      <div className="space-y-1 max-h-[220px] overflow-auto">
+      <div className="space-y-1.5 max-h-[300px] overflow-auto">
         {conditions.map((item, idx) => (
-          <div key={idx} className="rounded-md border bg-white/5 border-white/10 p-2">
-            <div className="flex items-center justify-between gap-1">
-              <span className="text-[10px] font-bold text-white/70 truncate">{item.road}</span>
-              <span className="text-[9px] text-white/30 whitespace-nowrap">{item.distance}</span>
+          <div key={idx} className="rounded-lg border bg-white/5 border-white/10 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-bold text-white/70 truncate">{item.road}</span>
+              <span className="text-xs text-white/30 whitespace-nowrap">{item.distance}</span>
             </div>
-            <div className="text-[9px] text-white/50 mt-0.5">{item.info}</div>
+            <div className="text-xs text-white/50 mt-1">{item.info}</div>
           </div>
         ))}
       </div>
 
-      <div className="text-[9px] text-white/15 flex items-center gap-1">
-        <Navigation className="h-2 w-2" /> Rayon 5km • {ENES_ORIGIN.label}
+      <div className="text-xs text-white/15 flex items-center gap-1 mt-1">
+        <Navigation className="h-3 w-3" /> Rayon 5km • {ENES_ORIGIN.label}
       </div>
     </div>
   );
@@ -715,17 +714,17 @@ function LeaderboardWidget({ leaders }: { leaders: LeaderboardEntry[] }) {
   return (
     <div className="space-y-1">
       {leaders.map((l, i) => (
-        <div key={l.name} className={`rounded-md border p-2 flex items-center gap-2 ${i === 0 ? 'bg-yellow-500/10 border-yellow-500/25' : 'bg-white/5 border-white/10'}`}>
-          <span className={`text-sm font-black w-5 text-center ${MEDAL_COLORS[i] || 'text-white/30'}`}>
+        <div key={l.name} className={`rounded-lg border p-3 flex items-center gap-3 ${i === 0 ? 'bg-yellow-500/10 border-yellow-500/25' : 'bg-white/5 border-white/10'}`}>
+          <span className={`text-lg font-black w-7 text-center ${MEDAL_COLORS[i] || 'text-white/30'}`}>
             {i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`}
           </span>
           <div className="flex-1 min-w-0">
-            <div className="text-[11px] font-bold text-white/80 truncate">{l.name}</div>
-            <div className="text-[9px] text-white/40">
+            <div className="text-base font-bold text-white/80 truncate">{l.name}</div>
+            <div className="text-sm text-white/40">
               {l.interventions} interv. • {l.hoursWorked}h
             </div>
           </div>
-          {i === 0 && <Trophy className="h-4 w-4 text-yellow-400 flex-shrink-0" />}
+          {i === 0 && <Trophy className="h-6 w-6 text-yellow-400 flex-shrink-0" />}
         </div>
       ))}
     </div>
@@ -750,33 +749,33 @@ export default function TVDisplayPage() {
   return (
     <div className="h-screen bg-gradient-to-br from-[hsl(217,91%,8%)] via-[hsl(217,91%,14%)] to-[hsl(220,80%,18%)] text-white flex flex-col overflow-hidden">
       {/* ─── Header ─── */}
-      <div className="flex items-center justify-between px-5 py-2.5 border-b border-white/10 flex-shrink-0">
-        <div className="flex items-center gap-3">
-          <img src={logoEnes} alt="ENES" className="h-9" />
+      <div className="flex items-center justify-between px-8 py-4 border-b border-white/10 flex-shrink-0">
+        <div className="flex items-center gap-5">
+          <img src={logoEnes} alt="ENES" className="h-14" />
           <div>
-            <h1 className="text-lg font-bold tracking-tight">ENES Électricité</h1>
-            <p className="text-blue-300 text-[10px] capitalize">
+            <h1 className="text-3xl font-bold tracking-tight">ENES Électricité</h1>
+            <p className="text-blue-300 text-base capitalize">
               {now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
         </div>
 
         {/* Live counters in header */}
-        <div className="flex items-center gap-3">
-          <div className="grid grid-cols-4 gap-2">
-            <AnimatedCounter value={counters.todayTotal} label="Aujourd'hui" icon={<Wrench className="h-4 w-4 text-blue-400" />} color="bg-blue-500/10 border-blue-500/25" />
-            <AnimatedCounter value={counters.todayUrgent} label="Urgentes" icon={<Zap className="h-4 w-4 text-red-400" />} color="bg-red-500/10 border-red-500/25" />
-            <AnimatedCounter value={counters.activeTechs} label="Techniciens" icon={<Users className="h-4 w-4 text-emerald-400" />} color="bg-emerald-500/10 border-emerald-500/25" />
-            <AnimatedCounter value={counters.weeklyHours} label="Heures/sem" icon={<Clock className="h-4 w-4 text-amber-400" />} color="bg-amber-500/10 border-amber-500/25" />
+        <div className="flex items-center gap-5">
+          <div className="grid grid-cols-4 gap-4">
+            <AnimatedCounter value={counters.todayTotal} label="Aujourd'hui" icon={<Wrench className="h-7 w-7 text-blue-400" />} color="bg-blue-500/10 border-blue-500/25" />
+            <AnimatedCounter value={counters.todayUrgent} label="Urgentes" icon={<Zap className="h-7 w-7 text-red-400" />} color="bg-red-500/10 border-red-500/25" />
+            <AnimatedCounter value={counters.activeTechs} label="Techniciens" icon={<Users className="h-7 w-7 text-emerald-400" />} color="bg-emerald-500/10 border-emerald-500/25" />
+            <AnimatedCounter value={counters.weeklyHours} label="Heures/sem" icon={<Clock className="h-7 w-7 text-amber-400" />} color="bg-amber-500/10 border-amber-500/25" />
           </div>
 
           {weather && (
-            <div className="flex items-center gap-2 bg-white/5 rounded-lg px-3 py-1.5 border border-white/10">
-              <WeatherIcon desc={weather.description} className="h-5 w-5" />
-              <span className="text-xl font-bold">{weather.temp}°C</span>
-              <div className="text-[10px] text-white/40 leading-tight">
+            <div className="flex items-center gap-3 bg-white/5 rounded-xl px-5 py-3 border border-white/10">
+              <WeatherIcon desc={weather.description} className="h-9 w-9" />
+              <span className="text-3xl font-bold">{weather.temp}°C</span>
+              <div className="text-sm text-white/40 leading-tight">
                 <div>{weather.description}</div>
-                <div><Wind className="h-2.5 w-2.5 inline" /> {weather.wind}km/h</div>
+                <div><Wind className="h-4 w-4 inline" /> {weather.wind}km/h</div>
               </div>
             </div>
           )}
@@ -788,16 +787,16 @@ export default function TVDisplayPage() {
       </div>
 
       {/* ─── Main Content: 3 columns ─── */}
-      <div className="flex-1 flex min-h-0 p-3 gap-3">
+      <div className="flex-1 flex min-h-0 p-5 gap-5">
 
         {/* ═══ LEFT: 7-day planning ═══ */}
-        <div className="w-[300px] flex-shrink-0 flex flex-col min-h-0">
-          <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-            <Calendar className="h-4 w-4 text-blue-400" />
-            <h2 className="text-sm font-bold">Planning 7 jours</h2>
+        <div className="w-[420px] flex-shrink-0 flex flex-col min-h-0">
+          <div className="flex items-center gap-3 mb-3 flex-shrink-0">
+            <Calendar className="h-6 w-6 text-blue-400" />
+            <h2 className="text-xl font-bold">Planning 7 jours</h2>
           </div>
 
-          <div className="flex-1 overflow-auto min-h-0 space-y-1.5 pr-1">
+          <div className="flex-1 overflow-auto min-h-0 space-y-2.5 pr-1">
             {weekDays.map((day, dayIdx) => {
               const dayStr = day.toISOString().split('T')[0];
               const isToday = dayStr === todayStr;
@@ -815,14 +814,14 @@ export default function TVDisplayPage() {
               }
 
               return (
-                <div key={dayStr} className={`rounded-lg border p-2 ${
+                <div key={dayStr} className={`rounded-xl border p-3 ${
                   isToday ? 'bg-blue-500/20 border-blue-500/40' : 'bg-white/[0.03] border-white/10'
                 }`}>
-                  <div className="flex items-center justify-between mb-1">
-                    <span className={`text-xs font-bold capitalize ${isToday ? 'text-blue-200' : 'text-white/60'}`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-base font-bold capitalize ${isToday ? 'text-blue-200' : 'text-white/60'}`}>
                       {isToday ? '📍 ' : ''}{dayName}
                     </span>
-                    <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-bold ${
+                    <span className={`text-sm px-2 py-0.5 rounded-full font-bold ${
                       dayAssignments.length > 0
                         ? isToday ? 'bg-blue-500/30 text-blue-200' : 'bg-white/10 text-white/50'
                         : 'text-white/20'
@@ -832,31 +831,31 @@ export default function TVDisplayPage() {
                   </div>
 
                   {dayAssignments.length === 0 ? (
-                    <div className="text-[9px] text-white/20 py-1">Aucune intervention</div>
+                    <div className="text-sm text-white/20 py-1">Aucune intervention</div>
                   ) : (
-                    <div className="space-y-1">
+                    <div className="space-y-1.5">
                       {dayAssignments.slice(0, isToday ? 6 : 4).map((a, idx) => {
                         const isUrgent = a.priority === 'urgent' || a.priority === 'critical';
                         const techIdx = techPlans.findIndex(t => t.userName === a.techName);
                         const color = TECH_COLORS[(techIdx >= 0 ? techIdx : idx) % TECH_COLORS.length];
                         return (
-                          <div key={`${a.intervention_ref}-${idx}`} className={`rounded-md px-2 py-1 border ${
+                          <div key={`${a.intervention_ref}-${idx}`} className={`rounded-lg px-3 py-2 border ${
                             isUrgent ? 'bg-red-500/15 border-red-500/30' : 'bg-white/[0.03] border-white/5'
                           }`}>
-                            <div className="flex items-center gap-1.5">
-                              {isUrgent && <AlertTriangle className="h-3 w-3 text-red-400 flex-shrink-0" />}
-                              <span className="text-[10px] font-bold text-white/80 truncate">{a.intervention_label}</span>
+                            <div className="flex items-center gap-2">
+                              {isUrgent && <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />}
+                              <span className="text-sm font-bold text-white/80 truncate">{a.intervention_label}</span>
                             </div>
-                            <div className="flex items-center gap-2 mt-0.5">
-                              <div className={`w-1.5 h-1.5 rounded-full ${color.dot} flex-shrink-0`} />
-                              <span className={`text-[9px] ${color.text} truncate`}>{a.techName}</span>
-                              {a.client_name && <span className="text-[9px] text-white/30 truncate ml-auto">{a.client_name}</span>}
+                            <div className="flex items-center gap-2 mt-1">
+                              <div className={`w-2.5 h-2.5 rounded-full ${color.dot} flex-shrink-0`} />
+                              <span className={`text-xs ${color.text} truncate`}>{a.techName}</span>
+                              {a.client_name && <span className="text-xs text-white/30 truncate ml-auto">{a.client_name}</span>}
                             </div>
                           </div>
                         );
                       })}
                       {dayAssignments.length > (isToday ? 6 : 4) && (
-                        <div className="text-[9px] text-white/25 text-center">+{dayAssignments.length - (isToday ? 6 : 4)} autres</div>
+                        <div className="text-xs text-white/25 text-center">+{dayAssignments.length - (isToday ? 6 : 4)} autres</div>
                       )}
                     </div>
                   )}
@@ -874,13 +873,13 @@ export default function TVDisplayPage() {
                 }
               }
               return (
-                <div className="rounded-lg border p-2 bg-red-500/15 border-red-500/30">
-                  <div className="text-xs font-bold text-red-300 mb-1">⚠️ En retard ({overdueItems.length})</div>
-                  <div className="space-y-1">
+                <div className="rounded-xl border p-3 bg-red-500/15 border-red-500/30">
+                  <div className="text-base font-bold text-red-300 mb-2">⚠️ En retard ({overdueItems.length})</div>
+                  <div className="space-y-1.5">
                     {overdueItems.slice(0, 4).map((a, idx) => (
-                      <div key={`ov-${idx}`} className="rounded-md px-2 py-1 bg-red-500/10 border border-red-500/20">
-                        <span className="text-[10px] font-bold text-red-200 truncate block">{a.intervention_label}</span>
-                        <span className="text-[9px] text-red-300/50">{a.techName}</span>
+                      <div key={`ov-${idx}`} className="rounded-lg px-3 py-2 bg-red-500/10 border border-red-500/20">
+                        <span className="text-sm font-bold text-red-200 truncate block">{a.intervention_label}</span>
+                        <span className="text-xs text-red-300/50">{a.techName}</span>
                       </div>
                     ))}
                   </div>
@@ -898,13 +897,13 @@ export default function TVDisplayPage() {
                 }
               }
               return (
-                <div className="rounded-lg border p-2 bg-amber-500/15 border-amber-500/30">
-                  <div className="text-xs font-bold text-amber-300 mb-1">📋 Non planifié ({unplannedItems.length})</div>
-                  <div className="space-y-1">
+                <div className="rounded-xl border p-3 bg-amber-500/15 border-amber-500/30">
+                  <div className="text-base font-bold text-amber-300 mb-2">📋 Non planifié ({unplannedItems.length})</div>
+                  <div className="space-y-1.5">
                     {unplannedItems.slice(0, 3).map((a, idx) => (
-                      <div key={`up-${idx}`} className="rounded-md px-2 py-1 bg-amber-500/10 border border-amber-500/20">
-                        <span className="text-[10px] font-bold text-amber-200 truncate block">{a.intervention_label}</span>
-                        <span className="text-[9px] text-amber-300/50">{a.techName}</span>
+                      <div key={`up-${idx}`} className="rounded-lg px-3 py-2 bg-amber-500/10 border border-amber-500/20">
+                        <span className="text-sm font-bold text-amber-200 truncate block">{a.intervention_label}</span>
+                        <span className="text-xs text-amber-300/50">{a.techName}</span>
                       </div>
                     ))}
                   </div>
@@ -916,21 +915,21 @@ export default function TVDisplayPage() {
 
         {/* ═══ CENTER: Today's interventions (detailed) ═══ */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
-          <div className="flex items-center gap-3 mb-2 flex-shrink-0">
-            <Zap className="h-5 w-5 text-blue-400" />
-            <h2 className="text-lg font-bold">Interventions du jour</h2>
-            <span className="text-sm text-white/40 ml-auto">{allTodayAssignments.length} intervention{allTodayAssignments.length !== 1 ? 's' : ''}</span>
+          <div className="flex items-center gap-4 mb-3 flex-shrink-0">
+            <Zap className="h-8 w-8 text-blue-400" />
+            <h2 className="text-2xl font-bold">Interventions du jour</h2>
+            <span className="text-lg text-white/40 ml-auto">{allTodayAssignments.length} intervention{allTodayAssignments.length !== 1 ? 's' : ''}</span>
           </div>
 
           {loading ? (
-            <div className="flex-1 flex items-center justify-center text-white/30 text-sm">Chargement…</div>
+            <div className="flex-1 flex items-center justify-center text-white/30 text-lg">Chargement…</div>
           ) : allTodayAssignments.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-white/30 gap-2">
-              <Calendar className="h-12 w-12 opacity-30" />
-              <p className="text-sm">Aucune intervention aujourd'hui</p>
+            <div className="flex-1 flex flex-col items-center justify-center text-white/30 gap-3">
+              <Calendar className="h-16 w-16 opacity-30" />
+              <p className="text-lg">Aucune intervention aujourd'hui</p>
             </div>
           ) : (
-            <div className="flex-1 overflow-auto min-h-0 space-y-2 pr-1">
+            <div className="flex-1 overflow-auto min-h-0 space-y-3 pr-1">
               {allTodayAssignments.map((a, idx) => {
                 const techIdx = techPlans.findIndex(t => t.userName === a.user_name);
                 const color = TECH_COLORS[(techIdx >= 0 ? techIdx : idx) % TECH_COLORS.length];
@@ -938,47 +937,47 @@ export default function TVDisplayPage() {
 
                 return (
                   <div key={`${a.intervention_ref}-${a.user_name}-${idx}`}
-                    className={`rounded-xl border px-4 py-3 flex items-start gap-4 ${
+                    className={`rounded-2xl border px-6 py-4 flex items-start gap-5 ${
                       isUrgent ? 'bg-red-500/15 border-red-500/30' : 'bg-white/[0.04] border-white/10'
                     }`}
                   >
                     {/* Priority icon */}
-                    <div className="flex-shrink-0 mt-0.5">
+                    <div className="flex-shrink-0 mt-1">
                       {isUrgent ? (
-                        <AlertTriangle className="h-5 w-5 text-red-400" />
+                        <AlertTriangle className="h-8 w-8 text-red-400" />
                       ) : (
-                        <Wrench className="h-5 w-5 text-white/30" />
+                        <Wrench className="h-8 w-8 text-white/30" />
                       )}
                     </div>
 
                     {/* Main info */}
                     <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-3">
                         {a.intervention_ref && (
-                          <span className="inline-flex items-center bg-yellow-500/20 border border-yellow-400/40 text-yellow-200 text-xs font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
+                          <span className="inline-flex items-center bg-yellow-500/20 border border-yellow-400/40 text-yellow-200 text-base font-bold px-3 py-1 rounded-lg whitespace-nowrap">
                             #{a.intervention_ref}
                           </span>
                         )}
-                        <span className={`font-bold text-base ${isUrgent ? 'text-red-200' : 'text-white/90'}`}>
+                        <span className={`font-bold text-xl ${isUrgent ? 'text-red-200' : 'text-white/90'}`}>
                           {a.intervention_label}
                         </span>
                       </div>
-                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
+                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-2">
                         {a.client_name && (
-                          <span className="text-sm text-white/60 flex items-center gap-1">
-                            <User className="h-3.5 w-3.5 text-white/30" /> {a.client_name}
+                          <span className="text-lg text-white/60 flex items-center gap-2">
+                            <User className="h-5 w-5 text-white/30" /> {a.client_name}
                           </span>
                         )}
                         {a.location && (
-                          <span className="text-sm text-white/50 flex items-center gap-1">
-                            <MapPin className="h-3.5 w-3.5 text-white/30" /> {a.location}
+                          <span className="text-lg text-white/50 flex items-center gap-2">
+                            <MapPin className="h-5 w-5 text-white/30" /> {a.location}
                           </span>
                         )}
                       </div>
                       {a.description && (
-                        <div className="mt-2 bg-blue-500/15 border border-blue-400/30 rounded-lg px-3 py-2">
-                          <div className="text-[11px] text-blue-300/60 font-semibold uppercase tracking-wider mb-0.5">📋 Description</div>
-                          <div className="text-sm text-blue-100/90 leading-relaxed line-clamp-3">
+                        <div className="mt-3 bg-blue-500/15 border border-blue-400/30 rounded-xl px-4 py-3">
+                          <div className="text-sm text-blue-300/60 font-semibold uppercase tracking-wider mb-1">📋 Description</div>
+                          <div className="text-base text-blue-100/90 leading-relaxed line-clamp-3">
                             {decodeHtmlEntities(a.description)}
                           </div>
                         </div>
@@ -986,14 +985,14 @@ export default function TVDisplayPage() {
                     </div>
 
                     {/* Technician badge */}
-                    <div className={`flex-shrink-0 rounded-lg px-3 py-1.5 border ${color.bg} ${color.border} flex items-center gap-2`}>
-                      <div className={`w-2.5 h-2.5 rounded-full ${color.dot}`} />
-                      <span className={`text-sm font-bold ${color.text} whitespace-nowrap`}>{a.user_name}</span>
+                    <div className={`flex-shrink-0 rounded-xl px-4 py-2.5 border ${color.bg} ${color.border} flex items-center gap-3`}>
+                      <div className={`w-3.5 h-3.5 rounded-full ${color.dot}`} />
+                      <span className={`text-lg font-bold ${color.text} whitespace-nowrap`}>{a.user_name}</span>
                     </div>
 
                     {/* Priority badge */}
                     {isUrgent && (
-                      <span className="flex-shrink-0 text-xs font-bold uppercase bg-red-500/25 text-red-300 px-2.5 py-1 rounded-full border border-red-500/40">
+                      <span className="flex-shrink-0 text-base font-bold uppercase bg-red-500/25 text-red-300 px-4 py-1.5 rounded-full border border-red-500/40">
                         {a.priority === 'critical' ? 'Critique' : 'Urgent'}
                       </span>
                     )}
@@ -1005,21 +1004,21 @@ export default function TVDisplayPage() {
         </div>
 
         {/* Right sidebar: Travel + Leaderboard + Carousel */}
-        <div className="w-[280px] flex-shrink-0 flex flex-col min-h-0 gap-3">
+        <div className="w-[400px] flex-shrink-0 flex flex-col min-h-0 gap-4">
           {/* Travel */}
           <div className="flex-shrink-0">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Car className="h-3.5 w-3.5 text-amber-400" />
-              <span className="text-[11px] font-bold">Conditions routières</span>
+            <div className="flex items-center gap-2 mb-2">
+              <Car className="h-5 w-5 text-amber-400" />
+              <span className="text-base font-bold">Conditions routières</span>
             </div>
             <RoadConditionsWidget weather={weather} />
           </div>
 
           {/* Leaderboard */}
           <div className="flex-shrink-0">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Trophy className="h-3.5 w-3.5 text-yellow-400" />
-              <span className="text-[11px] font-bold">Classement semaine</span>
+            <div className="flex items-center gap-2 mb-2">
+              <Trophy className="h-5 w-5 text-yellow-400" />
+              <span className="text-base font-bold">Classement semaine</span>
             </div>
             <LeaderboardWidget leaders={leaders} />
           </div>
