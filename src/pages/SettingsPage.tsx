@@ -1,6 +1,6 @@
 import * as React from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, Wifi, Trash2 } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { ArrowLeft, Server, CheckCircle, XCircle, Loader2, Wifi, Trash2, Wrench } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,10 +15,15 @@ import {
   DolibarrConfig 
 } from '@/lib/dolibarrConfig';
 import { clearPendingSync, getPendingSyncCount } from '@/lib/offlineStorage';
+import { useAuth } from '@/contexts/AuthContext';
+import { getCurrentWorker } from '@/lib/api';
 
 export default function SettingsPage() {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { worker } = useAuth();
+  const currentWorker = getCurrentWorker() as any;
+  const isAdmin = currentWorker?.isAdmin || currentWorker?.admin || worker?.admin;
   
   const [config, setConfig] = React.useState<DolibarrConfig>(getDolibarrConfig());
   const [url, setUrl] = React.useState(config.baseUrl);
@@ -294,6 +299,29 @@ export default function SettingsPage() {
             )}
           </CardContent>
         </Card>
+
+        {/* Diagnostic - Admin only */}
+        {isAdmin && (
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Wrench className="h-5 w-5" />
+                Diagnostic
+              </CardTitle>
+              <CardDescription>
+                Outils de diagnostic pour les administrateurs
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Link to="/diagnostic">
+                <Button variant="outline" className="w-full">
+                  <Wrench className="h-4 w-4 mr-2" />
+                  Diagnostic de connexion
+                </Button>
+              </Link>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Help */}
         <Card>
