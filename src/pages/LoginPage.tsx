@@ -88,7 +88,7 @@ export default function LoginPage() {
           <img 
             src={logoEnes} 
             alt="ENES Électricité" 
-            className="h-20 w-auto mb-8 drop-shadow-2xl"
+            className="h-14 max-w-[200px] object-contain mb-8 drop-shadow-2xl"
           />
           <h1 className="text-4xl xl:text-5xl font-bold mb-4 leading-tight">
             Suite Électricien
@@ -134,7 +134,7 @@ export default function LoginPage() {
             <img 
               src={logoEnes} 
               alt="ENES" 
-              className="h-12 w-auto"
+              className="h-10 max-w-[120px] object-contain"
             />
           </div>
           <h1 className="text-2xl font-bold text-foreground">ENES Électricité</h1>
