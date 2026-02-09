@@ -207,7 +207,7 @@ export default function DashboardPage() {
               {isLoading ? (
                 <div className="grid gap-1.5">
                   {[1, 2, 3, 4, 5].map((i) => (
-                    <Skeleton key={i} className="h-16 rounded-lg" />
+                    <div key={i} className="h-16 rounded-lg bg-muted" />
                   ))}
                 </div>
               ) : interventions.length === 0 ? (
