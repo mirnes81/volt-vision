@@ -287,10 +287,7 @@ export function DolibarrAssignmentPanel({
     critical: { label: 'Critique', color: 'bg-red-500' },
   };
 
-  // Don't render for non-admins
-  if (!isAdmin) {
-    return null;
-  }
+  // All users can now manage assignments
 
   return (
     <>

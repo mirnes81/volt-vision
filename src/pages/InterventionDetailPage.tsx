@@ -182,7 +182,7 @@ export default function InterventionDetailPage() {
       ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
       : null;
 
-  // Check if current user is admin
+  // Check if current user is admin (kept for legacy reference, no longer gates UI)
   const isAdmin = (() => {
     try {
       const worker = localStorage.getItem('worker');
@@ -383,9 +383,8 @@ export default function InterventionDetailPage() {
               </span>
             </div>
             <div className="flex items-center gap-2">
-              {/* Emergency button for admins */}
-              {isAdmin && (
-                <CreateEmergencyDialog
+              {/* Emergency button */}
+              <CreateEmergencyDialog
                   intervention={intervention}
                   trigger={
                     <Button variant="outline" size="sm" className="gap-1 text-red-500 border-red-500 hover:bg-red-500/10">
@@ -394,8 +393,7 @@ export default function InterventionDetailPage() {
                     </Button>
                   }
                 />
-              )}
-              {/* Dolibarr assignment panel for admins - uses Supabase for storage */}
+              {/* Dolibarr assignment panel - uses Supabase for storage */}
               <DolibarrAssignmentPanel
                 interventionId={intervention.id}
                 interventionRef={intervention.ref}
