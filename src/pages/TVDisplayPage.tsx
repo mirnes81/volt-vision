@@ -783,14 +783,22 @@ export default function TVDisplayPage() {
                                     </div>
                                   )}
                                 </div>
-                                {/* QR Code */}
+                                {/* QR Code + Prendre button */}
                                 {a.intervention_ref && (
-                                  <img
-                                    src={getQrUrl(a.intervention_ref, a.intervention_label, a.intervention_id)}
-                                    alt="QR"
-                                    className="w-12 h-12 rounded flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity"
-                                    loading="lazy"
-                                  />
+                                  <div className="flex flex-col items-center gap-1 flex-shrink-0">
+                                    <img
+                                      src={getQrUrl(a.intervention_ref, a.intervention_label, a.intervention_id)}
+                                      alt="QR"
+                                      className="w-12 h-12 rounded opacity-70"
+                                      loading="lazy"
+                                    />
+                                    <a
+                                      href={`/take-intervention?ref=${encodeURIComponent(a.intervention_ref)}&label=${encodeURIComponent(a.intervention_label)}${a.intervention_id ? `&id=${a.intervention_id}` : ''}`}
+                                      className="bg-emerald-500 hover:bg-emerald-600 text-white text-[10px] font-bold px-2 py-1 rounded-md transition-colors whitespace-nowrap"
+                                    >
+                                      ✋ Prendre
+                                    </a>
+                                  </div>
                                 )}
                               </div>
                             </div>
