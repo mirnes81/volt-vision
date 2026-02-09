@@ -578,38 +578,53 @@ function RoadConditionsWidget({ weather }: { weather: WeatherData | null }) {
   };
   const c = colors[severity];
 
-  // Road conditions around Cossonay
-  const conditions: { road: string; info: string }[] = [];
+  // Routes spécifiques dans un rayon de 5km autour de Cossonay (Rte de Morges 9A)
+  const conditions: { road: string; distance: string; info: string }[] = [];
   
   if (weather) {
     const d = weather.description.toLowerCase();
     if (d.includes('neige') || d.includes('verglas')) {
-      conditions.push({ road: 'Routes régionales', info: '⚠️ Risque de verglas/neige' });
-      conditions.push({ road: 'A1 Lausanne-Yverdon', info: '⚠️ Chaussée glissante possible' });
+      conditions.push({ road: 'Rte de Morges (RC 177)', distance: '0.1 km', info: '⚠️ Verglas/neige – prudence' });
+      conditions.push({ road: 'Rte de la Gare, Cossonay', distance: '0.5 km', info: '⚠️ Chaussée glissante' });
+      conditions.push({ road: 'Rte de Lausanne (RC 177)', distance: '1.5 km', info: '⚠️ Risque de verglas' });
+      conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '⚠️ Bretelle glissante' });
+      conditions.push({ road: 'A1 Lausanne↔Yverdon', distance: '3.5 km', info: '⚠️ Neige – vitesse réduite' });
     } else if (d.includes('pluie forte') || d.includes('orage')) {
-      conditions.push({ road: 'Routes régionales', info: '⚠️ Visibilité réduite' });
-      conditions.push({ road: 'A1 Lausanne-Yverdon', info: '🌧️ Prudence - pluie forte' });
+      conditions.push({ road: 'Rte de Morges (RC 177)', distance: '0.1 km', info: '🌧️ Forte pluie – visibilité réduite' });
+      conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '🌧️ Aquaplaning possible' });
+      conditions.push({ road: 'A1 Lausanne↔Yverdon', distance: '3.5 km', info: '🌧️ Prudence – pluie forte' });
     } else if (d.includes('pluie') || d.includes('averse') || d.includes('bruine')) {
-      conditions.push({ road: 'Routes régionales', info: '🌧️ Chaussée humide' });
+      conditions.push({ road: 'Rte de Morges (RC 177)', distance: '0.1 km', info: '🌧️ Chaussée humide' });
+      conditions.push({ road: 'A1 Lausanne↔Yverdon', distance: '3.5 km', info: '🌧️ Routes mouillées' });
     } else if (d.includes('brouillard')) {
-      conditions.push({ road: 'RC 177 Cossonay', info: '🌫️ Brouillard - visibilité réduite' });
-      conditions.push({ road: 'A1 Lausanne-Yverdon', info: '🌫️ Risque de brouillard' });
+      conditions.push({ road: 'Rte de Morges (RC 177)', distance: '0.1 km', info: '🌫️ Brouillard – phares obligatoires' });
+      conditions.push({ road: 'Rte de Penthalaz', distance: '2 km', info: '🌫️ Visibilité < 200m' });
+      conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '🌫️ Brouillard dense possible' });
     }
   }
 
   const hour = now.getHours();
   if (hour >= 7 && hour <= 9) {
-    conditions.push({ road: 'A1 dir. Lausanne', info: '🚗 Heure de pointe (+40%)' });
-    conditions.push({ road: 'RC Cossonay-Morges', info: '🚗 Trafic dense' });
+    conditions.push({ road: 'Rte de la Gare → centre', distance: '0.5 km', info: '🚗 Pointe matin – trafic dense (+40%)' });
+    conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '🚗 File possible à la bretelle' });
+    conditions.push({ road: 'A1 dir. Lausanne', distance: '3.5 km', info: '🚗 Bouchons fréquents' });
+    conditions.push({ road: 'RC 177 → Morges', distance: '1 km', info: '🚗 Trafic soutenu' });
   } else if (hour >= 16 && hour <= 18) {
-    conditions.push({ road: 'A1 dir. Yverdon', info: '🚗 Heure de pointe (+45%)' });
-    conditions.push({ road: 'RC Cossonay-Morges', info: '🚗 Trafic dense' });
+    conditions.push({ road: 'Rte de la Gare → centre', distance: '0.5 km', info: '🚗 Pointe soir – trafic dense (+45%)' });
+    conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '🚗 Ralentissement bretelle' });
+    conditions.push({ road: 'A1 dir. Yverdon', distance: '3.5 km', info: '🚗 Bouchons fréquents' });
+    conditions.push({ road: 'RC 177 → Penthalaz', distance: '2 km', info: '🚗 Trafic soutenu' });
   } else if (hour >= 11 && hour <= 13) {
-    conditions.push({ road: 'Centre Cossonay', info: '🚙 Trafic modéré midi' });
+    conditions.push({ road: 'Centre Cossonay', distance: '0.3 km', info: '🚙 Trafic modéré – pause midi' });
+    conditions.push({ road: 'RC 177 → Morges', distance: '1 km', info: '🚙 Fluide à modéré' });
   }
 
   if (conditions.length === 0) {
-    conditions.push({ road: 'Toutes routes', info: '✅ Conditions normales' });
+    conditions.push({ road: 'Rte de Morges (RC 177)', distance: '0.1 km', info: '✅ Fluide' });
+    conditions.push({ road: 'Rte de la Gare', distance: '0.5 km', info: '✅ Fluide' });
+    conditions.push({ road: 'RC 177 → Penthalaz', distance: '2 km', info: '✅ Fluide' });
+    conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '✅ Fluide' });
+    conditions.push({ road: 'A1 Lausanne↔Yverdon', distance: '3.5 km', info: '✅ Conditions normales' });
   }
 
   return (
@@ -626,11 +641,14 @@ function RoadConditionsWidget({ weather }: { weather: WeatherData | null }) {
         )}
       </div>
 
-      <div className="space-y-1 max-h-[200px] overflow-auto">
-        {conditions.map((c, idx) => (
+      <div className="space-y-1 max-h-[220px] overflow-auto">
+        {conditions.map((item, idx) => (
           <div key={idx} className="rounded-md border bg-white/5 border-white/10 p-2">
-            <div className="text-[10px] font-bold text-white/70">{c.road}</div>
-            <div className="text-[9px] text-white/50 mt-0.5">{c.info}</div>
+            <div className="flex items-center justify-between gap-1">
+              <span className="text-[10px] font-bold text-white/70 truncate">{item.road}</span>
+              <span className="text-[9px] text-white/30 whitespace-nowrap">{item.distance}</span>
+            </div>
+            <div className="text-[9px] text-white/50 mt-0.5">{item.info}</div>
           </div>
         ))}
       </div>
