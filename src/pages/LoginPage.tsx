@@ -148,7 +148,7 @@ export default function LoginPage() {
         </div>
 
         {/* Connection Status */}
-        <div className="w-full max-w-sm mb-6 animate-slide-up" style={{ animationDelay: '0.05s' }}>
+        <div className="hidden lg:block w-full max-w-sm mb-6 animate-slide-up" style={{ animationDelay: '0.05s' }}>
           <div className={`flex items-center gap-3 p-4 rounded-2xl border-2 transition-all ${
             connectionStatus === 'testing' 
               ? 'bg-muted/30 border-muted-foreground/20'
