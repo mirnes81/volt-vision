@@ -783,15 +783,6 @@ export default function TVDisplayPage() {
                                     </div>
                                   )}
                                 </div>
-                                {/* QR Code */}
-                                {a.intervention_ref && (
-                                  <img
-                                    src={getQrUrl(a.intervention_ref, a.intervention_label, a.intervention_id)}
-                                    alt="QR"
-                                    className="w-12 h-12 rounded flex-shrink-0 opacity-70"
-                                    loading="lazy"
-                                  />
-                                )}
                               </div>
                             </div>
                           ))}
