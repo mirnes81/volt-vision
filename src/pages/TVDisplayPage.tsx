@@ -798,8 +798,11 @@ export default function TVDisplayPage() {
                                 )}
                               </div>
                               {a.description && (
-                                <div className="text-sm text-blue-300/70 mt-1 line-clamp-2">
-                                  🔧 {a.description}
+                                <div className="mt-2 bg-blue-500/15 border border-blue-400/30 rounded-lg px-3 py-2">
+                                  <div className="text-[11px] text-blue-300/60 font-semibold uppercase tracking-wider mb-0.5">📋 Description / Briefing</div>
+                                  <div className="text-sm text-blue-100/90 leading-relaxed line-clamp-3">
+                                    {a.description}
+                                  </div>
                                 </div>
                               )}
                             </div>
