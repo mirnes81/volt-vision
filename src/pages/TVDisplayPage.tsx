@@ -1,6 +1,7 @@
 import * as React from 'react';
 import { Cloud, Sun, CloudRain, CloudSnow, Wind, MapPin, Calendar, AlertTriangle, User, Car, Navigation, TriangleAlert, Trophy, Zap, Clock, Users, TrendingUp, Wrench, ImageIcon, QrCode } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { decodeHtmlEntities } from '@/lib/htmlUtils';
 import logoEnes from '@/assets/logo-enes.png';
 
 // ─── QR Code URL generator (using free qrserver API) ─────────────────
@@ -35,6 +36,79 @@ function useClock() {
     return () => clearInterval(interval);
   }, []);
   return now;
+}
+
+// ─── Analog Clock ────────────────────────────────────────────────────
+function AnalogClock({ now }: { now: Date }) {
+  const hours = now.getHours() % 12;
+  const minutes = now.getMinutes();
+  const seconds = now.getSeconds();
+
+  const hourDeg = (hours + minutes / 60) * 30;
+  const minuteDeg = (minutes + seconds / 60) * 6;
+  const secondDeg = seconds * 6;
+
+  const size = 72;
+  const cx = size / 2;
+  const cy = size / 2;
+  const r = size / 2 - 4;
+
+  const handCoords = (deg: number, len: number, offset = 0) => {
+    const rad = ((deg - 90) * Math.PI) / 180;
+    return {
+      x1: cx + Math.cos(rad) * offset,
+      y1: cy + Math.sin(rad) * offset,
+      x2: cx + Math.cos(rad) * len,
+      y2: cy + Math.sin(rad) * len,
+    };
+  };
+
+  const hourHand = handCoords(hourDeg, r * 0.5);
+  const minuteHand = handCoords(minuteDeg, r * 0.72);
+  const secondHand = handCoords(secondDeg, r * 0.82, -r * 0.15);
+
+  // Hour markers
+  const markers = Array.from({ length: 12 }, (_, i) => {
+    const angle = ((i * 30 - 90) * Math.PI) / 180;
+    const isQuarter = i % 3 === 0;
+    const outerR = r - 1;
+    const innerR = isQuarter ? r - 7 : r - 4;
+    return {
+      x1: cx + Math.cos(angle) * innerR,
+      y1: cy + Math.sin(angle) * innerR,
+      x2: cx + Math.cos(angle) * outerR,
+      y2: cy + Math.sin(angle) * outerR,
+      isQuarter,
+    };
+  });
+
+  return (
+    <div className="flex flex-col items-center gap-0.5">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
+        {/* Face */}
+        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
+        <circle cx={cx} cy={cy} r={r - 1} fill="rgba(255,255,255,0.03)" />
+
+        {/* Markers */}
+        {markers.map((m, i) => (
+          <line key={i} x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} stroke={m.isQuarter ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)'} strokeWidth={m.isQuarter ? 2 : 1} strokeLinecap="round" />
+        ))}
+
+        {/* Hour hand */}
+        <line x1={hourHand.x1} y1={hourHand.y1} x2={hourHand.x2} y2={hourHand.y2} stroke="rgba(255,255,255,0.85)" strokeWidth="3" strokeLinecap="round" />
+        {/* Minute hand */}
+        <line x1={minuteHand.x1} y1={minuteHand.y1} x2={minuteHand.x2} y2={minuteHand.y2} stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" />
+        {/* Second hand */}
+        <line x1={secondHand.x1} y1={secondHand.y1} x2={secondHand.x2} y2={secondHand.y2} stroke="rgba(239,68,68,0.8)" strokeWidth="1" strokeLinecap="round" />
+        {/* Center dot */}
+        <circle cx={cx} cy={cy} r="2.5" fill="rgba(239,68,68,0.9)" />
+        <circle cx={cx} cy={cy} r="1" fill="white" />
+      </svg>
+      <div className="text-[10px] text-white/40 tabular-nums font-medium">
+        {now.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
+      </div>
+    </div>
+  );
 }
 
 // ─── Weather ─────────────────────────────────────────────────────────
@@ -737,10 +811,8 @@ export default function TVDisplayPage() {
             </div>
           )}
 
-          <div className="text-right">
-            <div className="text-2xl font-bold tabular-nums">
-              {now.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
-            </div>
+          <div className="flex-shrink-0">
+            <AnalogClock now={now} />
           </div>
         </div>
       </div>
@@ -886,7 +958,7 @@ export default function TVDisplayPage() {
                                 <div className="mt-2 bg-blue-500/15 border border-blue-400/30 rounded-lg px-3 py-2">
                                   <div className="text-[11px] text-blue-300/60 font-semibold uppercase tracking-wider mb-0.5">📋 Description / Briefing</div>
                                   <div className="text-sm text-blue-100/90 leading-relaxed line-clamp-3">
-                                    {a.description}
+                                    {decodeHtmlEntities(a.description)}
                                   </div>
                                 </div>
                               )}
