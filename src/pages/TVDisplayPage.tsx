@@ -1,7 +1,10 @@
 import * as React from 'react';
-import { Cloud, Sun, CloudRain, CloudSnow, Wind, Thermometer, MapPin, Calendar, AlertTriangle, ChevronRight, User } from 'lucide-react';
+import { Cloud, Sun, CloudRain, CloudSnow, Wind, Thermometer, MapPin, Calendar, AlertTriangle, ChevronRight, User, Car, Clock, Navigation, TriangleAlert } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import logoEnes from '@/assets/logo-enes.png';
+
+// ─── Constants ───────────────────────────────────────────────────────
+const ENES_ORIGIN = { lat: 46.5107, lon: 6.5004, label: 'ENES – Cossonay' }; // Rte de Morges 9A, 1304 Cossonay
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface WeatherData {
@@ -22,7 +25,18 @@ interface DayAssignment {
 
 interface TechWeekPlan {
   userName: string;
-  days: Map<string, DayAssignment[]>; // key = YYYY-MM-DD
+  days: Map<string, DayAssignment[]>;
+}
+
+interface TravelInfo {
+  location: string;
+  client: string;
+  durationMin: number;
+  distanceKm: number;
+  trafficFactor: number; // 1.0 = normal, >1 = congestion
+  estimatedWithTraffic: number; // minutes
+  delayWarning: string | null;
+  priority: string;
 }
 
 // ─── Clock hook ──────────────────────────────────────────────────────
@@ -93,14 +107,8 @@ function useWeather() {
       }
     }
 
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (pos) => fetchWeather(pos.coords.latitude, pos.coords.longitude),
-        () => fetchWeather(46.2044, 6.1432)
-      );
-    } else {
-      fetchWeather(46.2044, 6.1432);
-    }
+    // Use Cossonay coords directly
+    fetchWeather(ENES_ORIGIN.lat, ENES_ORIGIN.lon);
 
     return () => { cancelled = true; };
   }, []);
@@ -108,15 +116,132 @@ function useWeather() {
   return weather;
 }
 
+// ─── Traffic factor based on time of day (heuristic) ─────────────────
+function getTrafficFactor(hour: number): { factor: number; label: string } {
+  // Swiss commute patterns
+  if (hour >= 7 && hour <= 9) return { factor: 1.4, label: 'Heure de pointe matin' };
+  if (hour >= 16 && hour <= 18) return { factor: 1.45, label: 'Heure de pointe soir' };
+  if (hour >= 11 && hour <= 13) return { factor: 1.15, label: 'Trafic modéré midi' };
+  if (hour >= 9 && hour < 11) return { factor: 1.1, label: 'Trafic fluide' };
+  if (hour >= 13 && hour < 16) return { factor: 1.1, label: 'Trafic fluide' };
+  return { factor: 1.0, label: 'Trafic libre' };
+}
+
+function getWeatherTrafficPenalty(weatherDesc: string | null): number {
+  if (!weatherDesc) return 0;
+  const d = weatherDesc.toLowerCase();
+  if (d.includes('neige') || d.includes('verglas')) return 0.3; // +30%
+  if (d.includes('pluie forte') || d.includes('averse forte') || d.includes('orage')) return 0.2;
+  if (d.includes('pluie') || d.includes('averse') || d.includes('bruine')) return 0.1;
+  if (d.includes('brouillard')) return 0.15;
+  return 0;
+}
+
+// ─── Geocoding + Routing hook ────────────────────────────────────────
+function useTravelInfo(todayAssignments: DayAssignment[], weatherDesc: string | null) {
+  const [travels, setTravels] = React.useState<TravelInfo[]>([]);
+  const [loading, setLoading] = React.useState(true);
+  const [lastUpdate, setLastUpdate] = React.useState<Date | null>(null);
+
+  const fetchTravel = React.useCallback(async () => {
+    if (todayAssignments.length === 0) {
+      setTravels([]);
+      setLoading(false);
+      return;
+    }
+
+    // Deduplicate locations
+    const uniqueLocations = new Map<string, DayAssignment>();
+    for (const a of todayAssignments) {
+      const loc = a.location?.trim();
+      if (loc && !uniqueLocations.has(loc)) {
+        uniqueLocations.set(loc, a);
+      }
+    }
+
+    const results: TravelInfo[] = [];
+    const now = new Date();
+    const traffic = getTrafficFactor(now.getHours());
+    const weatherPenalty = getWeatherTrafficPenalty(weatherDesc);
+
+    for (const [loc, assignment] of uniqueLocations) {
+      try {
+        // Geocode the destination
+        const geoRes = await fetch(
+          `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loc + ', Suisse')}&format=json&limit=1`
+        );
+        const geoData = await geoRes.json();
+        
+        if (!geoData || geoData.length === 0) continue;
+        
+        const destLat = parseFloat(geoData[0].lat);
+        const destLon = parseFloat(geoData[0].lon);
+
+        // Get route from OSRM
+        const routeRes = await fetch(
+          `https://router.project-osrm.org/route/v1/driving/${ENES_ORIGIN.lon},${ENES_ORIGIN.lat};${destLon},${destLat}?overview=false`
+        );
+        const routeData = await routeRes.json();
+
+        if (routeData.routes && routeData.routes.length > 0) {
+          const route = routeData.routes[0];
+          const baseDuration = Math.round(route.duration / 60); // minutes
+          const distanceKm = Math.round(route.distance / 1000 * 10) / 10;
+          const totalFactor = traffic.factor + weatherPenalty;
+          const withTraffic = Math.round(baseDuration * totalFactor);
+          const delay = withTraffic - baseDuration;
+
+          let delayWarning: string | null = null;
+          if (delay >= 15) {
+            delayWarning = `⚠️ +${delay} min de retard estimé`;
+          } else if (delay >= 5) {
+            delayWarning = `+${delay} min`;
+          }
+
+          results.push({
+            location: loc,
+            client: assignment.client_name || 'Client',
+            durationMin: baseDuration,
+            distanceKm,
+            trafficFactor: totalFactor,
+            estimatedWithTraffic: withTraffic,
+            delayWarning,
+            priority: assignment.priority,
+          });
+        }
+
+        // Rate limiting: small delay between requests
+        await new Promise(r => setTimeout(r, 300));
+      } catch (err) {
+        console.error(`Travel calc failed for ${loc}:`, err);
+      }
+    }
+
+    // Sort by duration (longest first to highlight delays)
+    results.sort((a, b) => b.estimatedWithTraffic - a.estimatedWithTraffic);
+    setTravels(results);
+    setLastUpdate(new Date());
+    setLoading(false);
+  }, [todayAssignments, weatherDesc]);
+
+  React.useEffect(() => {
+    fetchTravel();
+    const interval = setInterval(fetchTravel, 300_000); // refresh every 5 min
+    return () => clearInterval(interval);
+  }, [fetchTravel]);
+
+  return { travels, loading, lastUpdate };
+}
+
 // ─── 7-day assignments hook ──────────────────────────────────────────
 function useWeekAssignments() {
   const [techPlans, setTechPlans] = React.useState<TechWeekPlan[]>([]);
+  const [allTodayAssignments, setAllTodayAssignments] = React.useState<DayAssignment[]>([]);
   const [loading, setLoading] = React.useState(true);
   const [weekDays, setWeekDays] = React.useState<Date[]>([]);
 
   const fetchAssignments = React.useCallback(async () => {
     try {
-      // Calculate 7 days starting from today
       const today = new Date();
       const days: Date[] = [];
       for (let i = 0; i < 7; i++) {
@@ -144,7 +269,9 @@ function useWeekAssignments() {
         return;
       }
 
-      // Group by technician, then by day
+      const todayStr = today.toISOString().split('T')[0];
+      const todayItems: DayAssignment[] = [];
+
       const techMap = new Map<string, TechWeekPlan>();
       
       for (const row of (data || [])) {
@@ -156,21 +283,29 @@ function useWeekAssignments() {
         
         const dateKey = row.date_planned 
           ? new Date(row.date_planned).toISOString().split('T')[0]
-          : new Date().toISOString().split('T')[0];
+          : todayStr;
         
         if (!plan.days.has(dateKey)) {
           plan.days.set(dateKey, []);
         }
-        plan.days.get(dateKey)!.push({
+
+        const assignment: DayAssignment = {
           intervention_label: row.intervention_label || 'Intervention',
           client_name: row.client_name,
           location: row.location,
           priority: row.priority || 'normal',
           date_planned: row.date_planned || '',
-        });
+        };
+
+        plan.days.get(dateKey)!.push(assignment);
+
+        if (dateKey === todayStr) {
+          todayItems.push(assignment);
+        }
       }
 
       setTechPlans(Array.from(techMap.values()));
+      setAllTodayAssignments(todayItems);
     } catch (err) {
       console.error('TV week planning error:', err);
     } finally {
@@ -180,11 +315,11 @@ function useWeekAssignments() {
 
   React.useEffect(() => {
     fetchAssignments();
-    const interval = setInterval(fetchAssignments, 120_000); // refresh every 2 min
+    const interval = setInterval(fetchAssignments, 120_000);
     return () => clearInterval(interval);
   }, [fetchAssignments]);
 
-  return { techPlans, weekDays, loading };
+  return { techPlans, weekDays, allTodayAssignments, loading };
 }
 
 // ─── Fullscreen hook ─────────────────────────────────────────────────
@@ -219,12 +354,135 @@ function formatDayHeader(date: Date, isToday: boolean): { dayName: string; dayNu
   return { dayName: dayName.charAt(0).toUpperCase() + dayName.slice(1), dayNum };
 }
 
+// ─── Travel Widget ──────────────────────────────────────────────────
+function TravelWidget({ travels, loading, lastUpdate, weather }: {
+  travels: TravelInfo[];
+  loading: boolean;
+  lastUpdate: Date | null;
+  weather: WeatherData | null;
+}) {
+  const now = new Date();
+  const traffic = getTrafficFactor(now.getHours());
+  const hasDelays = travels.some(t => t.delayWarning && t.estimatedWithTraffic - t.durationMin >= 15);
+
+  return (
+    <div className="flex flex-col gap-2">
+      {/* Traffic status header */}
+      <div className={`rounded-xl border p-3 ${
+        hasDelays 
+          ? 'bg-red-500/10 border-red-500/30' 
+          : traffic.factor > 1.1 
+            ? 'bg-amber-500/10 border-amber-500/30' 
+            : 'bg-emerald-500/10 border-emerald-500/30'
+      }`}>
+        <div className="flex items-center gap-2 mb-1">
+          <Car className={`h-4 w-4 ${hasDelays ? 'text-red-400' : traffic.factor > 1.1 ? 'text-amber-400' : 'text-emerald-400'}`} />
+          <span className="text-sm font-bold text-white/90">Conditions de trafic</span>
+        </div>
+        <div className="flex items-center gap-3 text-xs">
+          <span className={`font-semibold ${
+            hasDelays ? 'text-red-300' : traffic.factor > 1.1 ? 'text-amber-300' : 'text-emerald-300'
+          }`}>
+            {traffic.label}
+          </span>
+          {weather && getWeatherTrafficPenalty(weather.description) > 0 && (
+            <span className="text-amber-300/80">
+              + météo ({weather.description.toLowerCase()})
+            </span>
+          )}
+        </div>
+        {lastUpdate && (
+          <div className="text-[10px] text-white/30 mt-1">
+            Mis à jour : {lastUpdate.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
+          </div>
+        )}
+      </div>
+
+      {/* Travel list */}
+      {loading ? (
+        <div className="text-white/30 text-xs text-center py-4">Calcul des trajets…</div>
+      ) : travels.length === 0 ? (
+        <div className="text-white/30 text-xs text-center py-4">
+          <Navigation className="h-6 w-6 mx-auto mb-1 opacity-30" />
+          Aucun trajet aujourd'hui
+        </div>
+      ) : (
+        <div className="space-y-1.5 max-h-[300px] overflow-auto">
+          {travels.map((t, idx) => {
+            const isDelayed = t.estimatedWithTraffic - t.durationMin >= 15;
+            const isMildDelay = t.estimatedWithTraffic - t.durationMin >= 5;
+            return (
+              <div
+                key={idx}
+                className={`rounded-lg border p-2.5 ${
+                  isDelayed
+                    ? 'bg-red-500/10 border-red-500/25'
+                    : isMildDelay
+                      ? 'bg-amber-500/8 border-amber-500/20'
+                      : 'bg-white/5 border-white/10'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1.5">
+                      {t.priority !== 'normal' && (
+                        <AlertTriangle className="h-3 w-3 text-red-400 flex-shrink-0" />
+                      )}
+                      <span className="text-xs font-semibold text-white/90 truncate">{t.client}</span>
+                    </div>
+                    <div className="text-[10px] text-white/40 truncate flex items-center gap-1 mt-0.5">
+                      <MapPin className="h-2.5 w-2.5 flex-shrink-0" />
+                      {t.location}
+                    </div>
+                  </div>
+                  <div className="text-right flex-shrink-0">
+                    <div className={`text-sm font-bold tabular-nums ${
+                      isDelayed ? 'text-red-300' : 'text-white/80'
+                    }`}>
+                      {t.estimatedWithTraffic} min
+                    </div>
+                    <div className="text-[10px] text-white/30">{t.distanceKm} km</div>
+                  </div>
+                </div>
+                {t.delayWarning && (
+                  <div className={`mt-1.5 text-[10px] font-medium flex items-center gap-1 ${
+                    isDelayed ? 'text-red-400' : 'text-amber-400'
+                  }`}>
+                    <TriangleAlert className="h-3 w-3 flex-shrink-0" />
+                    {t.delayWarning}
+                    {isDelayed && ' — Prévoir du retard !'}
+                  </div>
+                )}
+                {t.durationMin !== t.estimatedWithTraffic && (
+                  <div className="text-[10px] text-white/20 mt-0.5">
+                    Trajet normal : {t.durationMin} min
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Origin info */}
+      <div className="text-[10px] text-white/20 flex items-center gap-1 px-1">
+        <Navigation className="h-2.5 w-2.5" />
+        Depuis : {ENES_ORIGIN.label}
+      </div>
+    </div>
+  );
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────
 export default function TVDisplayPage() {
   const { enterFullscreen } = useFullscreen();
   const now = useClock();
   const weather = useWeather();
-  const { techPlans, weekDays, loading } = useWeekAssignments();
+  const { techPlans, weekDays, allTodayAssignments, loading } = useWeekAssignments();
+  const { travels, loading: travelLoading, lastUpdate } = useTravelInfo(
+    allTodayAssignments, 
+    weather?.description ?? null
+  );
 
   React.useEffect(() => {
     enterFullscreen();
@@ -269,135 +527,151 @@ export default function TVDisplayPage() {
         </div>
       </div>
 
-      {/* ─── Planning Grid ────────────────────────────────────────── */}
-      <div className="flex-1 flex flex-col min-h-0 p-3">
-        {/* Section title */}
-        <div className="flex items-center gap-2 mb-2 flex-shrink-0">
-          <Calendar className="h-5 w-5 text-blue-400" />
-          <h2 className="text-lg font-bold">Planning sur 7 jours</h2>
-          <span className="text-xs text-white/30 ml-auto">Rafraîchi toutes les 2 min</span>
-        </div>
-
-        {loading ? (
-          <div className="flex-1 flex items-center justify-center text-white/30">Chargement du planning…</div>
-        ) : techPlans.length === 0 ? (
-          <div className="flex-1 flex flex-col items-center justify-center text-white/30 gap-3">
-            <Calendar className="h-16 w-16 opacity-30" />
-            <p className="text-lg">Aucune intervention planifiée cette semaine</p>
+      {/* ─── Main content: Planning + Travel ──────────────────────── */}
+      <div className="flex-1 flex min-h-0 p-3 gap-3">
+        {/* Planning Grid (left, ~75%) */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0">
+          <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+            <Calendar className="h-5 w-5 text-blue-400" />
+            <h2 className="text-lg font-bold">Planning sur 7 jours</h2>
+            <span className="text-xs text-white/30 ml-auto">Rafraîchi toutes les 2 min</span>
           </div>
-        ) : (
-          <div className="flex-1 overflow-auto min-h-0">
-            {/* Table header: days */}
-            <div className="grid gap-1 sticky top-0 z-10 bg-gradient-to-br from-[hsl(217,91%,8%)] via-[hsl(217,91%,14%)] to-[hsl(220,80%,18%)]"
-              style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}
-            >
-              <div className="p-2 text-xs font-bold text-white/40 uppercase flex items-center gap-1">
-                <User className="h-3.5 w-3.5" /> Technicien
-              </div>
-              {weekDays.map((day) => {
-                const isToday = day.toISOString().split('T')[0] === todayStr;
-                const { dayName, dayNum } = formatDayHeader(day, isToday);
-                return (
-                  <div
-                    key={day.toISOString()}
-                    className={`p-2 text-center rounded-lg ${isToday ? 'bg-blue-500/20 border border-blue-500/40' : ''}`}
-                  >
-                    <div className={`text-xs font-bold uppercase ${isToday ? 'text-blue-300' : 'text-white/50'}`}>
-                      {dayName}
-                    </div>
-                    <div className={`text-lg font-bold ${isToday ? 'text-blue-200' : 'text-white/70'}`}>
-                      {dayNum}
-                    </div>
-                  </div>
-                );
-              })}
+
+          {loading ? (
+            <div className="flex-1 flex items-center justify-center text-white/30">Chargement du planning…</div>
+          ) : techPlans.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-white/30 gap-3">
+              <Calendar className="h-16 w-16 opacity-30" />
+              <p className="text-lg">Aucune intervention planifiée cette semaine</p>
             </div>
-
-            {/* Tech rows */}
-            <div className="space-y-1 mt-1">
-              {techPlans.map((tech, techIdx) => {
-                const color = TECH_COLORS[techIdx % TECH_COLORS.length];
-                return (
-                  <div
-                    key={tech.userName}
-                    className="grid gap-1"
-                    style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}
-                  >
-                    {/* Tech name */}
-                    <div className={`${color.bg} ${color.border} border rounded-lg p-2 flex items-center gap-2`}>
-                      <div className={`w-2.5 h-2.5 rounded-full ${color.dot} flex-shrink-0`} />
-                      <span className={`text-sm font-bold ${color.text} truncate`}>
-                        {tech.userName}
-                      </span>
+          ) : (
+            <div className="flex-1 overflow-auto min-h-0">
+              {/* Table header: days */}
+              <div className="grid gap-1 sticky top-0 z-10 bg-gradient-to-br from-[hsl(217,91%,8%)] via-[hsl(217,91%,14%)] to-[hsl(220,80%,18%)]"
+                style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}
+              >
+                <div className="p-2 text-xs font-bold text-white/40 uppercase flex items-center gap-1">
+                  <User className="h-3.5 w-3.5" /> Technicien
+                </div>
+                {weekDays.map((day) => {
+                  const isToday = day.toISOString().split('T')[0] === todayStr;
+                  const { dayName, dayNum } = formatDayHeader(day, isToday);
+                  return (
+                    <div
+                      key={day.toISOString()}
+                      className={`p-2 text-center rounded-lg ${isToday ? 'bg-blue-500/20 border border-blue-500/40' : ''}`}
+                    >
+                      <div className={`text-xs font-bold uppercase ${isToday ? 'text-blue-300' : 'text-white/50'}`}>
+                        {dayName}
+                      </div>
+                      <div className={`text-lg font-bold ${isToday ? 'text-blue-200' : 'text-white/70'}`}>
+                        {dayNum}
+                      </div>
                     </div>
+                  );
+                })}
+              </div>
 
-                    {/* Day cells */}
-                    {weekDays.map((day) => {
-                      const dateKey = day.toISOString().split('T')[0];
-                      const isToday = dateKey === todayStr;
-                      const assignments = tech.days.get(dateKey) || [];
+              {/* Tech rows */}
+              <div className="space-y-1 mt-1">
+                {techPlans.map((tech, techIdx) => {
+                  const color = TECH_COLORS[techIdx % TECH_COLORS.length];
+                  return (
+                    <div
+                      key={tech.userName}
+                      className="grid gap-1"
+                      style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}
+                    >
+                      <div className={`${color.bg} ${color.border} border rounded-lg p-2 flex items-center gap-2`}>
+                        <div className={`w-2.5 h-2.5 rounded-full ${color.dot} flex-shrink-0`} />
+                        <span className={`text-sm font-bold ${color.text} truncate`}>
+                          {tech.userName}
+                        </span>
+                      </div>
 
-                      return (
-                        <div
-                          key={dateKey}
-                          className={`rounded-lg border p-1.5 min-h-[60px] ${
-                            isToday
-                              ? 'bg-blue-500/8 border-blue-500/25'
-                              : assignments.length > 0
-                                ? 'bg-white/5 border-white/10'
-                                : 'bg-white/[0.02] border-white/5'
-                          }`}
-                        >
-                          {assignments.length === 0 ? (
-                            <div className="h-full flex items-center justify-center">
-                              <span className="text-white/10 text-xs">—</span>
-                            </div>
-                          ) : (
-                            <div className="space-y-1">
-                              {assignments.map((a, aIdx) => (
-                                <div
-                                  key={aIdx}
-                                  className={`rounded-md px-1.5 py-1 text-[11px] leading-tight ${
-                                    a.priority === 'urgent' || a.priority === 'critical'
-                                      ? 'bg-red-500/20 border border-red-500/30'
-                                      : `${color.bg} border ${color.border}`
-                                  }`}
-                                >
-                                  <div className="flex items-start gap-1">
-                                    {(a.priority === 'urgent' || a.priority === 'critical') && (
-                                      <AlertTriangle className="h-3 w-3 text-red-400 flex-shrink-0 mt-0.5" />
-                                    )}
-                                    <div className="min-w-0">
-                                      <div className={`font-semibold truncate ${
-                                        a.priority !== 'normal' ? 'text-red-300' : 'text-white/80'
-                                      }`}>
-                                        {a.intervention_label}
-                                      </div>
-                                      {a.client_name && (
-                                        <div className="text-white/40 truncate">{a.client_name}</div>
+                      {weekDays.map((day) => {
+                        const dateKey = day.toISOString().split('T')[0];
+                        const isToday = dateKey === todayStr;
+                        const assignments = tech.days.get(dateKey) || [];
+
+                        return (
+                          <div
+                            key={dateKey}
+                            className={`rounded-lg border p-1.5 min-h-[60px] ${
+                              isToday
+                                ? 'bg-blue-500/8 border-blue-500/25'
+                                : assignments.length > 0
+                                  ? 'bg-white/5 border-white/10'
+                                  : 'bg-white/[0.02] border-white/5'
+                            }`}
+                          >
+                            {assignments.length === 0 ? (
+                              <div className="h-full flex items-center justify-center">
+                                <span className="text-white/10 text-xs">—</span>
+                              </div>
+                            ) : (
+                              <div className="space-y-1">
+                                {assignments.map((a, aIdx) => (
+                                  <div
+                                    key={aIdx}
+                                    className={`rounded-md px-1.5 py-1 text-[11px] leading-tight ${
+                                      a.priority === 'urgent' || a.priority === 'critical'
+                                        ? 'bg-red-500/20 border border-red-500/30'
+                                        : `${color.bg} border ${color.border}`
+                                    }`}
+                                  >
+                                    <div className="flex items-start gap-1">
+                                      {(a.priority === 'urgent' || a.priority === 'critical') && (
+                                        <AlertTriangle className="h-3 w-3 text-red-400 flex-shrink-0 mt-0.5" />
                                       )}
+                                      <div className="min-w-0">
+                                        <div className={`font-semibold truncate ${
+                                          a.priority !== 'normal' ? 'text-red-300' : 'text-white/80'
+                                        }`}>
+                                          {a.intervention_label}
+                                        </div>
+                                        {a.client_name && (
+                                          <div className="text-white/40 truncate">{a.client_name}</div>
+                                        )}
+                                      </div>
                                     </div>
                                   </div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                );
-              })}
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  );
+                })}
+              </div>
             </div>
+          )}
+        </div>
+
+        {/* Travel Widget (right sidebar, ~25%) */}
+        <div className="w-[280px] flex-shrink-0 flex flex-col min-h-0">
+          <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+            <Car className="h-5 w-5 text-amber-400" />
+            <h2 className="text-sm font-bold">Trajets du jour</h2>
           </div>
-        )}
+          <div className="flex-1 overflow-auto min-h-0">
+            <TravelWidget 
+              travels={travels} 
+              loading={travelLoading} 
+              lastUpdate={lastUpdate}
+              weather={weather}
+            />
+          </div>
+        </div>
       </div>
 
       {/* ─── Footer ─────────────────────────────────────────────── */}
       <div className="bg-white/5 border-t border-white/10 px-6 py-2 flex items-center justify-between text-white/40 text-xs flex-shrink-0">
         <span>📞 info@enes-electricite.ch</span>
         <span>🌐 www.enes-electricite.ch</span>
-        <span>📍 Genève, Suisse</span>
+        <span>📍 Rte de Morges 9A, 1304 Cossonay</span>
       </div>
     </div>
   );
