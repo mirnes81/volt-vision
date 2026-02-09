@@ -486,11 +486,57 @@ function DailyPlanning() {
   );
 }
 
+// ─── Fullscreen hook ─────────────────────────────────────────────────
+function useFullscreen() {
+  const [isFullscreen, setIsFullscreen] = React.useState(false);
+
+  const enterFullscreen = React.useCallback(() => {
+    const el = document.documentElement;
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(() => {});
+    } else if ((el as any).webkitRequestFullscreen) {
+      (el as any).webkitRequestFullscreen();
+    }
+  }, []);
+
+  const exitFullscreen = React.useCallback(() => {
+    if (document.exitFullscreen) {
+      document.exitFullscreen().catch(() => {});
+    } else if ((document as any).webkitExitFullscreen) {
+      (document as any).webkitExitFullscreen();
+    }
+  }, []);
+
+  React.useEffect(() => {
+    const handler = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', handler);
+    document.addEventListener('webkitfullscreenchange', handler);
+    return () => {
+      document.removeEventListener('fullscreenchange', handler);
+      document.removeEventListener('webkitfullscreenchange', handler);
+    };
+  }, []);
+
+  return { isFullscreen, enterFullscreen, exitFullscreen };
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────
 export default function TVDisplayPage() {
   const [mode, setMode] = React.useState<TVMode>('selector');
+  const { isFullscreen, enterFullscreen, exitFullscreen } = useFullscreen();
 
-  if (mode === 'exposition') return <ExpositionMode onBack={() => setMode('selector')} />;
-  if (mode === 'workers') return <WorkersMode onBack={() => setMode('selector')} />;
-  return <ModeSelector onSelect={setMode} />;
+  // Auto-enter fullscreen when a mode is selected
+  const handleSelect = React.useCallback((m: TVMode) => {
+    setMode(m);
+    enterFullscreen();
+  }, [enterFullscreen]);
+
+  const handleBack = React.useCallback(() => {
+    setMode('selector');
+    exitFullscreen();
+  }, [exitFullscreen]);
+
+  if (mode === 'exposition') return <ExpositionMode onBack={handleBack} />;
+  if (mode === 'workers') return <WorkersMode onBack={handleBack} />;
+  return <ModeSelector onSelect={handleSelect} />;
 }
