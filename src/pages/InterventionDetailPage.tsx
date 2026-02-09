@@ -402,6 +402,7 @@ export default function InterventionDetailPage() {
                 location={intervention.location}
                 datePlanned={intervention.dateStart}
                 priority={intervention.priority as 'normal' | 'urgent' | 'critical'}
+                description={intervention.description}
                 onAssignmentsChange={handleUpdate}
                 initialAssignmentsCount={supabaseAssignments.length}
               />
