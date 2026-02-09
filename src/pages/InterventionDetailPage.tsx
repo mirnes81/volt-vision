@@ -434,14 +434,12 @@ export default function InterventionDetailPage() {
                   </span>
                 );
               })()}
-              {/* Admin date edit button */}
-              {isAdmin && (
-                <DateEditDialog
-                  interventionId={intervention.id}
-                  currentDate={getDateOverride(intervention.id) || intervention.dateStart}
-                  onDateUpdated={handleUpdate}
-                />
-              )}
+              {/* Date edit button */}
+              <DateEditDialog
+                interventionId={intervention.id}
+                currentDate={getDateOverride(intervention.id) || intervention.dateStart}
+                onDateUpdated={handleUpdate}
+              />
             </div>
             {/* Reminder button */}
             <Button
