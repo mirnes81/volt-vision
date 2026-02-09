@@ -796,8 +796,15 @@ export default function TVDisplayPage() {
 
                             {/* Main info */}
                             <div className="flex-1 min-w-0">
-                              <div className={`font-bold text-base ${isUrgent ? 'text-red-200' : isOverdue ? 'text-red-200' : 'text-white/90'}`}>
-                                {a.intervention_label}
+                              <div className="flex items-center gap-2">
+                                {a.intervention_ref && (
+                                  <span className="inline-flex items-center bg-yellow-500/20 border border-yellow-400/40 text-yellow-200 text-xs font-bold px-2 py-0.5 rounded-md whitespace-nowrap">
+                                    #{a.intervention_ref}
+                                  </span>
+                                )}
+                                <span className={`font-bold text-base ${isUrgent ? 'text-red-200' : isOverdue ? 'text-red-200' : 'text-white/90'}`}>
+                                  {a.intervention_label}
+                                </span>
                               </div>
                               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-1">
                                 {a.client_name && (
