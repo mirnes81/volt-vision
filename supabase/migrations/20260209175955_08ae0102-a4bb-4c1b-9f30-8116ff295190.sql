@@ -1,0 +1,1 @@
+ALTER TABLE public.intervention_assignments ADD COLUMN description TEXT;

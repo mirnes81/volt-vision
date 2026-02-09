@@ -327,6 +327,7 @@ export type Database = {
           client_name: string | null
           created_at: string
           date_planned: string | null
+          description: string | null
           id: string
           intervention_id: number | null
           intervention_label: string
@@ -351,6 +352,7 @@ export type Database = {
           client_name?: string | null
           created_at?: string
           date_planned?: string | null
+          description?: string | null
           id?: string
           intervention_id?: number | null
           intervention_label: string
@@ -375,6 +377,7 @@ export type Database = {
           client_name?: string | null
           created_at?: string
           date_planned?: string | null
+          description?: string | null
           id?: string
           intervention_id?: number | null
           intervention_label?: string

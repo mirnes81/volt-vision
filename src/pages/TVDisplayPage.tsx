@@ -21,7 +21,7 @@ const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface WeatherData { temp: number; description: string; city: string; humidity: number; wind: number; }
-interface DayAssignment { intervention_label: string; intervention_ref?: string; intervention_id?: number | null; client_name: string | null; location: string | null; priority: string; date_planned: string; user_name?: string; }
+interface DayAssignment { intervention_label: string; intervention_ref?: string; intervention_id?: number | null; client_name: string | null; location: string | null; priority: string; date_planned: string; user_name?: string; description?: string | null; }
 interface TechWeekPlan { userName: string; days: Map<string, DayAssignment[]>; }
 interface TravelInfo { location: string; client: string; durationMin: number; distanceKm: number; trafficFactor: number; estimatedWithTraffic: number; delayWarning: string | null; priority: string; }
 interface LeaderboardEntry { name: string; interventions: number; hoursWorked: number; }
@@ -181,7 +181,7 @@ function useWeekAssignments() {
       // Fetch ALL assignments (no date filter = all non-completed interventions)
       const { data, error } = await supabase
         .from('intervention_assignments')
-        .select('user_name, intervention_label, intervention_ref, intervention_id, client_name, location, priority, date_planned')
+        .select('user_name, intervention_label, intervention_ref, intervention_id, client_name, location, priority, date_planned, description')
         .eq('tenant_id', TENANT_ID)
         .order('user_name')
         .order('date_planned', { ascending: true });
@@ -215,7 +215,7 @@ function useWeekAssignments() {
         }
 
         if (!plan.days.has(dateKey)) plan.days.set(dateKey, []);
-        const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', intervention_ref: row.intervention_ref || '', intervention_id: row.intervention_id, client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name };
+        const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', intervention_ref: row.intervention_ref || '', intervention_id: row.intervention_id, client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name, description: (row as any).description };
         plan.days.get(dateKey)!.push(assignment);
         if (dateKey === todayStr) todayItems.push(assignment);
       }
@@ -777,6 +777,7 @@ export default function TVDisplayPage() {
                                     : 'text-white/90'
                                   }`}>{a.intervention_label}</div>
                                   {a.client_name && <div className="text-white/50 truncate text-xs">{a.client_name}</div>}
+                                  {a.description && <div className="text-blue-300/70 text-xs line-clamp-2 mt-0.5">{a.description}</div>}
                                   {isSpecial === 'overdue' && a.date_planned && (
                                     <div className="text-red-400/60 text-xs">
                                       Prévu: {new Date(a.date_planned).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' })}
