@@ -29,6 +29,7 @@ import CatalogsPage from "./pages/CatalogsPage";
 import VoucherScanPage from "./pages/VoucherScanPage";
 import AdminPage from "./pages/AdminPage";
 import TVDisplayPage from "./pages/TVDisplayPage";
+import TakeInterventionPage from "./pages/TakeInterventionPage";
 import NotFound from "./pages/NotFound";
 import { rescheduleRemindersOnStart } from "@/lib/interventionReminders";
 import { cleanupCorruptedPendingSync } from "@/lib/offlineStorage";
@@ -61,6 +62,7 @@ const AppRoutes = () => (
     <Route path="/login" element={<PublicRoute><LoginPage /></PublicRoute>} />
     <Route path="/install" element={<InstallPage />} />
     <Route path="/tv" element={<TVDisplayPage />} />
+    <Route path="/take-intervention" element={<TakeInterventionPage />} />
     <Route path="/diagnostic" element={<DiagnosticPage />} />
     <Route element={<ProtectedRoute><AppLayout /></ProtectedRoute>}>
       <Route path="/dashboard" element={<DashboardPage />} />

@@ -1,7 +1,19 @@
 import * as React from 'react';
-import { Cloud, Sun, CloudRain, CloudSnow, Wind, MapPin, Calendar, AlertTriangle, User, Car, Navigation, TriangleAlert, Trophy, Zap, Clock, Users, TrendingUp, Wrench, ImageIcon } from 'lucide-react';
+import { Cloud, Sun, CloudRain, CloudSnow, Wind, MapPin, Calendar, AlertTriangle, User, Car, Navigation, TriangleAlert, Trophy, Zap, Clock, Users, TrendingUp, Wrench, ImageIcon, QrCode } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import logoEnes from '@/assets/logo-enes.png';
+
+// ─── QR Code URL generator (using free qrserver API) ─────────────────
+function getQrUrl(interventionRef: string, interventionLabel: string, interventionId?: number | null): string {
+  const baseUrl = window.location.origin;
+  const params = new URLSearchParams({
+    ref: interventionRef,
+    label: interventionLabel,
+    ...(interventionId ? { id: String(interventionId) } : {}),
+  });
+  const targetUrl = `${baseUrl}/take-intervention?${params.toString()}`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(targetUrl)}&bgcolor=0d1b3e&color=ffffff&format=svg`;
+}
 
 // ─── Constants ───────────────────────────────────────────────────────
 const ENES_ORIGIN = { lat: 46.5107, lon: 6.5004, label: 'ENES – Cossonay' };
@@ -9,7 +21,7 @@ const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
 // ─── Types ───────────────────────────────────────────────────────────
 interface WeatherData { temp: number; description: string; city: string; humidity: number; wind: number; }
-interface DayAssignment { intervention_label: string; client_name: string | null; location: string | null; priority: string; date_planned: string; user_name?: string; }
+interface DayAssignment { intervention_label: string; intervention_ref?: string; intervention_id?: number | null; client_name: string | null; location: string | null; priority: string; date_planned: string; user_name?: string; }
 interface TechWeekPlan { userName: string; days: Map<string, DayAssignment[]>; }
 interface TravelInfo { location: string; client: string; durationMin: number; distanceKm: number; trafficFactor: number; estimatedWithTraffic: number; delayWarning: string | null; priority: string; }
 interface LeaderboardEntry { name: string; interventions: number; hoursWorked: number; }
@@ -169,7 +181,7 @@ function useWeekAssignments() {
       // Fetch ALL assignments (no date filter = all non-completed interventions)
       const { data, error } = await supabase
         .from('intervention_assignments')
-        .select('user_name, intervention_label, client_name, location, priority, date_planned')
+        .select('user_name, intervention_label, intervention_ref, intervention_id, client_name, location, priority, date_planned')
         .eq('tenant_id', TENANT_ID)
         .order('user_name')
         .order('date_planned', { ascending: true });
@@ -203,7 +215,7 @@ function useWeekAssignments() {
         }
 
         if (!plan.days.has(dateKey)) plan.days.set(dateKey, []);
-        const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name };
+        const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', intervention_ref: row.intervention_ref || '', intervention_id: row.intervention_id, client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name };
         plan.days.get(dateKey)!.push(assignment);
         if (dateKey === todayStr) todayItems.push(assignment);
       }
@@ -745,7 +757,7 @@ export default function TVDisplayPage() {
                       ) : (
                         <div className="space-y-0.5">
                           {assignments.map((a, aIdx) => (
-                            <div key={aIdx} className={`rounded px-1 py-0.5 text-[10px] leading-tight ${
+                            <div key={aIdx} className={`rounded px-1 py-0.5 text-[10px] leading-tight relative group ${
                               a.priority === 'urgent' || a.priority === 'critical'
                                 ? 'bg-red-500/20 border border-red-500/30'
                                 : isSpecial === 'overdue'
@@ -757,7 +769,7 @@ export default function TVDisplayPage() {
                               <div className="flex items-start gap-0.5">
                                 {(a.priority === 'urgent' || a.priority === 'critical') && <AlertTriangle className="h-2.5 w-2.5 text-red-400 flex-shrink-0 mt-0.5" />}
                                 {isSpecial === 'overdue' && a.priority === 'normal' && <Clock className="h-2.5 w-2.5 text-red-300 flex-shrink-0 mt-0.5" />}
-                                <div className="min-w-0">
+                                <div className="min-w-0 flex-1">
                                   <div className={`font-semibold truncate ${
                                     a.priority !== 'normal' ? 'text-red-300'
                                     : isSpecial === 'overdue' ? 'text-red-200'
@@ -771,6 +783,15 @@ export default function TVDisplayPage() {
                                     </div>
                                   )}
                                 </div>
+                                {/* QR Code */}
+                                {a.intervention_ref && (
+                                  <img
+                                    src={getQrUrl(a.intervention_ref, a.intervention_label, a.intervention_id)}
+                                    alt="QR"
+                                    className="w-8 h-8 rounded-sm flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+                                    loading="lazy"
+                                  />
+                                )}
                               </div>
                             </div>
                           ))}
