@@ -12,7 +12,7 @@ function getQrUrl(interventionRef: string, interventionLabel: string, interventi
     ...(interventionId ? { id: String(interventionId) } : {}),
   });
   const targetUrl = `${baseUrl}/take-intervention?${params.toString()}`;
-  return `https://api.qrserver.com/v1/create-qr-code/?size=80x80&data=${encodeURIComponent(targetUrl)}&bgcolor=0d1b3e&color=ffffff&format=svg`;
+  return `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(targetUrl)}&bgcolor=0d1b3e&color=ffffff&format=svg`;
 }
 
 // ─── Constants ───────────────────────────────────────────────────────
@@ -668,24 +668,24 @@ export default function TVDisplayPage() {
       </div>
 
       {/* ─── Main Content ─── */}
-      <div className="flex-1 flex min-h-0 p-2.5 gap-2.5">
+      <div className="flex-1 flex min-h-0 p-3 gap-3">
         {/* Left: Planning grid */}
         <div className="flex-1 flex flex-col min-h-0 min-w-0">
-          <div className="flex items-center gap-2 mb-1.5 flex-shrink-0">
-            <Calendar className="h-4 w-4 text-blue-400" />
-            <h2 className="text-sm font-bold">Toutes les interventions en cours</h2>
+          <div className="flex items-center gap-3 mb-2 flex-shrink-0">
+            <Calendar className="h-5 w-5 text-blue-400" />
+            <h2 className="text-lg font-bold">Toutes les interventions en cours</h2>
             <div className="flex items-center gap-2 ml-auto">
               {overdueCount > 0 && (
-                <span className="text-[10px] bg-red-500/20 text-red-300 px-2 py-0.5 rounded-full border border-red-500/30 font-bold">
+                <span className="text-sm bg-red-500/20 text-red-300 px-3 py-1 rounded-full border border-red-500/30 font-bold">
                   ⚠️ {overdueCount} en retard
                 </span>
               )}
               {unplannedCount > 0 && (
-                <span className="text-[10px] bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded-full border border-amber-500/30 font-bold">
+                <span className="text-sm bg-amber-500/20 text-amber-300 px-3 py-1 rounded-full border border-amber-500/30 font-bold">
                   📋 {unplannedCount} non planifié(es)
                 </span>
               )}
-              <span className="text-[10px] text-white/20">Auto-refresh 2min</span>
+              <span className="text-xs text-white/20">Auto-refresh 2min</span>
             </div>
           </div>
 
@@ -700,48 +700,48 @@ export default function TVDisplayPage() {
             const hasOverdue = techPlans.some(t => (t.days.get('__overdue__') || []).length > 0);
             const hasUnplanned = techPlans.some(t => (t.days.get('__unplanned__') || []).length > 0);
             const extraCols = (hasOverdue ? 1 : 0) + (hasUnplanned ? 1 : 0);
-            const gridCols = `120px ${hasOverdue ? '1fr ' : ''}${hasUnplanned ? '1fr ' : ''}repeat(7, 1fr)`;
+            const gridCols = `160px ${hasOverdue ? '1fr ' : ''}${hasUnplanned ? '1fr ' : ''}repeat(7, 1fr)`;
 
             return (
             <div className="flex-1 overflow-auto min-h-0">
-              <div className="grid gap-0.5 sticky top-0 z-10 bg-gradient-to-br from-[hsl(217,91%,8%)] via-[hsl(217,91%,14%)] to-[hsl(220,80%,18%)]"
+              <div className="grid gap-1 sticky top-0 z-10 bg-gradient-to-br from-[hsl(217,91%,8%)] via-[hsl(217,91%,14%)] to-[hsl(220,80%,18%)]"
                 style={{ gridTemplateColumns: gridCols }}
               >
-                <div className="p-1.5 text-[10px] font-bold text-white/40 uppercase flex items-center gap-1">
-                  <User className="h-3 w-3" /> Tech
+                <div className="p-2 text-sm font-bold text-white/40 uppercase flex items-center gap-1.5">
+                  <User className="h-4 w-4" /> Technicien
                 </div>
                 {hasOverdue && (
-                  <div className="p-1.5 text-center rounded bg-red-500/15 border border-red-500/30">
-                    <div className="text-[10px] font-bold uppercase text-red-400">En retard</div>
-                    <div className="text-base font-bold text-red-300">⚠️</div>
+                  <div className="p-2 text-center rounded bg-red-500/15 border border-red-500/30">
+                    <div className="text-sm font-bold uppercase text-red-400">En retard</div>
+                    <div className="text-xl font-bold text-red-300">⚠️</div>
                   </div>
                 )}
                 {hasUnplanned && (
-                  <div className="p-1.5 text-center rounded bg-amber-500/15 border border-amber-500/30">
-                    <div className="text-[10px] font-bold uppercase text-amber-400">À planifier</div>
-                    <div className="text-base font-bold text-amber-300">📋</div>
+                  <div className="p-2 text-center rounded bg-amber-500/15 border border-amber-500/30">
+                    <div className="text-sm font-bold uppercase text-amber-400">À planifier</div>
+                    <div className="text-xl font-bold text-amber-300">📋</div>
                   </div>
                 )}
                 {weekDays.map((day) => {
                   const isToday = day.toISOString().split('T')[0] === todayStr;
                   const { dayName, dayNum } = formatDayHeader(day);
                   return (
-                    <div key={day.toISOString()} className={`p-1.5 text-center rounded ${isToday ? 'bg-blue-500/20 border border-blue-500/40' : ''}`}>
-                      <div className={`text-[10px] font-bold uppercase ${isToday ? 'text-blue-300' : 'text-white/40'}`}>{dayName}</div>
-                      <div className={`text-base font-bold ${isToday ? 'text-blue-200' : 'text-white/60'}`}>{dayNum}</div>
+                    <div key={day.toISOString()} className={`p-2 text-center rounded ${isToday ? 'bg-blue-500/20 border border-blue-500/40' : ''}`}>
+                      <div className={`text-sm font-bold uppercase ${isToday ? 'text-blue-300' : 'text-white/40'}`}>{dayName}</div>
+                      <div className={`text-xl font-bold ${isToday ? 'text-blue-200' : 'text-white/60'}`}>{dayNum}</div>
                     </div>
                   );
                 })}
               </div>
 
-              <div className="space-y-0.5 mt-0.5">
+              <div className="space-y-1 mt-1">
                 {techPlans.map((tech, techIdx) => {
                   const color = TECH_COLORS[techIdx % TECH_COLORS.length];
                   const overdueItems = tech.days.get('__overdue__') || [];
                   const unplannedItems = tech.days.get('__unplanned__') || [];
 
                   const renderCell = (assignments: DayAssignment[], isToday: boolean, isSpecial?: 'overdue' | 'unplanned') => (
-                    <div className={`rounded border p-1 min-h-[50px] ${
+                    <div className={`rounded-lg border p-1.5 min-h-[70px] ${
                       isSpecial === 'overdue' && assignments.length > 0
                         ? 'bg-red-500/8 border-red-500/20'
                         : isSpecial === 'unplanned' && assignments.length > 0
@@ -753,11 +753,11 @@ export default function TVDisplayPage() {
                               : 'bg-white/[0.02] border-white/5'
                     }`}>
                       {assignments.length === 0 ? (
-                        <div className="h-full flex items-center justify-center"><span className="text-white/10 text-[10px]">—</span></div>
+                        <div className="h-full flex items-center justify-center"><span className="text-white/10 text-sm">—</span></div>
                       ) : (
-                        <div className="space-y-0.5">
+                        <div className="space-y-1">
                           {assignments.map((a, aIdx) => (
-                            <div key={aIdx} className={`rounded px-1 py-0.5 text-[10px] leading-tight relative group ${
+                            <div key={aIdx} className={`rounded-lg px-2 py-1.5 text-sm leading-snug relative group ${
                               a.priority === 'urgent' || a.priority === 'critical'
                                 ? 'bg-red-500/20 border border-red-500/30'
                                 : isSpecial === 'overdue'
@@ -766,19 +766,19 @@ export default function TVDisplayPage() {
                                     ? 'bg-amber-500/10 border border-amber-500/20'
                                     : `${color.bg} border ${color.border}`
                             }`}>
-                              <div className="flex items-start gap-0.5">
-                                {(a.priority === 'urgent' || a.priority === 'critical') && <AlertTriangle className="h-2.5 w-2.5 text-red-400 flex-shrink-0 mt-0.5" />}
-                                {isSpecial === 'overdue' && a.priority === 'normal' && <Clock className="h-2.5 w-2.5 text-red-300 flex-shrink-0 mt-0.5" />}
+                              <div className="flex items-start gap-1.5">
+                                {(a.priority === 'urgent' || a.priority === 'critical') && <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0 mt-0.5" />}
+                                {isSpecial === 'overdue' && a.priority === 'normal' && <Clock className="h-4 w-4 text-red-300 flex-shrink-0 mt-0.5" />}
                                 <div className="min-w-0 flex-1">
-                                  <div className={`font-semibold truncate ${
+                                  <div className={`font-bold truncate text-sm ${
                                     a.priority !== 'normal' ? 'text-red-300'
                                     : isSpecial === 'overdue' ? 'text-red-200'
                                     : isSpecial === 'unplanned' ? 'text-amber-200'
-                                    : 'text-white/80'
+                                    : 'text-white/90'
                                   }`}>{a.intervention_label}</div>
-                                  {a.client_name && <div className="text-white/40 truncate">{a.client_name}</div>}
+                                  {a.client_name && <div className="text-white/50 truncate text-xs">{a.client_name}</div>}
                                   {isSpecial === 'overdue' && a.date_planned && (
-                                    <div className="text-red-400/60 text-[9px]">
+                                    <div className="text-red-400/60 text-xs">
                                       Prévu: {new Date(a.date_planned).toLocaleDateString('fr-CH', { day: 'numeric', month: 'short' })}
                                     </div>
                                   )}
@@ -788,7 +788,7 @@ export default function TVDisplayPage() {
                                   <img
                                     src={getQrUrl(a.intervention_ref, a.intervention_label, a.intervention_id)}
                                     alt="QR"
-                                    className="w-8 h-8 rounded-sm flex-shrink-0 opacity-60 hover:opacity-100 transition-opacity"
+                                    className="w-12 h-12 rounded flex-shrink-0 opacity-70 hover:opacity-100 transition-opacity"
                                     loading="lazy"
                                   />
                                 )}
@@ -801,10 +801,10 @@ export default function TVDisplayPage() {
                   );
 
                   return (
-                    <div key={tech.userName} className="grid gap-0.5" style={{ gridTemplateColumns: gridCols }}>
-                      <div className={`${color.bg} ${color.border} border rounded p-1.5 flex items-center gap-1.5`}>
-                        <div className={`w-2 h-2 rounded-full ${color.dot} flex-shrink-0`} />
-                        <span className={`text-[11px] font-bold ${color.text} truncate`}>{tech.userName}</span>
+                    <div key={tech.userName} className="grid gap-1" style={{ gridTemplateColumns: gridCols }}>
+                      <div className={`${color.bg} ${color.border} border rounded-lg p-2 flex items-center gap-2`}>
+                        <div className={`w-3 h-3 rounded-full ${color.dot} flex-shrink-0`} />
+                        <span className={`text-sm font-bold ${color.text} truncate`}>{tech.userName}</span>
                       </div>
                       {hasOverdue && renderCell(overdueItems, false, 'overdue')}
                       {hasUnplanned && renderCell(unplannedItems, false, 'unplanned')}
@@ -824,7 +824,7 @@ export default function TVDisplayPage() {
         </div>
 
         {/* Right sidebar: Travel + Leaderboard + Carousel */}
-        <div className="w-[260px] flex-shrink-0 flex flex-col min-h-0 gap-2.5">
+        <div className="w-[280px] flex-shrink-0 flex flex-col min-h-0 gap-3">
           {/* Travel */}
           <div className="flex-shrink-0">
             <div className="flex items-center gap-1.5 mb-1">
