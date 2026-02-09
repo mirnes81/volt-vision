@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Zap, ChevronRight, Cloud, Sun, CloudRain, CloudSnow, Wind, Thermometer, MapPin, Calendar, AlertTriangle } from 'lucide-react';
+import { Cloud, Sun, CloudRain, CloudSnow, Wind, Thermometer, MapPin, Calendar, AlertTriangle, ChevronRight, User } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import logoEnes from '@/assets/logo-enes.png';
 
@@ -12,9 +12,17 @@ interface WeatherData {
   wind: number;
 }
 
-interface TechPlanning {
+interface DayAssignment {
+  intervention_label: string;
+  client_name: string | null;
+  location: string | null;
+  priority: string;
+  date_planned: string;
+}
+
+interface TechWeekPlan {
   userName: string;
-  assignments: { label: string; client: string | null; location: string | null; priority: string }[];
+  days: Map<string, DayAssignment[]>; // key = YYYY-MM-DD
 }
 
 // ─── Clock hook ──────────────────────────────────────────────────────
@@ -41,12 +49,12 @@ function wmoCodeToText(code: number): string {
   return map[code] || 'Inconnu';
 }
 
-function WeatherIcon({ desc }: { desc: string }) {
+function WeatherIcon({ desc, className }: { desc: string; className?: string }) {
   const d = desc.toLowerCase();
-  if (d.includes('neige') || d.includes('snow')) return <CloudSnow className="h-10 w-10 text-blue-200" />;
-  if (d.includes('pluie') || d.includes('rain') || d.includes('averse')) return <CloudRain className="h-10 w-10 text-blue-300" />;
-  if (d.includes('nuag') || d.includes('cloud') || d.includes('couvert') || d.includes('brouillard')) return <Cloud className="h-10 w-10 text-gray-300" />;
-  return <Sun className="h-10 w-10 text-yellow-400" />;
+  if (d.includes('neige') || d.includes('snow')) return <CloudSnow className={className || "h-8 w-8 text-blue-200"} />;
+  if (d.includes('pluie') || d.includes('rain') || d.includes('averse')) return <CloudRain className={className || "h-8 w-8 text-blue-300"} />;
+  if (d.includes('nuag') || d.includes('cloud') || d.includes('couvert') || d.includes('brouillard')) return <Cloud className={className || "h-8 w-8 text-gray-300"} />;
+  return <Sun className={className || "h-8 w-8 text-yellow-400"} />;
 }
 
 // ─── Weather hook ────────────────────────────────────────────────────
@@ -100,95 +108,84 @@ function useWeather() {
   return weather;
 }
 
-// ─── Today assignments hook ──────────────────────────────────────────
-function useTodayAssignments() {
-  const [planning, setPlanning] = React.useState<TechPlanning[]>([]);
+// ─── 7-day assignments hook ──────────────────────────────────────────
+function useWeekAssignments() {
+  const [techPlans, setTechPlans] = React.useState<TechWeekPlan[]>([]);
   const [loading, setLoading] = React.useState(true);
+  const [weekDays, setWeekDays] = React.useState<Date[]>([]);
 
   const fetchAssignments = React.useCallback(async () => {
     try {
+      // Calculate 7 days starting from today
       const today = new Date();
-      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
+      const days: Date[] = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        days.push(d);
+      }
+      setWeekDays(days);
+
+      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
+      const endOf7Days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7).toISOString();
 
       const { data, error } = await supabase
         .from('intervention_assignments')
         .select('user_name, intervention_label, client_name, location, priority, date_planned')
         .eq('tenant_id', '00000000-0000-0000-0000-000000000001')
-        .gte('date_planned', startOfDay)
-        .lt('date_planned', endOfDay)
-        .order('user_name');
+        .gte('date_planned', startOfToday)
+        .lt('date_planned', endOf7Days)
+        .order('user_name')
+        .order('date_planned', { ascending: true });
 
       if (error) {
-        const { data: fallback } = await supabase
-          .from('intervention_assignments')
-          .select('user_name, intervention_label, client_name, location, priority, date_planned')
-          .eq('tenant_id', '00000000-0000-0000-0000-000000000001')
-          .order('date_planned', { ascending: true })
-          .limit(50);
-        if (fallback) groupByTech(fallback);
+        console.error('TV 7-day planning error:', error);
+        setLoading(false);
         return;
       }
 
-      groupByTech(data || []);
+      // Group by technician, then by day
+      const techMap = new Map<string, TechWeekPlan>();
+      
+      for (const row of (data || [])) {
+        const name = row.user_name || 'Non assigné';
+        if (!techMap.has(name)) {
+          techMap.set(name, { userName: name, days: new Map() });
+        }
+        const plan = techMap.get(name)!;
+        
+        const dateKey = row.date_planned 
+          ? new Date(row.date_planned).toISOString().split('T')[0]
+          : new Date().toISOString().split('T')[0];
+        
+        if (!plan.days.has(dateKey)) {
+          plan.days.set(dateKey, []);
+        }
+        plan.days.get(dateKey)!.push({
+          intervention_label: row.intervention_label || 'Intervention',
+          client_name: row.client_name,
+          location: row.location,
+          priority: row.priority || 'normal',
+          date_planned: row.date_planned || '',
+        });
+      }
+
+      setTechPlans(Array.from(techMap.values()));
     } catch (err) {
-      console.error('TV planning error:', err);
+      console.error('TV week planning error:', err);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  function groupByTech(data: any[]) {
-    const grouped = new Map<string, TechPlanning>();
-    for (const row of data) {
-      const name = row.user_name || 'Non assigné';
-      if (!grouped.has(name)) grouped.set(name, { userName: name, assignments: [] });
-      grouped.get(name)!.assignments.push({
-        label: row.intervention_label || 'Intervention',
-        client: row.client_name,
-        location: row.location,
-        priority: row.priority || 'normal',
-      });
-    }
-    setPlanning(Array.from(grouped.values()));
-  }
-
   React.useEffect(() => {
     fetchAssignments();
-    const interval = setInterval(fetchAssignments, 120_000);
+    const interval = setInterval(fetchAssignments, 120_000); // refresh every 2 min
     return () => clearInterval(interval);
   }, [fetchAssignments]);
 
-  return { planning, loading };
+  return { techPlans, weekDays, loading };
 }
-
-// ─── Exposition slides ───────────────────────────────────────────────
-const EXPO_SLIDES = [
-  {
-    title: 'ENES Électricité',
-    subtitle: 'Votre partenaire électrique de confiance',
-    items: ['Installations électriques', 'Dépannages 24/7', 'Rénovations complètes', 'Domotique & Smart Home'],
-  },
-  {
-    title: 'Nos Services',
-    subtitle: 'Solutions professionnelles pour tous vos besoins',
-    items: ['Tableaux électriques', 'Éclairage LED', 'Bornes de recharge', 'Contrôles OIBT'],
-  },
-  {
-    title: 'Pourquoi ENES ?',
-    subtitle: 'La qualité suisse au service de votre sécurité',
-    items: ['Techniciens certifiés', 'Intervention rapide', 'Devis gratuit', 'Garantie sur tous les travaux'],
-  },
-];
-
-const TECH_COLORS = [
-  'bg-blue-500/20 border-blue-500/30',
-  'bg-green-500/20 border-green-500/30',
-  'bg-purple-500/20 border-purple-500/30',
-  'bg-amber-500/20 border-amber-500/30',
-  'bg-cyan-500/20 border-cyan-500/30',
-  'bg-rose-500/20 border-rose-500/30',
-];
 
 // ─── Fullscreen hook ─────────────────────────────────────────────────
 function useFullscreen() {
@@ -203,166 +200,201 @@ function useFullscreen() {
   return { enterFullscreen };
 }
 
+// ─── Tech colors ─────────────────────────────────────────────────────
+const TECH_COLORS = [
+  { bg: 'bg-blue-500/15', border: 'border-blue-500/30', text: 'text-blue-300', dot: 'bg-blue-400' },
+  { bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', text: 'text-emerald-300', dot: 'bg-emerald-400' },
+  { bg: 'bg-purple-500/15', border: 'border-purple-500/30', text: 'text-purple-300', dot: 'bg-purple-400' },
+  { bg: 'bg-amber-500/15', border: 'border-amber-500/30', text: 'text-amber-300', dot: 'bg-amber-400' },
+  { bg: 'bg-cyan-500/15', border: 'border-cyan-500/30', text: 'text-cyan-300', dot: 'bg-cyan-400' },
+  { bg: 'bg-rose-500/15', border: 'border-rose-500/30', text: 'text-rose-300', dot: 'bg-rose-400' },
+  { bg: 'bg-indigo-500/15', border: 'border-indigo-500/30', text: 'text-indigo-300', dot: 'bg-indigo-400' },
+  { bg: 'bg-teal-500/15', border: 'border-teal-500/30', text: 'text-teal-300', dot: 'bg-teal-400' },
+];
+
+// ─── Day name helper ─────────────────────────────────────────────────
+function formatDayHeader(date: Date, isToday: boolean): { dayName: string; dayNum: string } {
+  const dayName = date.toLocaleDateString('fr-CH', { weekday: 'short' }).replace('.', '');
+  const dayNum = date.getDate().toString();
+  return { dayName: dayName.charAt(0).toUpperCase() + dayName.slice(1), dayNum };
+}
+
 // ─── Main Page ───────────────────────────────────────────────────────
 export default function TVDisplayPage() {
   const { enterFullscreen } = useFullscreen();
-  const [slideIndex, setSlideIndex] = React.useState(0);
   const now = useClock();
   const weather = useWeather();
-  const { planning, loading } = useTodayAssignments();
+  const { techPlans, weekDays, loading } = useWeekAssignments();
 
   React.useEffect(() => {
     enterFullscreen();
   }, [enterFullscreen]);
 
-  React.useEffect(() => {
-    const interval = setInterval(() => {
-      setSlideIndex((i) => (i + 1) % EXPO_SLIDES.length);
-    }, 8000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const slide = EXPO_SLIDES[slideIndex];
+  const todayStr = new Date().toISOString().split('T')[0];
 
   return (
-    <div className="h-screen bg-gradient-to-br from-[hsl(217,91%,10%)] to-[hsl(217,91%,22%)] text-white flex flex-col overflow-hidden">
+    <div className="h-screen bg-gradient-to-br from-[hsl(217,91%,8%)] via-[hsl(217,91%,14%)] to-[hsl(220,80%,18%)] text-white flex flex-col overflow-hidden">
       {/* ─── Header ─────────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-white/10 flex-shrink-0">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-white/10 flex-shrink-0">
         <div className="flex items-center gap-4">
-          <img src={logoEnes} alt="ENES" className="h-12" />
+          <img src={logoEnes} alt="ENES" className="h-10" />
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">ENES Électricité</h1>
-            <p className="text-blue-300 text-sm capitalize">
+            <h1 className="text-xl font-bold tracking-tight">ENES Électricité</h1>
+            <p className="text-blue-300 text-xs capitalize">
               {now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
             </p>
           </div>
         </div>
-        <div className="text-right">
-          <div className="text-4xl font-bold tabular-nums">
-            {now.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+
+        {/* Weather compact */}
+        <div className="flex items-center gap-6">
+          {weather && (
+            <div className="flex items-center gap-3 bg-white/5 rounded-xl px-4 py-2 border border-white/10">
+              <WeatherIcon desc={weather.description} className="h-6 w-6" />
+              <span className="text-2xl font-bold">{weather.temp}°C</span>
+              <div className="text-xs text-white/50 leading-tight">
+                <div>{weather.description}</div>
+                <div className="flex items-center gap-2">
+                  <span><Wind className="h-3 w-3 inline" /> {weather.wind}km/h</span>
+                  <span>{weather.humidity}%</span>
+                </div>
+              </div>
+            </div>
+          )}
+          <div className="text-right">
+            <div className="text-3xl font-bold tabular-nums">
+              {now.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* ─── Main grid: left = slides, right = météo + planning ── */}
-      <div className="flex-1 grid grid-cols-3 gap-4 p-4 min-h-0">
-
-        {/* LEFT: Exposition slides (2 cols) */}
-        <div className="col-span-2 flex flex-col justify-center items-center rounded-3xl bg-white/5 backdrop-blur-sm border border-white/10 p-8">
-          <div className="text-center space-y-8 max-w-3xl animate-fade-in" key={slideIndex}>
-            <div className="space-y-3">
-              <Zap className="h-12 w-12 mx-auto text-yellow-400" />
-              <h2 className="text-5xl font-extrabold">{slide.title}</h2>
-              <p className="text-xl text-blue-200">{slide.subtitle}</p>
-            </div>
-            <div className="grid grid-cols-2 gap-4">
-              {slide.items.map((item, i) => (
-                <div key={i} className="bg-white/10 backdrop-blur-sm rounded-xl p-5 flex items-center gap-3 border border-white/10">
-                  <ChevronRight className="h-5 w-5 text-yellow-400 flex-shrink-0" />
-                  <span className="text-lg font-medium">{item}</span>
-                </div>
-              ))}
-            </div>
-            {/* Dots */}
-            <div className="flex justify-center gap-2 pt-2">
-              {EXPO_SLIDES.map((_, i) => (
-                <div
-                  key={i}
-                  className={`h-2.5 rounded-full transition-all duration-500 ${i === slideIndex ? 'w-8 bg-yellow-400' : 'w-2.5 bg-white/30'}`}
-                />
-              ))}
-            </div>
-          </div>
+      {/* ─── Planning Grid ────────────────────────────────────────── */}
+      <div className="flex-1 flex flex-col min-h-0 p-3">
+        {/* Section title */}
+        <div className="flex items-center gap-2 mb-2 flex-shrink-0">
+          <Calendar className="h-5 w-5 text-blue-400" />
+          <h2 className="text-lg font-bold">Planning sur 7 jours</h2>
+          <span className="text-xs text-white/30 ml-auto">Rafraîchi toutes les 2 min</span>
         </div>
 
-        {/* RIGHT: Météo + Planning (1 col) */}
-        <div className="flex flex-col gap-4 min-h-0">
-
-          {/* Météo */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-3xl border border-white/10 p-5 flex-shrink-0">
-            <h3 className="text-sm font-bold mb-3 flex items-center gap-2 text-blue-300 uppercase tracking-wider">
-              <Thermometer className="h-4 w-4 text-orange-400" />
-              Météo du jour
-            </h3>
-            {weather ? (
-              <div className="space-y-3">
-                <div className="flex items-center gap-4">
-                  <WeatherIcon desc={weather.description} />
-                  <div>
-                    <span className="text-4xl font-extrabold">{weather.temp}°C</span>
-                    <p className="text-blue-200 capitalize text-sm">{weather.description}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4 text-sm text-white/60">
-                  <span className="flex items-center gap-1"><MapPin className="h-3 w-3" />{weather.city}</span>
-                  <span className="flex items-center gap-1"><Wind className="h-3 w-3" />{weather.wind} km/h</span>
-                  <span>{weather.humidity}% hum.</span>
-                </div>
+        {loading ? (
+          <div className="flex-1 flex items-center justify-center text-white/30">Chargement du planning…</div>
+        ) : techPlans.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-white/30 gap-3">
+            <Calendar className="h-16 w-16 opacity-30" />
+            <p className="text-lg">Aucune intervention planifiée cette semaine</p>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-auto min-h-0">
+            {/* Table header: days */}
+            <div className="grid gap-1 sticky top-0 z-10 bg-gradient-to-br from-[hsl(217,91%,8%)] via-[hsl(217,91%,14%)] to-[hsl(220,80%,18%)]"
+              style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}
+            >
+              <div className="p-2 text-xs font-bold text-white/40 uppercase flex items-center gap-1">
+                <User className="h-3.5 w-3.5" /> Technicien
               </div>
-            ) : (
-              <div className="text-white/30 text-sm">Chargement…</div>
-            )}
-          </div>
-
-          {/* Planning du jour */}
-          <div className="bg-white/5 backdrop-blur-sm rounded-3xl border border-white/10 p-5 flex-1 flex flex-col min-h-0">
-            <h3 className="text-sm font-bold mb-3 flex items-center gap-2 text-blue-300 uppercase tracking-wider flex-shrink-0">
-              <Calendar className="h-4 w-4 text-blue-400" />
-              Planning du jour
-            </h3>
-            <div className="flex-1 overflow-auto space-y-2 pr-1">
-              {loading ? (
-                <div className="text-white/30 text-sm text-center py-4">Chargement…</div>
-              ) : planning.length === 0 ? (
-                <div className="text-center text-white/30 py-6 space-y-2">
-                  <Calendar className="h-8 w-8 mx-auto opacity-40" />
-                  <p className="text-sm">Aucune intervention aujourd'hui</p>
-                </div>
-              ) : (
-                <>
-                  {planning.map((tech, i) => (
-                    <div key={tech.userName} className={`rounded-xl border p-3 ${TECH_COLORS[i % TECH_COLORS.length]}`}>
-                      <div className="font-bold text-sm mb-1 flex items-center justify-between">
-                        <span>{tech.userName}</span>
-                        <span className="text-xs font-normal text-white/50">{tech.assignments.length}</span>
-                      </div>
-                      {tech.assignments.map((a, j) => (
-                        <div key={j} className="text-white/70 text-xs flex items-start gap-1.5 ml-1 mb-0.5">
-                          {a.priority === 'urgent' || a.priority === 'critical' ? (
-                            <AlertTriangle className="h-3 w-3 flex-shrink-0 text-red-400 mt-0.5" />
-                          ) : (
-                            <ChevronRight className="h-2.5 w-2.5 flex-shrink-0 mt-0.5 text-white/40" />
-                          )}
-                          <div>
-                            <span className={a.priority !== 'normal' ? 'text-red-300 font-medium' : ''}>
-                              {a.label}
-                            </span>
-                            {a.client && <span className="text-white/40 ml-1">— {a.client}</span>}
-                          </div>
-                        </div>
-                      ))}
+              {weekDays.map((day) => {
+                const isToday = day.toISOString().split('T')[0] === todayStr;
+                const { dayName, dayNum } = formatDayHeader(day, isToday);
+                return (
+                  <div
+                    key={day.toISOString()}
+                    className={`p-2 text-center rounded-lg ${isToday ? 'bg-blue-500/20 border border-blue-500/40' : ''}`}
+                  >
+                    <div className={`text-xs font-bold uppercase ${isToday ? 'text-blue-300' : 'text-white/50'}`}>
+                      {dayName}
                     </div>
-                  ))}
-                  <div className="text-center text-white/20 text-[10px] mt-1">
-                    Rafraîchi toutes les 2 min
+                    <div className={`text-lg font-bold ${isToday ? 'text-blue-200' : 'text-white/70'}`}>
+                      {dayNum}
+                    </div>
                   </div>
-                </>
-              )}
+                );
+              })}
+            </div>
+
+            {/* Tech rows */}
+            <div className="space-y-1 mt-1">
+              {techPlans.map((tech, techIdx) => {
+                const color = TECH_COLORS[techIdx % TECH_COLORS.length];
+                return (
+                  <div
+                    key={tech.userName}
+                    className="grid gap-1"
+                    style={{ gridTemplateColumns: '140px repeat(7, 1fr)' }}
+                  >
+                    {/* Tech name */}
+                    <div className={`${color.bg} ${color.border} border rounded-lg p-2 flex items-center gap-2`}>
+                      <div className={`w-2.5 h-2.5 rounded-full ${color.dot} flex-shrink-0`} />
+                      <span className={`text-sm font-bold ${color.text} truncate`}>
+                        {tech.userName}
+                      </span>
+                    </div>
+
+                    {/* Day cells */}
+                    {weekDays.map((day) => {
+                      const dateKey = day.toISOString().split('T')[0];
+                      const isToday = dateKey === todayStr;
+                      const assignments = tech.days.get(dateKey) || [];
+
+                      return (
+                        <div
+                          key={dateKey}
+                          className={`rounded-lg border p-1.5 min-h-[60px] ${
+                            isToday
+                              ? 'bg-blue-500/8 border-blue-500/25'
+                              : assignments.length > 0
+                                ? 'bg-white/5 border-white/10'
+                                : 'bg-white/[0.02] border-white/5'
+                          }`}
+                        >
+                          {assignments.length === 0 ? (
+                            <div className="h-full flex items-center justify-center">
+                              <span className="text-white/10 text-xs">—</span>
+                            </div>
+                          ) : (
+                            <div className="space-y-1">
+                              {assignments.map((a, aIdx) => (
+                                <div
+                                  key={aIdx}
+                                  className={`rounded-md px-1.5 py-1 text-[11px] leading-tight ${
+                                    a.priority === 'urgent' || a.priority === 'critical'
+                                      ? 'bg-red-500/20 border border-red-500/30'
+                                      : `${color.bg} border ${color.border}`
+                                  }`}
+                                >
+                                  <div className="flex items-start gap-1">
+                                    {(a.priority === 'urgent' || a.priority === 'critical') && (
+                                      <AlertTriangle className="h-3 w-3 text-red-400 flex-shrink-0 mt-0.5" />
+                                    )}
+                                    <div className="min-w-0">
+                                      <div className={`font-semibold truncate ${
+                                        a.priority !== 'normal' ? 'text-red-300' : 'text-white/80'
+                                      }`}>
+                                        {a.intervention_label}
+                                      </div>
+                                      {a.client_name && (
+                                        <div className="text-white/40 truncate">{a.client_name}</div>
+                                      )}
+                                    </div>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
+              })}
             </div>
           </div>
-
-          {/* Consignes */}
-          <div className="bg-gradient-to-r from-green-900/40 to-green-800/20 rounded-2xl border border-green-500/20 p-4 flex-shrink-0">
-            <h3 className="text-xs font-bold text-green-400 mb-1">📋 Consignes du jour</h3>
-            <p className="text-green-200 text-xs leading-relaxed">
-              Vérifiez vos EPI avant chaque intervention. Portez casque et gants sur les chantiers. Bonne journée !
-            </p>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* ─── Footer ─────────────────────────────────────────────── */}
-      <div className="bg-white/5 border-t border-white/10 px-8 py-2 flex items-center justify-between text-white/40 text-xs flex-shrink-0">
+      <div className="bg-white/5 border-t border-white/10 px-6 py-2 flex items-center justify-between text-white/40 text-xs flex-shrink-0">
         <span>📞 info@enes-electricite.ch</span>
         <span>🌐 www.enes-electricite.ch</span>
         <span>📍 Genève, Suisse</span>
