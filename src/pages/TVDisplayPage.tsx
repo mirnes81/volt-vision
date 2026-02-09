@@ -38,74 +38,44 @@ function useClock() {
   return now;
 }
 
-// ─── Analog Clock ────────────────────────────────────────────────────
-function AnalogClock({ now }: { now: Date }) {
-  const hours = now.getHours() % 12;
-  const minutes = now.getMinutes();
-  const seconds = now.getSeconds();
-
-  const hourDeg = (hours + minutes / 60) * 30;
-  const minuteDeg = (minutes + seconds / 60) * 6;
-  const secondDeg = seconds * 6;
-
-  const size = 72;
-  const cx = size / 2;
-  const cy = size / 2;
-  const r = size / 2 - 4;
-
-  const handCoords = (deg: number, len: number, offset = 0) => {
-    const rad = ((deg - 90) * Math.PI) / 180;
-    return {
-      x1: cx + Math.cos(rad) * offset,
-      y1: cy + Math.sin(rad) * offset,
-      x2: cx + Math.cos(rad) * len,
-      y2: cy + Math.sin(rad) * len,
-    };
-  };
-
-  const hourHand = handCoords(hourDeg, r * 0.5);
-  const minuteHand = handCoords(minuteDeg, r * 0.72);
-  const secondHand = handCoords(secondDeg, r * 0.82, -r * 0.15);
-
-  // Hour markers
-  const markers = Array.from({ length: 12 }, (_, i) => {
-    const angle = ((i * 30 - 90) * Math.PI) / 180;
-    const isQuarter = i % 3 === 0;
-    const outerR = r - 1;
-    const innerR = isQuarter ? r - 7 : r - 4;
-    return {
-      x1: cx + Math.cos(angle) * innerR,
-      y1: cy + Math.sin(angle) * innerR,
-      x2: cx + Math.cos(angle) * outerR,
-      y2: cy + Math.sin(angle) * outerR,
-      isQuarter,
-    };
-  });
+// ─── Giant Digital Clock (LED / 7-segment style) ─────────────────────
+function DigitalClock({ now }: { now: Date }) {
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const seconds = now.getSeconds().toString().padStart(2, '0');
+  const showColon = now.getSeconds() % 2 === 0;
 
   return (
-    <div className="flex flex-col items-center gap-0.5">
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
-        {/* Face */}
-        <circle cx={cx} cy={cy} r={r} fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="1.5" />
-        <circle cx={cx} cy={cy} r={r - 1} fill="rgba(255,255,255,0.03)" />
-
-        {/* Markers */}
-        {markers.map((m, i) => (
-          <line key={i} x1={m.x1} y1={m.y1} x2={m.x2} y2={m.y2} stroke={m.isQuarter ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)'} strokeWidth={m.isQuarter ? 2 : 1} strokeLinecap="round" />
-        ))}
-
-        {/* Hour hand */}
-        <line x1={hourHand.x1} y1={hourHand.y1} x2={hourHand.x2} y2={hourHand.y2} stroke="rgba(255,255,255,0.85)" strokeWidth="3" strokeLinecap="round" />
-        {/* Minute hand */}
-        <line x1={minuteHand.x1} y1={minuteHand.y1} x2={minuteHand.x2} y2={minuteHand.y2} stroke="rgba(255,255,255,0.7)" strokeWidth="2" strokeLinecap="round" />
-        {/* Second hand */}
-        <line x1={secondHand.x1} y1={secondHand.y1} x2={secondHand.x2} y2={secondHand.y2} stroke="rgba(239,68,68,0.8)" strokeWidth="1" strokeLinecap="round" />
-        {/* Center dot */}
-        <circle cx={cx} cy={cy} r="2.5" fill="rgba(239,68,68,0.9)" />
-        <circle cx={cx} cy={cy} r="1" fill="white" />
-      </svg>
-      <div className="text-[10px] text-white/40 tabular-nums font-medium">
-        {now.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
+    <div className="flex items-center gap-0.5">
+      {/* Hours */}
+      <div className="flex items-baseline">
+        <span className="text-4xl font-black tabular-nums tracking-tight" style={{
+          fontFamily: "'Inter', monospace",
+          textShadow: '0 0 20px rgba(96,165,250,0.6), 0 0 40px rgba(96,165,250,0.3)',
+          color: '#93c5fd',
+        }}>
+          {hours}
+        </span>
+        <span className="text-4xl font-black mx-0.5" style={{
+          color: showColon ? '#93c5fd' : 'transparent',
+          textShadow: showColon ? '0 0 20px rgba(96,165,250,0.6)' : 'none',
+          transition: 'color 0.15s, text-shadow 0.15s',
+        }}>:</span>
+        <span className="text-4xl font-black tabular-nums tracking-tight" style={{
+          fontFamily: "'Inter', monospace",
+          textShadow: '0 0 20px rgba(96,165,250,0.6), 0 0 40px rgba(96,165,250,0.3)',
+          color: '#93c5fd',
+        }}>
+          {minutes}
+        </span>
+        <span className="text-lg font-bold tabular-nums ml-1 self-end mb-1" style={{
+          fontFamily: "'Inter', monospace",
+          textShadow: '0 0 10px rgba(96,165,250,0.4)',
+          color: '#60a5fa',
+          opacity: 0.7,
+        }}>
+          {seconds}
+        </span>
       </div>
     </div>
   );
@@ -812,7 +782,7 @@ export default function TVDisplayPage() {
           )}
 
           <div className="flex-shrink-0">
-            <AnalogClock now={now} />
+            <DigitalClock now={now} />
           </div>
         </div>
       </div>
