@@ -1419,6 +1419,14 @@ export type Database = {
         | "hours.export"
         | "hours.alerts"
         | "settings.hours"
+        | "interventions.view_assigned"
+        | "interventions.view_all"
+        | "interventions.create"
+        | "interventions.edit"
+        | "emergencies.create"
+        | "emergencies.claim"
+        | "planning.view"
+        | "reports.generate"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1570,6 +1578,14 @@ export const Constants = {
         "hours.export",
         "hours.alerts",
         "settings.hours",
+        "interventions.view_assigned",
+        "interventions.view_all",
+        "interventions.create",
+        "interventions.edit",
+        "emergencies.create",
+        "emergencies.claim",
+        "planning.view",
+        "reports.generate",
       ],
     },
   },

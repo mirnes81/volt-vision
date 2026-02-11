@@ -15,7 +15,15 @@ export type Permission =
   | 'hours.view_all'           // Voir toutes les heures
   | 'hours.export'             // Exporter les heures
   | 'hours.alerts'             // Voir les alertes heures
-  | 'settings.hours';          // Accès paramètres heures globaux
+  | 'settings.hours'           // Accès paramètres heures globaux
+  | 'interventions.view_assigned' // Voir ses interventions assignées
+  | 'interventions.view_all'     // Voir toutes les interventions
+  | 'interventions.create'       // Créer des interventions
+  | 'interventions.edit'         // Modifier des interventions
+  | 'emergencies.create'         // Créer des urgences
+  | 'emergencies.claim'          // Prendre en charge une urgence
+  | 'planning.view'              // Voir le planning
+  | 'reports.generate';          // Générer des rapports PDF
 
 export interface EmployeePermissions {
   userId: string;
@@ -30,6 +38,9 @@ export interface EmployeePermissions {
 export const DEFAULT_EMPLOYEE_PERMISSIONS: Permission[] = [
   'hours.view_own',
   'hours.add_own',
+  'interventions.view_assigned',
+  'planning.view',
+  'emergencies.claim',
 ];
 
 // All permissions for admins
@@ -42,6 +53,14 @@ export const ADMIN_PERMISSIONS: Permission[] = [
   'hours.export',
   'hours.alerts',
   'settings.hours',
+  'interventions.view_assigned',
+  'interventions.view_all',
+  'interventions.create',
+  'interventions.edit',
+  'emergencies.create',
+  'emergencies.claim',
+  'planning.view',
+  'reports.generate',
 ];
 
 // Human-readable permission labels
@@ -77,6 +96,38 @@ export const PERMISSION_LABELS: Record<Permission, { label: string; description:
   'settings.hours': {
     label: 'Paramètres heures',
     description: 'Accès aux paramètres globaux des heures dans la configuration',
+  },
+  'interventions.view_assigned': {
+    label: 'Voir ses interventions',
+    description: 'Peut voir les interventions qui lui sont assignées',
+  },
+  'interventions.view_all': {
+    label: 'Voir toutes les interventions',
+    description: 'Peut voir toutes les interventions de l\'entreprise',
+  },
+  'interventions.create': {
+    label: 'Créer des interventions',
+    description: 'Peut créer de nouvelles interventions',
+  },
+  'interventions.edit': {
+    label: 'Modifier des interventions',
+    description: 'Peut modifier les détails des interventions existantes',
+  },
+  'emergencies.create': {
+    label: 'Créer des urgences',
+    description: 'Peut créer des interventions d\'urgence avec bonus',
+  },
+  'emergencies.claim': {
+    label: 'Prendre une urgence',
+    description: 'Peut prendre en charge une intervention d\'urgence',
+  },
+  'planning.view': {
+    label: 'Voir le planning',
+    description: 'Peut accéder au calendrier et au planning des interventions',
+  },
+  'reports.generate': {
+    label: 'Générer des rapports',
+    description: 'Peut générer et télécharger des rapports PDF',
   },
 };
 
