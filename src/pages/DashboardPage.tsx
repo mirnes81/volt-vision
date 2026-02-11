@@ -19,13 +19,32 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 export default function DashboardPage() {
   const { worker } = useAuth();
   const isAdmin = worker?.isAdmin;
+  const workerId = worker?.id ? String(worker.id) : null;
   const [isOnline, setIsOnline] = React.useState(navigator.onLine);
   
-  // Use shared cache - this reuses data already loaded elsewhere
-  const { interventions: allInterventions, isLoading } = useInterventionsCache(false);
+  // Use shared cache - load all, filter locally
+  const { interventions: rawInterventions, isLoading } = useInterventionsCache(false);
   
   // Use global assignments context
-  const { getAssignmentsForIntervention } = useAssignments();
+  const { getAssignmentsForIntervention, assignments } = useAssignments();
+
+  // For non-admins: filter to show only their assigned interventions
+  const allInterventions = React.useMemo(() => {
+    if (isAdmin) return rawInterventions;
+    if (!workerId) return [];
+    
+    const assignedInterventionIds = new Set(
+      assignments
+        .filter(a => a.user_id === workerId)
+        .map(a => a.intervention_id)
+        .filter(Boolean)
+    );
+    
+    return rawInterventions.filter(int => 
+      assignedInterventionIds.has(int.id) || 
+      (int.assignedTo?.id && String(int.assignedTo.id) === workerId)
+    );
+  }, [rawInterventions, assignments, isAdmin, workerId]);
   
   // Get recent 10 for display
   const interventions = React.useMemo(() => allInterventions.slice(0, 10), [allInterventions]);
