@@ -106,10 +106,10 @@ export default function InterventionsPage() {
     toast.success('Liste actualisée');
   };
 
-  // Memoized filtering
+  // Memoized filtering - search applies WITHIN the already-filtered interventions (respects assignment visibility)
   const filteredInterventions = React.useMemo(() => {
     return interventions.filter((i) => {
-      // Search filter
+      // Search filter - searches within user's visible interventions only
       const searchLower = search.toLowerCase();
       const matchesSearch = 
         search === '' ||
