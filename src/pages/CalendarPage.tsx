@@ -9,6 +9,7 @@ import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDateOverride } from '@/components/intervention/DateEditDialog';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
+import { useAssignments } from '@/contexts/AssignmentsContext';
 
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const DAYS_DE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -48,14 +49,33 @@ export default function CalendarPage() {
   const workerData = localStorage.getItem('mv3_worker');
   const worker = workerData ? JSON.parse(workerData) : null;
   const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
+  const workerId = worker?.id ? String(worker.id) : null;
 
-  // Non-admins only see their assigned interventions
-  const showOnlyMine = !isAdmin;
+  // Load ALL interventions, then filter using Supabase assignments
+  const { interventions: allInterventions, isLoading } = useInterventionsCache(false);
+  const { assignments } = useAssignments();
+
+  // For non-admins: filter to show only interventions assigned via Supabase OR Dolibarr
+  const interventions = React.useMemo(() => {
+    if (isAdmin) return allInterventions;
+    if (!workerId) return [];
+    
+    // Get intervention IDs assigned to this user in Supabase
+    const assignedInterventionIds = new Set(
+      assignments
+        .filter(a => a.user_id === workerId)
+        .map(a => a.intervention_id)
+        .filter(Boolean)
+    );
+    
+    return allInterventions.filter(int => 
+      assignedInterventionIds.has(int.id) || 
+      (int.assignedTo?.id && String(int.assignedTo.id) === workerId)
+    );
+  }, [allInterventions, assignments, isAdmin, workerId]);
 
   const days = language === 'de' ? DAYS_DE : language === 'it' ? DAYS_IT : DAYS_FR;
   const months = language === 'de' ? MONTHS_DE : language === 'it' ? MONTHS_IT : MONTHS_FR;
-
-  const { interventions, isLoading } = useInterventionsCache(showOnlyMine);
 
   const goToToday = () => {
     setCurrentDate(new Date());

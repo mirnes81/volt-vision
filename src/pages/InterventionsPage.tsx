@@ -67,16 +67,35 @@ export default function InterventionsPage() {
   const workerData = localStorage.getItem('mv3_worker');
   const worker = workerData ? JSON.parse(workerData) : null;
   const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
+  const workerId = worker?.id ? String(worker.id) : null;
   
   // Non-admins always see only their interventions
   // Admins can toggle between all and their own
   const [showOnlyMine, setShowOnlyMine] = React.useState(!isAdmin);
 
-  // Use cached interventions with offline support
-  const { interventions, isLoading, isRefreshing, isOffline, cacheSource, refresh } = useInterventionsCache(showOnlyMine);
+  // Always load all interventions, filter using Supabase assignments
+  const { interventions: allInterventions, isLoading, isRefreshing, isOffline, cacheSource, refresh } = useInterventionsCache(false);
   
   // Use global assignments context
-  const { getAssignmentsForIntervention } = useAssignments();
+  const { getAssignmentsForIntervention, assignments } = useAssignments();
+
+  // Filter interventions using both Dolibarr assignedTo AND Supabase assignments
+  const interventions = React.useMemo(() => {
+    if (!showOnlyMine) return allInterventions;
+    if (!workerId) return [];
+    
+    const assignedInterventionIds = new Set(
+      assignments
+        .filter(a => a.user_id === workerId)
+        .map(a => a.intervention_id)
+        .filter(Boolean)
+    );
+    
+    return allInterventions.filter(int => 
+      assignedInterventionIds.has(int.id) || 
+      (int.assignedTo?.id && String(int.assignedTo.id) === workerId)
+    );
+  }, [allInterventions, assignments, showOnlyMine, workerId]);
 
   const handleRefresh = async () => {
     if (isOffline) {
