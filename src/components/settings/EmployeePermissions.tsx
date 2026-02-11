@@ -39,22 +39,34 @@ interface WorkerWithPermissions extends Worker {
 
 // Permission categories for better organization
 const PERMISSION_CATEGORIES = {
-  view: {
-    label: 'Consultation',
+  interventions: {
+    label: 'Interventions',
     icon: Eye,
-    permissions: ['hours.view_own', 'hours.view_all'] as Permission[],
+    permissions: ['interventions.view_assigned', 'interventions.view_all', 'interventions.create', 'interventions.edit'] as Permission[],
     color: 'bg-blue-500',
   },
-  manage: {
-    label: 'Gestion',
+  planning: {
+    label: 'Planning',
     icon: Clock,
-    permissions: ['hours.add_own', 'hours.modify_own_limit', 'hours.validate'] as Permission[],
+    permissions: ['planning.view'] as Permission[],
+    color: 'bg-cyan-500',
+  },
+  emergencies: {
+    label: 'Urgences',
+    icon: AlertTriangle,
+    permissions: ['emergencies.create', 'emergencies.claim'] as Permission[],
+    color: 'bg-red-500',
+  },
+  hours: {
+    label: 'Heures',
+    icon: Clock,
+    permissions: ['hours.view_own', 'hours.add_own', 'hours.modify_own_limit', 'hours.validate', 'hours.view_all'] as Permission[],
     color: 'bg-green-500',
   },
   export: {
-    label: 'Export',
+    label: 'Export & Rapports',
     icon: FileText,
-    permissions: ['hours.export'] as Permission[],
+    permissions: ['hours.export', 'reports.generate'] as Permission[],
     color: 'bg-purple-500',
   },
   admin: {
@@ -67,14 +79,22 @@ const PERMISSION_CATEGORIES = {
 
 // Short labels for grid display
 const SHORT_LABELS: Record<Permission, string> = {
-  'hours.view_own': 'Voir ses heures',
-  'hours.add_own': 'Ajouter',
+  'hours.view_own': 'Voir heures',
+  'hours.add_own': 'Ajouter h.',
   'hours.modify_own_limit': 'Limite perso',
-  'hours.validate': 'Valider',
-  'hours.view_all': 'Voir tout',
-  'hours.export': 'Export',
+  'hours.validate': 'Valider h.',
+  'hours.view_all': 'Voir tout h.',
+  'hours.export': 'Export h.',
   'hours.alerts': 'Alertes',
   'settings.hours': 'Paramètres',
+  'interventions.view_assigned': 'Voir assignées',
+  'interventions.view_all': 'Voir toutes',
+  'interventions.create': 'Créer interv.',
+  'interventions.edit': 'Modifier interv.',
+  'emergencies.create': 'Créer urgence',
+  'emergencies.claim': 'Prendre urgence',
+  'planning.view': 'Planning',
+  'reports.generate': 'Rapports',
 };
 
 export function EmployeePermissions() {
