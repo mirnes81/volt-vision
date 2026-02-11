@@ -386,13 +386,27 @@ function DolibarrUsersSection() {
                 <div className="min-w-0 flex-1">
                   <p className="text-sm font-medium truncate">
                     {user.firstName} {user.name}
-                    {user.admin === '1' && (
-                      <span className="ml-2 text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded">Admin</span>
-                    )}
                   </p>
                   <p className="text-xs text-muted-foreground truncate">
                     {user.email || 'Pas d\'email'}
                   </p>
+                  {user.job && (
+                    <p className="text-xs text-muted-foreground truncate italic">{user.job}</p>
+                  )}
+                </div>
+                <div className="flex flex-wrap gap-1 shrink-0">
+                  {user.admin === '1' && (
+                    <span className="text-xs bg-primary/20 text-primary px-1.5 py-0.5 rounded font-medium">Admin</span>
+                  )}
+                  {user.superadmin === '1' && (
+                    <span className="text-xs bg-destructive/20 text-destructive px-1.5 py-0.5 rounded font-medium">Super Admin</span>
+                  )}
+                  {user.employee === '1' && user.admin !== '1' && (
+                    <span className="text-xs bg-accent text-accent-foreground px-1.5 py-0.5 rounded font-medium">Employé</span>
+                  )}
+                  {user.admin !== '1' && user.employee !== '1' && (
+                    <span className="text-xs bg-muted text-muted-foreground px-1.5 py-0.5 rounded font-medium">Utilisateur</span>
+                  )}
                 </div>
               </div>
             ))}

@@ -116,6 +116,10 @@ serve(async (req) => {
                 admin: isAdmin ? '1' : '0',
                 superadmin: u.superadmin || '0',
                 statut: u.statut || '1',
+                fk_user: u.fk_user || null,
+                job: u.job || '',
+                note_public: u.note_public || '',
+                employee: u.employee || '0',
               });
             });
           }
