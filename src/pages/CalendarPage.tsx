@@ -4,11 +4,11 @@ import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { useLanguage } from '@/contexts/LanguageContext';
-import { getAllInterventions } from '@/lib/api';
 import { Intervention } from '@/types/intervention';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getDateOverride } from '@/components/intervention/DateEditDialog';
+import { useInterventionsCache } from '@/hooks/useInterventionsCache';
 
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const DAYS_DE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -42,28 +42,20 @@ export default function CalendarPage() {
   const { t, language } = useLanguage();
   const [currentDate, setCurrentDate] = React.useState(new Date());
   const [viewMode, setViewMode] = React.useState<ViewMode>('week');
-  const [interventions, setInterventions] = React.useState<Intervention[]>([]);
   const [selectedDate, setSelectedDate] = React.useState<Date>(new Date());
-  const [isLoading, setIsLoading] = React.useState(true);
+
+  // Check if user is admin
+  const workerData = localStorage.getItem('mv3_worker');
+  const worker = workerData ? JSON.parse(workerData) : null;
+  const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
+
+  // Non-admins only see their assigned interventions
+  const showOnlyMine = !isAdmin;
 
   const days = language === 'de' ? DAYS_DE : language === 'it' ? DAYS_IT : DAYS_FR;
   const months = language === 'de' ? MONTHS_DE : language === 'it' ? MONTHS_IT : MONTHS_FR;
 
-  React.useEffect(() => {
-    loadInterventions();
-  }, []);
-
-  const loadInterventions = async () => {
-    setIsLoading(true);
-    try {
-      const data = await getAllInterventions();
-      setInterventions(data);
-    } catch (error) {
-      console.error('Error loading interventions:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+  const { interventions, isLoading } = useInterventionsCache(showOnlyMine);
 
   const goToToday = () => {
     setCurrentDate(new Date());
