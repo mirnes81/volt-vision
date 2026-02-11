@@ -48,7 +48,7 @@ serve(async (req) => {
 6. Si l'audio est inaudible ou vide, réponds simplement: "[Audio inaudible]"
 7. Si tu détectes plusieurs locuteurs, sépare leurs interventions par des retours à la ligne`;
 
-    // Use Gemini model which supports audio input
+    // Use fastest Gemini model for ultra-fast transcription
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -56,7 +56,7 @@ serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "google/gemini-2.5-flash-lite",
         messages: [
           {
             role: "system",
