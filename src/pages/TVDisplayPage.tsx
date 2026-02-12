@@ -218,7 +218,9 @@ function useWeekAssignments() {
       for (let i = 0; i < 7; i++) { const d = new Date(today); d.setDate(today.getDate() + i); days.push(d); }
       setWeekDays(days);
 
-      const todayStr = today.toISOString().split('T')[0];
+      // Use CET (UTC+1) for today's date string to match Dolibarr/Swiss timezone
+      const cetNow = new Date(today.getTime() + 3600000);
+      const todayStr = cetNow.toISOString().split('T')[0];
 
       // Fetch assignments AND Dolibarr interventions in PARALLEL
       const [assignResult, dolibarrResult] = await Promise.all([
@@ -256,7 +258,20 @@ function useWeekAssignments() {
       let overdue = 0;
       let unplanned = 0;
 
-      // Track which intervention IDs are assigned (to find unassigned ones)
+      // Build a map of Dolibarr intervention id -> CET date string
+      const dolibarrDateMap = new Map<number, string>();
+      for (const int of dolibarrInterventions) {
+        const intId = Number(int.id);
+        const ts = Number(int.dateo || 0);
+        if (ts > 0) {
+          // Dolibarr timestamps represent CET midnight, add 1h to get correct UTC date
+          const d = new Date((ts + 3600) * 1000);
+          dolibarrDateMap.set(intId, d.toISOString().split('T')[0]);
+        }
+      }
+      console.log(`[TV] Dolibarr date map size: ${dolibarrDateMap.size}, todayStr: ${todayStr}`);
+
+      // Track which intervention IDs are assigned
       const assignedInterventionIds = new Set<number>();
 
       for (const row of (assignResult.data || [])) {
@@ -266,58 +281,64 @@ function useWeekAssignments() {
 
         if (row.intervention_id) assignedInterventionIds.add(row.intervention_id);
 
+        // Use Dolibarr dateo as source of truth for date, fall back to assignment date_planned
         let dateKey: string;
-        if (!row.date_planned) {
+        const dolibarrDate = row.intervention_id ? dolibarrDateMap.get(row.intervention_id) : undefined;
+        
+        if (dolibarrDate) {
+          dateKey = dolibarrDate;
+        } else if (!row.date_planned) {
           dateKey = '__unplanned__';
           unplanned++;
         } else {
-          dateKey = new Date(row.date_planned).toISOString().split('T')[0];
-          if (dateKey < todayStr) {
-            overdue++;
-            dateKey = '__overdue__';
-          }
+          const d = new Date(row.date_planned);
+          const cetDate = new Date(d.getTime() + 3600000);
+          dateKey = cetDate.toISOString().split('T')[0];
+        }
+        
+        if (dateKey !== '__unplanned__' && dateKey !== '__overdue__' && dateKey < todayStr) {
+          overdue++;
+          dateKey = '__overdue__';
         }
 
-        // Use Dolibarr description if assignment doesn't have one
         const dolibarrDesc = row.intervention_id ? descriptionMap.get(row.intervention_id) : undefined;
         const finalDescription = (row as any).description || dolibarrDesc || null;
 
         if (!plan.days.has(dateKey)) plan.days.set(dateKey, []);
         const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', intervention_ref: row.intervention_ref || '', intervention_id: row.intervention_id, client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name, description: finalDescription };
         plan.days.get(dateKey)!.push(assignment);
-        if (dateKey === todayStr) todayItems.push({ ...assignment, _isAssigned: true } as any);
+        // Show ALL assigned interventions (today, overdue, or any date) in center column
+        todayItems.push({ ...assignment, _isAssigned: true } as any);
       }
 
-      // Now add ALL Dolibarr interventions for today that are NOT already assigned
-      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1000;
-      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).getTime() / 1000;
-
+      // Add Dolibarr interventions for today OR recent (last 2 days) that are NOT assigned
+      const yesterdayStr = new Date(cetNow.getTime() - 86400000).toISOString().split('T')[0];
       for (const int of dolibarrInterventions) {
         const intId = Number(int.id);
-        if (assignedInterventionIds.has(intId)) continue; // already in assigned list
+        if (assignedInterventionIds.has(intId)) continue;
 
-        // Check if this intervention is for today using dateo (Unix timestamp)
-        const dateTs = Number(int.dateo || int.date_start || 0);
-        if (dateTs <= 0) continue;
-        
-        if (dateTs >= todayStart && dateTs < todayEnd) {
-          const cleanDesc = (int.description || int.note_public || int.note_private || '').replace(/<[^>]*>/g, '').trim();
-          const clientName = int.socName || int.thirdpartyName || int.array_options?.options_concierge || null;
-          const location = int.address || int.array_options?.options_adresse_rdv || null;
+        const dateStr = dolibarrDateMap.get(intId);
+        if (!dateStr || (dateStr !== todayStr && dateStr !== yesterdayStr)) continue;
 
-          todayItems.push({
-            intervention_label: decodeHtmlEntities(int.label || int.ref || 'Intervention'),
-            intervention_ref: int.ref || '',
-            intervention_id: intId,
-            client_name: clientName ? decodeHtmlEntities(clientName) : null,
-            location: location ? decodeHtmlEntities(location) : null,
-            priority: 'normal',
-            date_planned: new Date(dateTs * 1000).toISOString(),
-            user_name: 'Non assigné',
-            description: cleanDesc || null,
-            _isAssigned: false,
-          } as any);
-        }
+        // Skip completed interventions (status 3 = closed)
+        if (int.fk_statut === '3' || int.fk_statut === 3) continue;
+
+        const cleanDesc = (int.description || int.note_public || int.note_private || '').replace(/<[^>]*>/g, '').trim();
+        const clientName = int.thirdparty_name || int.socName || int.array_options?.options_concierge || null;
+        const location = int.address || int.array_options?.options_adresse_rdv || int.client_address || null;
+
+        todayItems.push({
+          intervention_label: decodeHtmlEntities(int.label || int.ref || 'Intervention'),
+          intervention_ref: int.ref || '',
+          intervention_id: intId,
+          client_name: clientName ? decodeHtmlEntities(clientName) : null,
+          location: location ? decodeHtmlEntities(location) : null,
+          priority: 'normal',
+          date_planned: new Date(Number(int.dateo) * 1000).toISOString(),
+          user_name: 'Non assigné',
+          description: cleanDesc || null,
+          _isAssigned: false,
+        } as any);
       }
 
       // Sort: assigned first, then unassigned; within each group: urgent first
