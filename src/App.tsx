@@ -38,8 +38,6 @@ const queryClient = new QueryClient();
 // Reschedule reminders when app starts
 rescheduleRemindersOnStart();
 
-// Clean up corrupted sync items on startup (dynamic import to avoid cache issues)
-import('@/lib/offlineStorage').then(m => m.cleanupCorruptedPendingSync().catch(console.error));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading } = useAuth();
@@ -81,7 +79,12 @@ const AppRoutes = () => (
   </Routes>
 );
 
-const App = () => (
+const App = () => {
+  React.useEffect(() => {
+    import('@/lib/offlineStorage').then(m => m.cleanupCorruptedPendingSync().catch(console.error));
+  }, []);
+
+  return (
   <QueryClientProvider client={queryClient}>
     <ThemeProvider>
       <LanguageProvider>
@@ -101,6 +104,7 @@ const App = () => (
       </LanguageProvider>
     </ThemeProvider>
   </QueryClientProvider>
-);
+  );
+};
 
 export default App;
