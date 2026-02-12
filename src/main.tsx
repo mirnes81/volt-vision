@@ -1,4 +1,4 @@
-// Main entry point - v12.0.0 - PWA avec auto-update
+// Main entry point - v13.0.0 - Cache bust fix
 import * as React from 'react';
 import * as ReactDOM from 'react-dom/client';
 import App from "./App.tsx";
@@ -7,7 +7,7 @@ import { preloadOfflineCache } from "./hooks/useInterventionsCache";
 import { registerSW } from 'virtual:pwa-register';
 
 // Version pour le cache - changer cette valeur force une mise à jour
-const APP_VERSION = 'enes-v12';
+const APP_VERSION = 'enes-v13';
 const VERSION_KEY = 'enes_app_version';
 
 // Vérifier si c'est une nouvelle version
