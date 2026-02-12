@@ -46,11 +46,11 @@ export async function registerPushSubscription(): Promise<PushSubscription | nul
     const registration = await navigator.serviceWorker.ready;
     
     // Check existing subscription
-    let subscription = await registration.pushManager.getSubscription();
+    let subscription = await (registration as any).pushManager.getSubscription();
     
     if (!subscription) {
     // Create new subscription
-      subscription = await registration.pushManager.subscribe({
+      subscription = await (registration as any).pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource,
       });
@@ -70,7 +70,7 @@ export async function registerPushSubscription(): Promise<PushSubscription | nul
 export async function unsubscribeFromPush(): Promise<boolean> {
   try {
     const registration = await navigator.serviceWorker.ready;
-    const subscription = await registration.pushManager.getSubscription();
+    const subscription = await (registration as any).pushManager.getSubscription();
     
     if (subscription) {
       await subscription.unsubscribe();
