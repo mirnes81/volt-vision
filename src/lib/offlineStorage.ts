@@ -134,7 +134,7 @@ export async function clearPendingSync(): Promise<void> {
   await database.clear('pendingSync');
 }
 
-// Clean up corrupted pending sync items (e.g., with undefined interventionId)
+// Clean up corrupted pending sync items (e.g., with undefined or invalid interventionId)
 export async function cleanupCorruptedPendingSync(): Promise<number> {
   const database = await initDB();
   const pending = await database.getAll('pendingSync');
