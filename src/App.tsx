@@ -1,4 +1,4 @@
-// App.tsx - v15 - Voucher scan feature
+// App.tsx - v16 - TV display + cache fix
 import * as React from 'react';
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
