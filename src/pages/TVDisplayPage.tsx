@@ -235,30 +235,36 @@ function useWeekAssignments() {
 
       if (assignResult.error) { console.error('TV planning error:', assignResult.error); setLoading(false); return; }
 
-      // Build a map of intervention_id -> description from Dolibarr
+      // Build a map of intervention_id -> description AND full data from Dolibarr
       const descriptionMap = new Map<number, string>();
+      const dolibarrInterventions: any[] = [];
       if (dolibarrResult?.data && Array.isArray(dolibarrResult.data)) {
         for (const int of dolibarrResult.data) {
+          dolibarrInterventions.push(int);
           const id = Number(int.id);
           const desc = int.description || int.note_public || int.note_private || '';
           if (id && desc) {
-            // Strip HTML tags
             const cleanDesc = desc.replace(/<[^>]*>/g, '').trim();
             if (cleanDesc) descriptionMap.set(id, cleanDesc);
           }
         }
       }
-      console.log(`[TV] Dolibarr descriptions loaded: ${descriptionMap.size} interventions`);
+      console.log(`[TV] Dolibarr interventions loaded: ${dolibarrInterventions.length}, descriptions: ${descriptionMap.size}`);
 
       const todayItems: DayAssignment[] = [];
       const techMap = new Map<string, TechWeekPlan>();
       let overdue = 0;
       let unplanned = 0;
 
+      // Track which intervention IDs are assigned (to find unassigned ones)
+      const assignedInterventionIds = new Set<number>();
+
       for (const row of (assignResult.data || [])) {
         const name = row.user_name || 'Non assigné';
         if (!techMap.has(name)) techMap.set(name, { userName: name, days: new Map() });
         const plan = techMap.get(name)!;
+
+        if (row.intervention_id) assignedInterventionIds.add(row.intervention_id);
 
         let dateKey: string;
         if (!row.date_planned) {
@@ -279,8 +285,52 @@ function useWeekAssignments() {
         if (!plan.days.has(dateKey)) plan.days.set(dateKey, []);
         const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', intervention_ref: row.intervention_ref || '', intervention_id: row.intervention_id, client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name, description: finalDescription };
         plan.days.get(dateKey)!.push(assignment);
-        if (dateKey === todayStr) todayItems.push(assignment);
+        if (dateKey === todayStr) todayItems.push({ ...assignment, _isAssigned: true } as any);
       }
+
+      // Now add ALL Dolibarr interventions for today that are NOT already assigned
+      const todayStart = new Date(today.getFullYear(), today.getMonth(), today.getDate()).getTime() / 1000;
+      const todayEnd = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).getTime() / 1000;
+
+      for (const int of dolibarrInterventions) {
+        const intId = Number(int.id);
+        if (assignedInterventionIds.has(intId)) continue; // already in assigned list
+
+        // Check if this intervention is for today using dateo (Unix timestamp)
+        const dateTs = Number(int.dateo || int.date_start || 0);
+        if (dateTs <= 0) continue;
+        
+        if (dateTs >= todayStart && dateTs < todayEnd) {
+          const cleanDesc = (int.description || int.note_public || int.note_private || '').replace(/<[^>]*>/g, '').trim();
+          const clientName = int.socName || int.thirdpartyName || int.array_options?.options_concierge || null;
+          const location = int.address || int.array_options?.options_adresse_rdv || null;
+
+          todayItems.push({
+            intervention_label: decodeHtmlEntities(int.label || int.ref || 'Intervention'),
+            intervention_ref: int.ref || '',
+            intervention_id: intId,
+            client_name: clientName ? decodeHtmlEntities(clientName) : null,
+            location: location ? decodeHtmlEntities(location) : null,
+            priority: 'normal',
+            date_planned: new Date(dateTs * 1000).toISOString(),
+            user_name: 'Non assigné',
+            description: cleanDesc || null,
+            _isAssigned: false,
+          } as any);
+        }
+      }
+
+      // Sort: assigned first, then unassigned; within each group: urgent first
+      todayItems.sort((a, b) => {
+        const aAssigned = (a as any)._isAssigned ? 0 : 1;
+        const bAssigned = (b as any)._isAssigned ? 0 : 1;
+        if (aAssigned !== bAssigned) return aAssigned - bAssigned;
+        const aPrio = a.priority === 'critical' ? 0 : a.priority === 'urgent' ? 1 : 2;
+        const bPrio = b.priority === 'critical' ? 0 : b.priority === 'urgent' ? 1 : 2;
+        return aPrio - bPrio;
+      });
+
+      console.log(`[TV] Today items: ${todayItems.length} (assigned: ${todayItems.filter((t: any) => t._isAssigned).length}, unassigned: ${todayItems.filter((t: any) => !t._isAssigned).length})`);
 
       setTechPlans(Array.from(techMap.values()));
       setAllTodayAssignments(todayItems);
@@ -985,10 +1035,17 @@ export default function TVDisplayPage() {
                     </div>
 
                     {/* Technician badge */}
-                    <div className={`flex-shrink-0 rounded-xl px-4 py-2.5 border ${color.bg} ${color.border} flex items-center gap-3`}>
-                      <div className={`w-3.5 h-3.5 rounded-full ${color.dot}`} />
-                      <span className={`text-lg font-bold ${color.text} whitespace-nowrap`}>{a.user_name}</span>
-                    </div>
+                    {(a as any)._isAssigned !== false ? (
+                      <div className={`flex-shrink-0 rounded-xl px-4 py-2.5 border ${color.bg} ${color.border} flex items-center gap-3`}>
+                        <div className={`w-3.5 h-3.5 rounded-full ${color.dot}`} />
+                        <span className={`text-lg font-bold ${color.text} whitespace-nowrap`}>{a.user_name}</span>
+                      </div>
+                    ) : (
+                      <div className="flex-shrink-0 rounded-xl px-4 py-2.5 border bg-white/5 border-white/15 flex items-center gap-3">
+                        <div className="w-3.5 h-3.5 rounded-full bg-white/20" />
+                        <span className="text-lg font-bold text-white/40 whitespace-nowrap">Non assigné</span>
+                      </div>
+                    )}
 
                     {/* Priority badge */}
                     {isUrgent && (
