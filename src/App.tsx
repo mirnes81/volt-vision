@@ -32,15 +32,14 @@ import TVDisplayPage from "./pages/TVDisplayPage";
 import TakeInterventionPage from "./pages/TakeInterventionPage";
 import NotFound from "./pages/NotFound";
 import { rescheduleRemindersOnStart } from "@/lib/interventionReminders";
-import { cleanupCorruptedPendingSync } from "@/lib/offlineStorage";
 
 const queryClient = new QueryClient();
 
 // Reschedule reminders when app starts
 rescheduleRemindersOnStart();
 
-// Clean up corrupted sync items on startup
-cleanupCorruptedPendingSync().catch(console.error);
+// Clean up corrupted sync items on startup (dynamic import to avoid cache issues)
+import('@/lib/offlineStorage').then(m => m.cleanupCorruptedPendingSync().catch(console.error));
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isLoggedIn, isLoading } = useAuth();
