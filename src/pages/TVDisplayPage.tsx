@@ -307,8 +307,10 @@ function useWeekAssignments() {
         if (!plan.days.has(dateKey)) plan.days.set(dateKey, []);
         const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', intervention_ref: row.intervention_ref || '', intervention_id: row.intervention_id, client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name, description: finalDescription };
         plan.days.get(dateKey)!.push(assignment);
-        // Show ALL assigned interventions (today, overdue, or any date) in center column
-        todayItems.push({ ...assignment, _isAssigned: true } as any);
+        // Only show interventions planned for TODAY in center column
+        if (dateKey === todayStr) {
+          todayItems.push({ ...assignment, _isAssigned: true } as any);
+        }
       }
 
       // Add Dolibarr interventions for today OR recent (last 2 days) that are NOT assigned
