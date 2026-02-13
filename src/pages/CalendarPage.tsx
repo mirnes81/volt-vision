@@ -48,7 +48,7 @@ export default function CalendarPage() {
   // Check if user is admin
   const workerData = localStorage.getItem('mv3_worker');
   const worker = workerData ? JSON.parse(workerData) : null;
-  const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
+  const isAdmin = worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true || worker?.login?.toLowerCase() === 'admin';
   const workerId = worker?.id ? String(worker.id) : null;
 
   // Load ALL interventions, then filter using Supabase assignments
