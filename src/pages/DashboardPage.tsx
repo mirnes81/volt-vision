@@ -41,7 +41,12 @@ export default function DashboardPage() {
 
   // For non-admins: filter to show only their assigned interventions
   const allInterventions = React.useMemo(() => {
-    if (isAdmin) return rawInterventions;
+    console.log('[Dashboard] isAdmin:', isAdmin, 'workerId:', workerId, 'workerAdmin:', worker?.admin, 'workerIsAdmin:', worker?.isAdmin, 'workerLogin:', worker?.login, 'raw:', rawInterventions.length);
+    
+    if (isAdmin) {
+      console.log('[Dashboard] Admin mode - showing ALL', rawInterventions.length, 'interventions');
+      return rawInterventions;
+    }
     if (!workerId) return [];
     
     const assignedInterventionIds = new Set(
@@ -56,7 +61,7 @@ export default function DashboardPage() {
       (int.assignedTo?.id && String(int.assignedTo.id) === workerId)
     );
     
-    console.log('[Dashboard] isAdmin:', isAdmin, 'workerId:', workerId, 'workerObj:', JSON.stringify(worker), 'raw:', rawInterventions.length, 'filtered:', filtered.length, 'supabaseAssignments:', assignedInterventionIds.size);
+    console.log('[Dashboard] Non-admin filtered:', filtered.length, 'supabaseAssignments:', assignedInterventionIds.size);
     
     return filtered;
   }, [rawInterventions, assignments, isAdmin, workerId]);
