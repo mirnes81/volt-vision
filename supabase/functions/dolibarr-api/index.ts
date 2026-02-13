@@ -1142,14 +1142,26 @@ serve(async (req) => {
         let updateResponse: Response | null = null;
         let lastError = '';
         
+        // Convert dateStart (Unix timestamp) for the extrafield too
+        const dateStartTs = Number(dateStart);
+        
         // Prepare update payload - include minimal required fields
+        // Also update the custom extrafield options_interventiondateheur
+        const existingExtras = currentIntervention?.array_options || {};
         const updatePayload = currentIntervention ? {
           ...currentIntervention,
-          dateo: dateStart,
-          date_intervention: dateStart,
+          dateo: dateStartTs,
+          date_intervention: dateStartTs,
+          array_options: {
+            ...existingExtras,
+            options_interventiondateheur: dateStartTs,
+          },
         } : {
-          dateo: dateStart,
-          date_intervention: dateStart,
+          dateo: dateStartTs,
+          date_intervention: dateStartTs,
+          array_options: {
+            options_interventiondateheur: dateStartTs,
+          },
         };
         
         // Remove readonly/computed fields that might cause issues

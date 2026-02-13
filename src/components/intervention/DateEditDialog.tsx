@@ -100,7 +100,9 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
     }
   }, [open, currentDate, interventionId]);
 
-  const handleSave = () => {
+  const [saving, setSaving] = React.useState(false);
+
+  const handleSave = async () => {
     if (!selectedDate) {
       toast.error('Veuillez selectionner une date');
       return;
@@ -110,14 +112,48 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
     const newDate = new Date(selectedDate);
     newDate.setHours(parseInt(selectedHour), parseInt(selectedMinute), 0, 0);
     
-    // Save locally - Dolibarr API doesn't support PUT for interventions
-    // This is a known limitation, not an error
-    saveDateOverride(interventionId, newDate);
-    setUpdateResult('local');
+    setSaving(true);
     
-    toast.success('Date enregistree', {
-      description: format(newDate, "EEEE d MMMM yyyy 'a' HH:mm", { locale: fr }),
-    });
+    // Convert to Unix timestamp (seconds) for Dolibarr
+    // Subtract 1h (3600s) to convert CET to UTC for Dolibarr storage
+    const unixTs = Math.floor(newDate.getTime() / 1000) - 3600;
+    
+    try {
+      // Try to update in Dolibarr first
+      const { data, error } = await supabase.functions.invoke('dolibarr-api', {
+        body: { 
+          action: 'update-intervention-date', 
+          params: { interventionId, dateStart: unixTs } 
+        },
+      });
+      
+      if (data?.success) {
+        // Success in Dolibarr - also save locally and to Supabase for immediate sync
+        saveDateOverride(interventionId, newDate);
+        setUpdateResult('success');
+        toast.success('Date mise à jour dans Dolibarr', {
+          description: format(newDate, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr }),
+        });
+      } else {
+        // Dolibarr update failed - save locally as fallback
+        console.warn('[DateEdit] Dolibarr update failed:', data?.error || error);
+        saveDateOverride(interventionId, newDate);
+        setUpdateResult('local');
+        toast.success('Date enregistrée localement', {
+          description: format(newDate, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr }),
+        });
+      }
+    } catch (err) {
+      console.error('[DateEdit] Error:', err);
+      // Fallback to local save
+      saveDateOverride(interventionId, newDate);
+      setUpdateResult('local');
+      toast.success('Date enregistrée localement', {
+        description: format(newDate, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr }),
+      });
+    } finally {
+      setSaving(false);
+    }
   };
 
   const openInDolibarr = () => {
@@ -271,8 +307,13 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
               {updateResult ? 'Fermer' : 'Annuler'}
             </Button>
             {!updateResult && (
-              <Button onClick={handleSave} disabled={!selectedDate}>
-                Enregistrer
+              <Button onClick={handleSave} disabled={!selectedDate || saving}>
+                {saving ? 'Enregistrement...' : 'Enregistrer'}
+              </Button>
+            )}
+            {updateResult === 'success' && (
+              <Button onClick={() => { setOpen(false); onDateUpdated(); }}>
+                Fermer
               </Button>
             )}
           </div>
