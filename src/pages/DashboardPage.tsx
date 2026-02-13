@@ -18,7 +18,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 export default function DashboardPage() {
   const { worker } = useAuth();
-  const isAdmin = worker?.isAdmin === true || worker?.admin === '1';
+  
+  // Robust admin check: also read directly from localStorage as fallback
+  const isAdmin = React.useMemo(() => {
+    if (worker?.isAdmin === true || worker?.admin === '1') return true;
+    try {
+      const stored = JSON.parse(localStorage.getItem('mv3_worker') || '{}');
+      return stored.isAdmin === true || stored.admin === '1';
+    } catch { return false; }
+  }, [worker]);
+  
   const workerId = worker?.id ? String(worker.id) : null;
   const [isOnline, setIsOnline] = React.useState(navigator.onLine);
   
@@ -45,7 +54,7 @@ export default function DashboardPage() {
       (int.assignedTo?.id && String(int.assignedTo.id) === workerId)
     );
     
-    console.log('[Dashboard] isAdmin:', isAdmin, 'workerId:', workerId, 'raw:', rawInterventions.length, 'filtered:', filtered.length, 'supabaseAssignments:', assignedInterventionIds.size);
+    console.log('[Dashboard] isAdmin:', isAdmin, 'workerId:', workerId, 'workerObj:', JSON.stringify(worker), 'raw:', rawInterventions.length, 'filtered:', filtered.length, 'supabaseAssignments:', assignedInterventionIds.size);
     
     return filtered;
   }, [rawInterventions, assignments, isAdmin, workerId]);
