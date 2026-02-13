@@ -57,7 +57,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const authenticated = checkAuthenticated();
     if (authenticated) {
       const savedWorker = getSavedWorker();
-      setWorker(savedWorker);
+      if (savedWorker) {
+        // Fix legacy sessions missing admin flags
+        if (savedWorker.login?.toLowerCase() === 'admin' && !savedWorker.isAdmin) {
+          savedWorker.isAdmin = true;
+          savedWorker.admin = '1';
+          localStorage.setItem('mv3_worker', JSON.stringify(savedWorker));
+        }
+        setWorker(savedWorker);
+      }
       setIsLoggedIn(true);
     }
     setIsLoading(false);
