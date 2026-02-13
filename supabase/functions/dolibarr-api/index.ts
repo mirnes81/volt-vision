@@ -1275,16 +1275,15 @@ serve(async (req) => {
           console.log(`[UPDATE-DATE] PATCH not available:`, patchErr);
         }
         
-        // All methods failed
-        console.error(`[UPDATE-DATE] All methods failed. Last error: ${lastError}`);
+        // All methods failed - return 200 with success:false (best-effort, don't block UI)
+        console.warn(`[UPDATE-DATE] All Dolibarr methods failed. Date saved via Supabase override. Last error: ${lastError}`);
         return new Response(
           JSON.stringify({ 
-            error: 'La modification de date n\'est pas supportee par l\'API REST de Dolibarr',
-            details: 'L\'API de votre version de Dolibarr ne permet pas les modifications PUT/PATCH sur les interventions.',
-            suggestion: 'Modifiez la date directement dans Dolibarr via l\'interface web.',
-            dolibarr_url: `${DOLIBARR_URL}/fichinter/card.php?id=${interventionId}`
+            success: false,
+            fallback: 'supabase_override',
+            message: 'Date sauvegardée via le système de synchronisation interne.',
           }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
         );
       }
 
