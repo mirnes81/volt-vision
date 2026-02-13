@@ -411,6 +411,36 @@ export type Database = {
           },
         ]
       }
+      intervention_date_overrides: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          id: string
+          intervention_id: number
+          override_date: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          intervention_id: number
+          override_date: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          id?: string
+          intervention_id?: number
+          override_date?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth_key: string
