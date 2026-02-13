@@ -14,3 +14,6 @@ verify_jwt = false
 
 [functions.extract-voucher]
 verify_jwt = true
+
+[functions.dolibarr-webhook]
+verify_jwt = false

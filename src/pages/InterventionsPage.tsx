@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Search, ClipboardList, RefreshCw, WifiOff, Database, Cloud, Zap } from 'lucide-react';
+import { useWebhookRefresh } from '@/hooks/useWebhookRefresh';
 import { Header } from '@/components/layout/Header';
 import { InterventionCard } from '@/components/intervention/InterventionCard';
 import { Input } from '@/components/ui/input';
@@ -78,6 +79,12 @@ export default function InterventionsPage() {
   
   // Use global assignments context
   const { getAssignmentsForIntervention, assignments } = useAssignments();
+
+  // Auto-refresh on Dolibarr webhook events
+  useWebhookRefresh(refresh, {
+    resourceTypes: ['intervention'],
+    showToast: true,
+  });
 
   // Filter interventions using both Dolibarr assignedTo AND Supabase assignments
   const interventions = React.useMemo(() => {

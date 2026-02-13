@@ -10,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { getDateOverride } from '@/components/intervention/DateEditDialog';
 import { useInterventionsCache } from '@/hooks/useInterventionsCache';
 import { useAssignments } from '@/contexts/AssignmentsContext';
+import { useWebhookRefresh } from '@/hooks/useWebhookRefresh';
 
 const DAYS_FR = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
 const DAYS_DE = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
@@ -52,8 +53,14 @@ export default function CalendarPage() {
   const workerId = worker?.id ? String(worker.id) : null;
 
   // Load ALL interventions, then filter using Supabase assignments
-  const { interventions: allInterventions, isLoading } = useInterventionsCache(false);
+  const { interventions: allInterventions, isLoading, refresh } = useInterventionsCache(false);
   const { assignments } = useAssignments();
+
+  // Auto-refresh on Dolibarr webhook events
+  useWebhookRefresh(refresh, {
+    resourceTypes: ['intervention'],
+    showToast: true,
+  });
 
   // For non-admins: filter to show only interventions assigned via Supabase OR Dolibarr
   const interventions = React.useMemo(() => {

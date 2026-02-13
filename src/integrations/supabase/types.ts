@@ -1039,6 +1039,39 @@ export type Database = {
           },
         ]
       }
+      webhook_events: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          payload: Json | null
+          processed_at: string | null
+          resource_id: string | null
+          resource_type: string
+          tenant_id: string
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          resource_id?: string | null
+          resource_type: string
+          tenant_id?: string
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          payload?: Json | null
+          processed_at?: string | null
+          resource_id?: string | null
+          resource_type?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       work_time_entries: {
         Row: {
           clock_in: string

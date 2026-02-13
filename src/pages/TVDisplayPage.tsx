@@ -2,6 +2,7 @@ import * as React from 'react';
 import { Cloud, Sun, CloudRain, CloudSnow, Wind, MapPin, Calendar, AlertTriangle, User, Car, Navigation, TriangleAlert, Trophy, Zap, Clock, Users, TrendingUp, Wrench, ImageIcon, QrCode } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { decodeHtmlEntities } from '@/lib/htmlUtils';
+import { useWebhookRefresh } from '@/hooks/useWebhookRefresh';
 import logoEnes from '@/assets/logo-enes.png';
 
 // ─── QR Code URL generator (using free qrserver API) ─────────────────
@@ -398,7 +399,7 @@ function useWeekAssignments() {
     return () => clearInterval(interval);
   }, [fetchAssignments]);
 
-  return { techPlans, weekDays, allTodayAssignments, overdueCount, unplannedCount, loading };
+  return { techPlans, weekDays, allTodayAssignments, overdueCount, unplannedCount, loading, refresh: fetchAssignments };
 }
 
 // ─── Live counters hook ──────────────────────────────────────────────
@@ -838,11 +839,14 @@ export default function TVDisplayPage() {
   const { enterFullscreen } = useFullscreen();
   const now = useClock();
   const weather = useWeather();
-  const { techPlans, weekDays, allTodayAssignments, overdueCount, unplannedCount, loading } = useWeekAssignments();
+  const { techPlans, weekDays, allTodayAssignments, overdueCount, unplannedCount, loading, refresh } = useWeekAssignments();
   // Travel info removed - replaced by RoadConditionsWidget
   const counters = useLiveCounters();
   const leaders = useLeaderboard();
   const tickerMessages = useTickerMessages(allTodayAssignments, counters);
+
+  // Auto-refresh on Dolibarr webhook events
+  useWebhookRefresh(refresh, { resourceTypes: ['intervention'], showToast: false });
 
   React.useEffect(() => { enterFullscreen(); }, [enterFullscreen]);
 
