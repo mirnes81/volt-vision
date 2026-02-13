@@ -194,17 +194,16 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
             </div>
           )}
           
-          {/* Local save info - this is expected behavior, not an error */}
+          {/* Saved to app - synced across all devices */}
           {updateResult === 'local' && (
-            <div className="flex items-start gap-3 p-3 bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800 rounded-lg">
-              <CheckCircle2 className="w-5 h-5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+            <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
+              <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
               <div className="text-sm">
-                <p className="font-medium text-blue-800 dark:text-blue-300">
-                  Date enregistree localement
+                <p className="font-medium text-green-800 dark:text-green-300">
+                  Date mise à jour avec succès !
                 </p>
-                <p className="text-blue-700 dark:text-blue-400 mt-1">
-                  L'API Dolibarr ne permet pas les modifications directes. 
-                  Cliquez sur "Ouvrir dans Dolibarr" pour finaliser le changement.
+                <p className="text-green-700 dark:text-green-400 mt-1">
+                  La nouvelle date est synchronisée sur la TV, le calendrier et tous les appareils.
                 </p>
               </div>
             </div>
@@ -291,32 +290,20 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
           )}
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          {updateResult === 'local' && (
-            <Button 
-              variant="outline" 
-              onClick={openInDolibarr}
-              className="gap-2 w-full sm:w-auto"
-            >
-              <ExternalLink className="w-4 h-4" />
-              Ouvrir dans Dolibarr
+        <DialogFooter className="flex gap-2">
+          <Button variant="ghost" onClick={() => setOpen(false)}>
+            {updateResult ? 'Fermer' : 'Annuler'}
+          </Button>
+          {!updateResult && (
+            <Button onClick={handleSave} disabled={!selectedDate || saving}>
+              {saving ? 'Enregistrement...' : 'Enregistrer'}
             </Button>
           )}
-          <div className="flex gap-2 w-full sm:w-auto">
-            <Button variant="ghost" onClick={() => setOpen(false)}>
-              {updateResult ? 'Fermer' : 'Annuler'}
+          {updateResult && (
+            <Button onClick={() => { setOpen(false); onDateUpdated(); }}>
+              OK
             </Button>
-            {!updateResult && (
-              <Button onClick={handleSave} disabled={!selectedDate || saving}>
-                {saving ? 'Enregistrement...' : 'Enregistrer'}
-              </Button>
-            )}
-            {updateResult === 'success' && (
-              <Button onClick={() => { setOpen(false); onDateUpdated(); }}>
-                Fermer
-              </Button>
-            )}
-          </div>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1135,6 +1135,7 @@ serve(async (req) => {
         // Try PUT with the updated dateo field
         const endpoints = [
           `${baseUrl}/interventions/${interventionId}`,
+          `${baseUrl}/fichinters/${interventionId}`,
           `${baseUrl}/ficheinter/${interventionId}`,
           `${baseUrl}/fichinter/${interventionId}`,
         ];
@@ -1144,47 +1145,29 @@ serve(async (req) => {
         
         // Convert dateStart (Unix timestamp) for the extrafield too
         const dateStartTs = Number(dateStart);
-        
-        // Prepare update payload - include minimal required fields
-        // Also update the custom extrafield options_interventiondateheur
         const existingExtras = currentIntervention?.array_options || {};
-        const updatePayload = currentIntervention ? {
-          ...currentIntervention,
+        
+        // Strategy 1: Try minimal PUT with just the date fields on each endpoint
+        const minimalPayload = {
           dateo: dateStartTs,
           date_intervention: dateStartTs,
           array_options: {
             ...existingExtras,
             options_interventiondateheur: dateStartTs,
           },
-        } : {
-          dateo: dateStartTs,
-          date_intervention: dateStartTs,
-          array_options: {
-            options_interventiondateheur: dateStartTs,
-          },
         };
         
-        // Remove readonly/computed fields that might cause issues
-        delete updatePayload.id;
-        delete updatePayload.ref;
-        delete updatePayload.entity;
-        delete updatePayload.date_creation;
-        delete updatePayload.date_modification;
-        delete updatePayload.user_creation;
-        delete updatePayload.user_modification;
-        delete updatePayload.lines;
-        delete updatePayload.linkedObjects;
-        delete updatePayload.linkedObjectsIds;
+        console.log(`[UPDATE-DATE] Minimal payload:`, JSON.stringify(minimalPayload));
         
         for (const ep of endpoints) {
-          console.log(`[UPDATE-DATE] Trying PUT on: ${ep}`);
+          console.log(`[UPDATE-DATE] Trying PUT (minimal) on: ${ep}`);
           try {
             updateResponse = await fetchWithTimeout(
               ep,
               {
                 method: 'PUT',
                 headers,
-                body: JSON.stringify(updatePayload),
+                body: JSON.stringify(minimalPayload),
               },
               15000
             );
@@ -1193,7 +1176,7 @@ serve(async (req) => {
             
             if (updateResponse.ok) {
               const result = await updateResponse.json();
-              console.log(`[UPDATE-DATE] Success via PUT for intervention ${interventionId}`);
+              console.log(`[UPDATE-DATE] Success via minimal PUT for intervention ${interventionId}`);
               return new Response(
                 JSON.stringify({ success: true, id: result }),
                 { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -1205,6 +1188,30 @@ serve(async (req) => {
           } catch (e) {
             console.error(`[UPDATE-DATE] Error on ${ep}:`, e);
             lastError = String(e);
+          }
+        }
+        
+        // Strategy 2: Try full payload PUT (spreading current intervention)
+        if (currentIntervention) {
+          const fullPayload = { ...currentIntervention, dateo: dateStartTs, date_intervention: dateStartTs, array_options: { ...existingExtras, options_interventiondateheur: dateStartTs } };
+          delete fullPayload.id; delete fullPayload.ref; delete fullPayload.entity;
+          delete fullPayload.date_creation; delete fullPayload.date_modification;
+          delete fullPayload.user_creation; delete fullPayload.user_modification;
+          delete fullPayload.lines; delete fullPayload.linkedObjects; delete fullPayload.linkedObjectsIds;
+          
+          for (const ep of endpoints) {
+            console.log(`[UPDATE-DATE] Trying PUT (full) on: ${ep}`);
+            try {
+              updateResponse = await fetchWithTimeout(ep, { method: 'PUT', headers, body: JSON.stringify(fullPayload) }, 15000);
+              console.log(`[UPDATE-DATE] Full PUT response from ${ep}: ${updateResponse.status}`);
+              if (updateResponse.ok) {
+                const result = await updateResponse.json();
+                return new Response(JSON.stringify({ success: true, id: result }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+              } else {
+                lastError = await updateResponse.text();
+                console.log(`[UPDATE-DATE] Full PUT Failed: ${lastError}`);
+              }
+            } catch (e) { lastError = String(e); }
           }
         }
         
