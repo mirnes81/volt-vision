@@ -273,7 +273,7 @@ function useWeekAssignments() {
       let unplanned = 0;
 
       // Build a map of Dolibarr intervention id -> CET date string
-      // Priority: Supabase date override > Dolibarr dateo
+      // Priority: Supabase date override > extrafield options_interventiondateheur > Dolibarr dateo
       const dolibarrDateMap = new Map<number, string>();
       let todayMatchCount = 0;
       for (const int of dolibarrInterventions) {
@@ -285,6 +285,19 @@ function useWeekAssignments() {
           const overrideDate = new Date(override);
           const cetOverride = new Date(overrideDate.getTime() + 3600000);
           const dateStr = cetOverride.toISOString().split('T')[0];
+          dolibarrDateMap.set(intId, dateStr);
+          if (dateStr === todayStr) todayMatchCount++;
+          continue;
+        }
+        
+        // Check custom extrafield "Date d'intervention" (options_interventiondateheur) first
+        const extraOpts = int.array_options || int.intervention_extrafields || {};
+        const customDateTs = Number(extraOpts.options_interventiondateheur || 0);
+        
+        if (customDateTs > 0) {
+          // Custom date field - CET timestamp, add 1h for correct UTC mapping
+          const d = new Date((customDateTs + 3600) * 1000);
+          const dateStr = d.toISOString().split('T')[0];
           dolibarrDateMap.set(intId, dateStr);
           if (dateStr === todayStr) todayMatchCount++;
           continue;

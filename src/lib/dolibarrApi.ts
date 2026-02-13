@@ -203,8 +203,14 @@ function mapDolibarrIntervention(data: any): Intervention {
     briefing: decodeHtmlEntities(data.note_private || data.description || ''),
     assignedTo: data.assignedTo || undefined,
     dateCreation: data.datec ? (typeof data.datec === 'number' ? new Date(data.datec * 1000).toISOString() : data.datec) : new Date().toISOString(),
-    // dateo = date de début d'intervention, datee = date de fin, datei dans les lignes
-    dateStart: data.dateo ? (typeof data.dateo === 'number' ? new Date(data.dateo * 1000).toISOString() : data.dateo) : undefined,
+    // Priority for date: extrafield options_interventiondateheur > dateo > datep
+    dateStart: (() => {
+      const extraOpts = data.array_options || data.intervention_extrafields || {};
+      const customDateTs = Number(extraOpts.options_interventiondateheur || 0);
+      if (customDateTs > 0) return new Date(customDateTs * 1000).toISOString();
+      if (data.dateo) return typeof data.dateo === 'number' ? new Date(data.dateo * 1000).toISOString() : data.dateo;
+      return undefined;
+    })(),
     datePlanned: data.datep ? (typeof data.datep === 'number' ? new Date(data.datep * 1000).toISOString() : data.datep) : undefined,
     tasks: tasks.length > 0 ? tasks : [],
     materials: materials,
