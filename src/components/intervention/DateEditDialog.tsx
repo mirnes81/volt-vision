@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Calendar, Clock, Edit2, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { Calendar, Clock, Edit2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -104,7 +104,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
 
   const handleSave = async () => {
     if (!selectedDate) {
-      toast.error('Veuillez selectionner une date');
+      toast.error('Veuillez sélectionner une date');
       return;
     }
 
@@ -114,51 +114,23 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
     
     setSaving(true);
     
-    // Convert to Unix timestamp (seconds) for Dolibarr
-    // Subtract 1h (3600s) to convert CET to UTC for Dolibarr storage
-    const unixTs = Math.floor(newDate.getTime() / 1000) - 3600;
+    // Save to Supabase + localStorage for sync across all devices (TV, calendar, mobile)
+    saveDateOverride(interventionId, newDate);
     
-    try {
-      // Try to update in Dolibarr first
-      const { data, error } = await supabase.functions.invoke('dolibarr-api', {
-        body: { 
-          action: 'update-intervention-date', 
-          params: { interventionId, dateStart: unixTs } 
-        },
-      });
-      
-      if (data?.success) {
-        // Success in Dolibarr - also save locally and to Supabase for immediate sync
-        saveDateOverride(interventionId, newDate);
-        setUpdateResult('success');
-        toast.success('Date mise à jour dans Dolibarr', {
-          description: format(newDate, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr }),
-        });
-      } else {
-        // Dolibarr update failed - save locally as fallback
-        console.warn('[DateEdit] Dolibarr update failed:', data?.error || error);
-        saveDateOverride(interventionId, newDate);
-        setUpdateResult('local');
-        toast.success('Date enregistrée localement', {
-          description: format(newDate, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr }),
-        });
-      }
-    } catch (err) {
-      console.error('[DateEdit] Error:', err);
-      // Fallback to local save
-      saveDateOverride(interventionId, newDate);
-      setUpdateResult('local');
-      toast.success('Date enregistrée localement', {
-        description: format(newDate, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr }),
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const openInDolibarr = () => {
-    const url = `https://crm.enes-electricite.ch/fichinter/card.php?id=${interventionId}`;
-    window.open(url, '_blank');
+    // Also try Dolibarr API in background (best effort, don't block UI)
+    const unixTs = Math.floor(newDate.getTime() / 1000) - 3600;
+    supabase.functions.invoke('dolibarr-api', {
+      body: { action: 'update-intervention-date', params: { interventionId, dateStart: unixTs } },
+    }).then(({ data }) => {
+      if (data?.success) console.log('[DateEdit] Also updated in Dolibarr');
+    }).catch(() => {});
+    
+    setUpdateResult('success');
+    setSaving(false);
+    
+    toast.success('Date mise à jour', {
+      description: format(newDate, "EEEE d MMMM yyyy 'à' HH:mm", { locale: fr }),
+    });
   };
 
   // Generate hours options
@@ -186,16 +158,6 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
         <div className="space-y-4 py-4">
           {/* Success message */}
           {updateResult === 'success' && (
-            <div className="flex items-center gap-3 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
-              <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400" />
-              <p className="text-sm font-medium text-green-800 dark:text-green-300">
-                Date mise a jour dans Dolibarr avec succes!
-              </p>
-            </div>
-          )}
-          
-          {/* Saved to app - synced across all devices */}
-          {updateResult === 'local' && (
             <div className="flex items-start gap-3 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg">
               <CheckCircle2 className="w-5 h-5 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
               <div className="text-sm">
@@ -203,7 +165,7 @@ export function DateEditDialog({ interventionId, currentDate, onDateUpdated }: D
                   Date mise à jour avec succès !
                 </p>
                 <p className="text-green-700 dark:text-green-400 mt-1">
-                  La nouvelle date est synchronisée sur la TV, le calendrier et tous les appareils.
+                  Synchronisée sur la TV, le calendrier et tous les appareils.
                 </p>
               </div>
             </div>
