@@ -265,6 +265,23 @@ function useWeekAssignments() {
           }
         }
       }
+      // Debug: log first intervention to check available date fields
+      if (dolibarrInterventions.length > 0) {
+        const sample = dolibarrInterventions[0];
+        console.log(`[TV] Sample intervention keys:`, Object.keys(sample).join(', '));
+        console.log(`[TV] Sample intervention date fields: dateo=${sample.dateo}, array_options=${JSON.stringify(sample.array_options)}, intervention_extrafields=${JSON.stringify(sample.intervention_extrafields)}`);
+        // Check a few interventions for the custom date field
+        const withCustomDate = dolibarrInterventions.filter((i: any) => {
+          const ef = i.array_options || i.intervention_extrafields || {};
+          return Number(ef.options_interventiondateheur || 0) > 0;
+        });
+        console.log(`[TV] Interventions with options_interventiondateheur: ${withCustomDate.length}/${dolibarrInterventions.length}`);
+        if (withCustomDate.length > 0) {
+          const s = withCustomDate[0];
+          const ef = s.array_options || s.intervention_extrafields || {};
+          console.log(`[TV] Sample custom date: ref=${s.ref}, ts=${ef.options_interventiondateheur}, date=${new Date((Number(ef.options_interventiondateheur) + 3600) * 1000).toISOString()}`);
+        }
+      }
       console.log(`[TV] Dolibarr interventions loaded: ${dolibarrInterventions.length}, descriptions: ${descriptionMap.size}`);
 
       const todayItems: DayAssignment[] = [];
