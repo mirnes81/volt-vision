@@ -1288,6 +1288,26 @@ serve(async (req) => {
         );
       }
 
+      // Debug: test raw API call
+      case 'debug-api': {
+        const ep = params?.endpoint;
+        const m = params?.method || 'GET';
+        const b = params?.body;
+        console.log(`[DEBUG-API] ${m} ${baseUrl}${ep}`);
+        try {
+          const r = await fetchWithTimeout(
+            `${baseUrl}${ep}`,
+            { method: m, headers, ...(b ? { body: JSON.stringify(b) } : {}) },
+            15000
+          );
+          const txt = await r.text();
+          console.log(`[DEBUG-API] Response ${r.status}: ${txt.substring(0, 500)}`);
+          return new Response(txt, { status: r.status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        } catch (e) {
+          return new Response(JSON.stringify({ error: String(e) }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }
+        }
+
       // Debug product documents (for testing)
       case 'debug-product-docs': {
         const productId = params.productId;
