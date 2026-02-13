@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { Calendar, Clock, Edit2, ExternalLink, CheckCircle2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import {
@@ -38,6 +39,27 @@ interface DateEditDialogProps {
 function saveDateOverride(interventionId: number, date: Date) {
   const key = `intervention_date_override_${interventionId}`;
   localStorage.setItem(key, date.toISOString());
+  // Also save to Supabase for shared access (TV display, other devices)
+  saveDateOverrideToSupabase(interventionId, date);
+}
+
+async function saveDateOverrideToSupabase(interventionId: number, date: Date) {
+  try {
+    const worker = JSON.parse(localStorage.getItem('mv3_worker') || '{}');
+    const createdBy = worker?.login || worker?.firstname || 'unknown';
+    await supabase
+      .from('intervention_date_overrides')
+      .upsert({
+        intervention_id: interventionId,
+        override_date: date.toISOString(),
+        created_by: createdBy,
+        tenant_id: '00000000-0000-0000-0000-000000000001',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'intervention_id,tenant_id' });
+    console.log(`[DateOverride] Saved to Supabase: intervention ${interventionId} → ${date.toISOString()}`);
+  } catch (err) {
+    console.error('[DateOverride] Failed to save to Supabase:', err);
+  }
 }
 
 // Get local date override if exists

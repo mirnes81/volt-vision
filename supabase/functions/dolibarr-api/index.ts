@@ -322,7 +322,7 @@ serve(async (req) => {
 
       // Interventions - OPTIMIZED: Parallel fetching
       case 'get-interventions': {
-        let query = '?sortfield=t.datec&sortorder=DESC&limit=500';
+        let query = '?sortfield=t.dateo&sortorder=DESC&limit=500';
         
         if (params?.status !== undefined) {
           query += `&sqlfilters=(t.fk_statut:=:${params.status})`;

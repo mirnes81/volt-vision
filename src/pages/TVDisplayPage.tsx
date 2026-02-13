@@ -222,8 +222,8 @@ function useWeekAssignments() {
       const cetNow = new Date(today.getTime() + 3600000);
       const todayStr = cetNow.toISOString().split('T')[0];
 
-      // Fetch assignments AND Dolibarr interventions in PARALLEL
-      const [assignResult, dolibarrResult] = await Promise.all([
+      // Fetch assignments, Dolibarr interventions, AND date overrides in PARALLEL
+      const [assignResult, dolibarrResult, dateOverridesResult] = await Promise.all([
         supabase
           .from('intervention_assignments')
           .select('user_name, intervention_label, intervention_ref, intervention_id, client_name, location, priority, date_planned, description')
@@ -233,7 +233,20 @@ function useWeekAssignments() {
         supabase.functions.invoke('dolibarr-api', {
           body: { action: 'get-interventions', params: {} },
         }).catch(() => ({ data: null, error: 'fetch failed' })),
+        supabase
+          .from('intervention_date_overrides')
+          .select('intervention_id, override_date')
+          .eq('tenant_id', TENANT_ID),
       ]);
+
+      // Build date overrides map
+      const dateOverrides = new Map<number, string>();
+      if (dateOverridesResult?.data) {
+        for (const row of dateOverridesResult.data) {
+          dateOverrides.set(row.intervention_id, row.override_date);
+        }
+      }
+      console.log(`[TV] Date overrides from Supabase: ${dateOverrides.size}`);
 
       if (assignResult.error) { console.error('TV planning error:', assignResult.error); setLoading(false); return; }
 
@@ -259,17 +272,33 @@ function useWeekAssignments() {
       let unplanned = 0;
 
       // Build a map of Dolibarr intervention id -> CET date string
+      // Priority: Supabase date override > Dolibarr dateo
       const dolibarrDateMap = new Map<number, string>();
+      let todayMatchCount = 0;
       for (const int of dolibarrInterventions) {
         const intId = Number(int.id);
+        
+        // Check for Supabase date override first
+        const override = dateOverrides.get(intId);
+        if (override) {
+          const overrideDate = new Date(override);
+          const cetOverride = new Date(overrideDate.getTime() + 3600000);
+          const dateStr = cetOverride.toISOString().split('T')[0];
+          dolibarrDateMap.set(intId, dateStr);
+          if (dateStr === todayStr) todayMatchCount++;
+          continue;
+        }
+        
         const ts = Number(int.dateo || 0);
         if (ts > 0) {
           // Dolibarr timestamps represent CET midnight, add 1h to get correct UTC date
           const d = new Date((ts + 3600) * 1000);
-          dolibarrDateMap.set(intId, d.toISOString().split('T')[0]);
+          const dateStr = d.toISOString().split('T')[0];
+          dolibarrDateMap.set(intId, dateStr);
+          if (dateStr === todayStr) todayMatchCount++;
         }
       }
-      console.log(`[TV] Dolibarr date map size: ${dolibarrDateMap.size}, todayStr: ${todayStr}`);
+      console.log(`[TV] Dolibarr date map size: ${dolibarrDateMap.size}, todayStr: ${todayStr}, todayMatches: ${todayMatchCount}, overrides: ${dateOverrides.size}`);
 
       // Track which intervention IDs are assigned
       const assignedInterventionIds = new Set<number>();
