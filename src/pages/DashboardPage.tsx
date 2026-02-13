@@ -19,12 +19,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 export default function DashboardPage() {
   const { worker } = useAuth();
   
-  // Robust admin check: also read directly from localStorage as fallback
+  // Robust admin check: check all possible admin indicators
   const isAdmin = React.useMemo(() => {
     if (worker?.isAdmin === true || worker?.admin === '1') return true;
+    // Fallback: check login name (matches edge function logic)
+    if (worker?.login?.toLowerCase() === 'admin') return true;
     try {
       const stored = JSON.parse(localStorage.getItem('mv3_worker') || '{}');
-      return stored.isAdmin === true || stored.admin === '1';
+      return stored.isAdmin === true || stored.admin === '1' || stored.login?.toLowerCase() === 'admin';
     } catch { return false; }
   }, [worker]);
   
