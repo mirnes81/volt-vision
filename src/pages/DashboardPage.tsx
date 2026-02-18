@@ -233,6 +233,34 @@ export default function DashboardPage() {
               </Link>
             </div>
 
+            {/* Today's Interventions - Mobile (shown first) */}
+            {todayInterventions.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="font-bold text-sm flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-primary" />
+                    Aujourd'hui
+                    <span className="bg-primary text-primary-foreground text-[10px] font-bold rounded-full px-1.5 py-0.5 ml-0.5">
+                      {todayInterventions.length}
+                    </span>
+                  </h3>
+                  <Link to="/calendar" className="text-xs text-primary font-medium flex items-center gap-0.5 hover:underline">
+                    Calendrier
+                    <ChevronRight className="w-3.5 h-3.5" />
+                  </Link>
+                </div>
+                <div className="grid gap-1.5">
+                  {todayInterventions.slice(0, 5).map((intervention) => (
+                    <InterventionCardCompact 
+                      key={intervention.id} 
+                      intervention={intervention} 
+                      supabaseAssignments={getAssignmentsForIntervention(intervention.id)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Recent Interventions - Compact */}
             <div>
               <div className="flex items-center justify-between mb-2">
