@@ -1,11 +1,12 @@
 import * as React from 'react';
-import { Camera, ImagePlus, X, WifiOff, CloudOff } from 'lucide-react';
+import { Camera, ImagePlus, X, WifiOff, CloudOff, Cloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { uploadPhoto } from '@/lib/api';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PhotosSectionProps {
   intervention: Intervention;
@@ -21,12 +22,51 @@ const photoTypes: { value: PhotoType; label: string; color: string }[] = [
   { value: 'defaut', label: 'Défaut', color: 'bg-destructive' },
 ];
 
+interface CloudPhoto {
+  id: string;
+  type: PhotoType;
+  filePath: string;
+  datePhoto: string;
+  isCloud: boolean;
+}
+
 export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
   const [selectedType, setSelectedType] = React.useState<PhotoType>('pendant');
   const [isLoading, setIsLoading] = React.useState(false);
   const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
   const [offlinePhotos, setOfflinePhotos] = React.useState<Array<{ id: number; type: PhotoType; filePath: string }>>([]);
+  const [cloudPhotos, setCloudPhotos] = React.useState<CloudPhoto[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  // Load photos from Supabase Storage
+  React.useEffect(() => {
+    loadCloudPhotos();
+  }, [intervention.id]);
+
+  async function loadCloudPhotos() {
+    try {
+      const { data, error } = await (supabase
+        .from('intervention_photos' as any)
+        .select('*')
+        .eq('intervention_id', intervention.id)
+        .order('created_at', { ascending: false }) as any);
+      
+      if (error) throw error;
+      
+      if (data && Array.isArray(data)) {
+        setCloudPhotos(data.map((p: any) => ({
+          id: p.id,
+          type: p.photo_type as PhotoType,
+          filePath: p.public_url,
+          datePhoto: p.created_at,
+          isCloud: true,
+        })));
+      }
+    } catch (err) {
+      console.warn('[PhotosSection] Could not load cloud photos:', err);
+    }
+  }
+
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -48,15 +88,23 @@ export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
           filePath: result.filePath,
         }]);
         toast.success('Photo sauvegardée hors-ligne', {
-          description: 'Elle sera synchronisée au retour de la connexion',
+          description: 'Connexion requise pour la sauvegarder',
           icon: <WifiOff className="w-4 h-4" />,
         });
       } else {
-        toast.success('Photo ajoutée');
+        toast.success('Photo sauvegardée ✓', {
+          description: 'Stockée dans le cloud',
+          icon: <Cloud className="w-4 h-4" />,
+        });
+        // Reload cloud photos to show the new one
+        await loadCloudPhotos();
       }
       onUpdate();
     } catch (error) {
-      toast.error('Erreur lors de l\'upload');
+      console.error('[PhotosSection] Upload error:', error);
+      toast.error('Erreur lors de l\'upload de la photo', {
+        description: 'Vérifiez votre connexion et réessayez',
+      });
     } finally {
       setIsLoading(false);
       setPreviewUrl(null);
@@ -66,9 +114,12 @@ export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
     }
   };
   
-  // Combine server photos with offline photos
+  // Combine: cloud photos + dolibarr photos + offline photos
   const allPhotos = [
-    ...intervention.photos,
+    ...cloudPhotos,
+    ...intervention.photos.filter(p => 
+      !cloudPhotos.some(cp => cp.filePath === p.filePath)
+    ),
     ...offlinePhotos.map(p => ({ ...p, datePhoto: new Date().toISOString(), isOffline: true })),
   ];
 
@@ -168,7 +219,7 @@ export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
           )
         ))}
         
-        {intervention.photos.length === 0 && (
+        {allPhotos.length === 0 && (
           <div className="text-center py-6 text-muted-foreground">
             <ImagePlus className="w-8 h-8 mx-auto mb-1 opacity-50" />
             <p className="text-xs">Aucune photo</p>
