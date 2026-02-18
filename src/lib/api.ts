@@ -286,6 +286,7 @@ export async function uploadPhoto(
     // Upload to Supabase Storage (bypasses Dolibarr WAF issues)
     const { supabase } = await import('@/integrations/supabase/client');
     
+    console.log('[API] Uploading photo to storage path:', storagePath);
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from('intervention-photos')
       .upload(storagePath, file, {
@@ -294,7 +295,7 @@ export async function uploadPhoto(
       });
     
     if (uploadError) {
-      console.error('[API] Storage upload error:', uploadError);
+      console.error('[API] Storage upload error details:', JSON.stringify(uploadError));
       throw new Error(uploadError.message);
     }
     
@@ -327,11 +328,10 @@ export async function uploadPhoto(
     console.log('[API] Photo uploaded to storage:', publicUrl);
     return { id: Date.now(), filePath: publicUrl };
     
-  } catch (error) {
-    console.error('[API] Upload failed, using local blob URL:', error);
-    // Fallback: local blob URL for current session display
-    const localFilePath = URL.createObjectURL(file);
-    return { id: Date.now(), filePath: localFilePath, offline: true };
+  } catch (error: any) {
+    console.error('[API] Upload failed:', error?.message || error);
+    // Re-throw so the UI shows a proper error instead of "hors-ligne"
+    throw error;
   }
 }
 
