@@ -306,7 +306,8 @@ export async function uploadPhoto(
     const publicUrl = urlData.publicUrl;
     
     // Save photo record to database
-    const tenantId = localStorage.getItem('mv3_tenant_id') || 'default';
+    const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
+    const tenantId = DEFAULT_TENANT_ID;
     const { error: dbError } = await supabase
       .from('intervention_photos' as any)
       .insert({
