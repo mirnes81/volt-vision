@@ -441,6 +441,48 @@ export type Database = {
         }
         Relationships: []
       }
+      intervention_operational_status: {
+        Row: {
+          completed_at: string | null
+          completed_by: string | null
+          created_at: string
+          has_closing_photos: boolean
+          has_signature: boolean
+          id: string
+          intervention_id: number
+          operational_status: string
+          tenant_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          has_closing_photos?: boolean
+          has_signature?: boolean
+          id?: string
+          intervention_id: number
+          operational_status?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          completed_at?: string | null
+          completed_by?: string | null
+          created_at?: string
+          has_closing_photos?: boolean
+          has_signature?: boolean
+          id?: string
+          intervention_id?: number
+          operational_status?: string
+          tenant_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth_key: string
