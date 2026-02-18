@@ -21,7 +21,7 @@ import { HistorySection } from '@/components/intervention/HistorySection';
 import { StockSection } from '@/components/intervention/StockSection';
 import { ReportNotesSection } from '@/components/intervention/ReportNotesSection';
 import { DateEditDialog, getDateOverride } from '@/components/intervention/DateEditDialog';
-
+import { OperationalStatusSelector } from '@/components/intervention/OperationalStatusSelector';
 import { DolibarrAssignmentPanel } from '@/components/assignments/DolibarrAssignmentPanel';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -239,10 +239,28 @@ export default function InterventionDetailPage() {
               </div>
               <h2 className="font-bold text-lg">{intervention.label}</h2>
             </div>
-            <span className={cn("px-3 py-1 rounded-full text-xs font-semibold shrink-0", status.color)}>
-              {status.label}
-            </span>
+            <div className="flex flex-col items-end gap-2 shrink-0">
+              {/* Dolibarr status badge */}
+              <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", status.color)}>
+                {status.label}
+              </span>
+              {/* Operational status (admin only) */}
+              <OperationalStatusSelector
+                intervention={intervention}
+                onStatusChange={handleUpdate}
+              />
+            </div>
           </div>
+
+          {/* Operational status info for non-admins */}
+          {!isAdmin && (
+            <div className="mb-3">
+              <OperationalStatusSelector
+                intervention={intervention}
+                readOnly
+              />
+            </div>
+          )}
 
           {/* Intervention Extrafields */}
           {(intervention.extraBon || intervention.extraAdresse || intervention.extraContact || intervention.extraCle || intervention.extraCode || intervention.extraNoImm || intervention.extraAdresseComplete || intervention.extraNCompt || intervention.extraPropImm || intervention.extraConcierge || intervention.extraAppartement) && (
