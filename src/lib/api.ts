@@ -275,23 +275,19 @@ export async function uploadPhoto(
   const filename = `${type}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
   const storagePath = `${interventionId}/${filename}`;
 
-  // Check if we should queue offline
-  if (shouldQueueOffline()) {
-    const localFilePath = URL.createObjectURL(file);
-    console.log('[API] Photo queued for offline display (no connection):', filename);
-    return { id: Date.now(), filePath: localFilePath, offline: true };
-  }
-  
+  // Toujours tenter l'upload en ligne d'abord (ne pas se fier uniquement à navigator.onLine)
   try {
-    // Upload to Supabase Storage (bypasses Dolibarr WAF issues)
     const { supabase } = await import('@/integrations/supabase/client');
     
-    console.log('[API] Uploading photo to storage path:', storagePath);
-    const { data: uploadData, error: uploadError } = await supabase.storage
+    // S'assurer que le contentType est valide (les appareils photo mobiles peuvent envoyer un type vide)
+    const contentType = file.type && file.type !== '' ? file.type : 'image/jpeg';
+    
+    console.log('[API] Uploading photo to storage path:', storagePath, 'type:', contentType, 'size:', file.size);
+    const { error: uploadError } = await supabase.storage
       .from('intervention-photos')
       .upload(storagePath, file, {
-        contentType: file.type,
-        upsert: false,
+        contentType,
+        upsert: true, // upsert=true pour éviter les conflits de noms
       });
     
     if (uploadError) {
@@ -308,12 +304,11 @@ export async function uploadPhoto(
     
     // Save photo record to database
     const DEFAULT_TENANT_ID = '00000000-0000-0000-0000-000000000001';
-    const tenantId = DEFAULT_TENANT_ID;
     const { error: dbError } = await supabase
       .from('intervention_photos' as any)
       .insert({
         intervention_id: interventionId,
-        tenant_id: tenantId,
+        tenant_id: DEFAULT_TENANT_ID,
         uploaded_by: worker ? String(worker.id) : 'unknown',
         photo_type: type,
         storage_path: storagePath,
@@ -322,16 +317,18 @@ export async function uploadPhoto(
       });
     
     if (dbError) {
-      console.warn('[API] DB photo record error (non-critical):', dbError);
+      console.error('[API] DB photo record error:', JSON.stringify(dbError));
+      // Ne pas bloquer - l'image est dans le storage, on peut reconstruire le record
     }
     
-    console.log('[API] Photo uploaded to storage:', publicUrl);
+    console.log('[API] Photo uploaded successfully:', publicUrl);
     return { id: Date.now(), filePath: publicUrl };
     
   } catch (error: any) {
-    console.error('[API] Upload failed:', error?.message || error);
-    // Re-throw so the UI shows a proper error instead of "hors-ligne"
-    throw error;
+    console.error('[API] Upload failed, trying offline fallback:', error?.message || error);
+    // Fallback: sauvegarder localement si vraiment impossible d'uploader
+    const localFilePath = URL.createObjectURL(file);
+    return { id: Date.now(), filePath: localFilePath, offline: true };
   }
 }
 
