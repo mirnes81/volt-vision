@@ -11,6 +11,20 @@ const CACHE_KEY_ALL = 'interventions_cache_all';
 const CACHE_KEY_MINE = 'interventions_cache_mine';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 const STALE_TTL = 15 * 60 * 1000; // 15 minutes - stale but usable
+const CACHE_VERSION = 'v3_cet_offset'; // Bump to invalidate all caches after date fix
+
+// Invalidate old caches that don't have the CET timezone fix
+if (typeof window !== 'undefined') {
+  const storedVersion = sessionStorage.getItem('interventions_cache_version');
+  if (storedVersion !== CACHE_VERSION) {
+    sessionStorage.removeItem(CACHE_KEY_ALL);
+    sessionStorage.removeItem(CACHE_KEY_MINE);
+    sessionStorage.removeItem(`${CACHE_KEY_ALL}_meta`);
+    sessionStorage.removeItem(`${CACHE_KEY_MINE}_meta`);
+    sessionStorage.setItem('interventions_cache_version', CACHE_VERSION);
+    console.log('[Cache] Version bump: cleared old cached interventions (CET timezone fix)');
+  }
+}
 
 interface CacheData {
   interventions: Intervention[];

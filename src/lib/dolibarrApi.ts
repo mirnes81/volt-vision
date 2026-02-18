@@ -214,25 +214,27 @@ function mapDolibarrIntervention(data: any): Intervention {
     description: decodeHtmlEntities(data.note_public || ''),
     briefing: decodeHtmlEntities(data.note_private || data.description || ''),
     assignedTo: data.assignedTo || undefined,
-    dateCreation: data.datec ? (typeof data.datec === 'number' ? new Date(data.datec * 1000).toISOString() : data.datec) : new Date().toISOString(),
+    dateCreation: data.datec ? (typeof data.datec === 'number' ? new Date((data.datec + 3600) * 1000).toISOString() : data.datec) : new Date().toISOString(),
     // Priority for date: extrafield options_interventiondateheur > dateo > datep
+    // NOTE: Dolibarr stores dates as UTC midnight (e.g. 2026-02-17T23:00:00Z = 2026-02-18T00:00:00 CET)
+    // We add +3600s (1h CET offset) to convert to Swiss local date correctly
     dateStart: (() => {
       const extraOpts = data.array_options || data.intervention_extrafields || {};
       const customDateTs = Number(extraOpts.options_interventiondateheur || 0);
-      if (customDateTs > 0) return new Date(customDateTs * 1000).toISOString();
+      if (customDateTs > 0) return new Date((customDateTs + 3600) * 1000).toISOString();
       if (data.dateo) {
-        if (typeof data.dateo === 'number' && data.dateo > 0) return new Date(data.dateo * 1000).toISOString();
+        if (typeof data.dateo === 'number' && data.dateo > 0) return new Date((data.dateo + 3600) * 1000).toISOString();
         if (typeof data.dateo === 'string' && data.dateo !== '0') {
           // Handle both ISO strings and Unix timestamp strings
           const asNum = Number(data.dateo);
-          if (!isNaN(asNum) && asNum > 0) return new Date(asNum * 1000).toISOString();
+          if (!isNaN(asNum) && asNum > 0) return new Date((asNum + 3600) * 1000).toISOString();
           const parsed = new Date(data.dateo);
           if (!isNaN(parsed.getTime())) return parsed.toISOString();
         }
       }
       return undefined;
     })(),
-    datePlanned: data.datep ? (typeof data.datep === 'number' ? new Date(data.datep * 1000).toISOString() : data.datep) : undefined,
+    datePlanned: data.datep ? (typeof data.datep === 'number' ? new Date((data.datep + 3600) * 1000).toISOString() : data.datep) : undefined,
     tasks: tasks.length > 0 ? tasks : [],
     materials: materials,
     hours: getLocalHours(parseInt(data.id)),
