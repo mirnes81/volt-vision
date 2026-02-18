@@ -77,6 +77,7 @@ export default function InterventionDetailPage() {
   const { t } = useLanguage();
   const [intervention, setIntervention] = React.useState<Intervention | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState<'waf' | 'generic' | null>(null);
   const [activeTab, setActiveTab] = React.useState('info');
   const [showFullDescription, setShowFullDescription] = React.useState(false);
   const [hasReminder, setHasReminder] = React.useState(false);
@@ -96,12 +97,18 @@ export default function InterventionDetailPage() {
 
   const loadIntervention = async (interventionId: number) => {
     setIsLoading(true);
+    setLoadError(null);
     try {
       const data = await getIntervention(interventionId);
       setIntervention(data);
       setHasReminder(hasReminderScheduled(interventionId));
-    } catch (error) {
-      console.error('Error:', error);
+    } catch (error: any) {
+      console.error('Error loading intervention:', error);
+      if (error?.message === 'DOLIBARR_WAF_BLOCKED') {
+        setLoadError('waf');
+      } else {
+        setLoadError('generic');
+      }
     } finally {
       setIsLoading(false);
     }
@@ -174,11 +181,45 @@ export default function InterventionDetailPage() {
     );
   }
 
-  if (!intervention) {
+  if (loadError === 'waf') {
     return (
-      <div>
+      <div className="min-h-screen bg-background">
+        <Header title="Connexion bloquée" showBack />
+        <div className="px-4 pt-10 flex flex-col items-center text-center gap-4">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center">
+            <AlertTriangle className="w-8 h-8 text-destructive" />
+          </div>
+          <h2 className="font-bold text-lg">Accès bloqué par le pare-feu</h2>
+          <p className="text-sm text-muted-foreground max-w-xs">
+            Le serveur Dolibarr a bloqué la connexion (erreur 510 — ModSecurity WAF).
+          </p>
+          <div className="bg-muted rounded-xl p-4 text-left text-xs text-muted-foreground space-y-1 w-full max-w-sm">
+            <p className="font-semibold text-foreground mb-2">Résolution :</p>
+            <p>• Connectez-vous à votre hébergeur Hoststar</p>
+            <p>• Désactivez ou whitelist ModSecurity pour les IPs :</p>
+            <p className="font-mono bg-background px-2 py-1 rounded text-primary">3.74.222.60</p>
+            <p className="font-mono bg-background px-2 py-1 rounded text-primary">18.195.204.244</p>
+            <p className="mt-2">• Ou utilisez le lien de désactivation fourni dans l'email du pare-feu</p>
+          </div>
+          <Button onClick={() => id && loadIntervention(parseInt(id))} variant="outline" className="mt-2">
+            Réessayer
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (loadError === 'generic' || !intervention) {
+    return (
+      <div className="min-h-screen bg-background">
         <Header title="Erreur" showBack />
-        <div className="px-4 pt-8 text-center text-muted-foreground">Intervention non trouvée</div>
+        <div className="px-4 pt-10 flex flex-col items-center text-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-muted flex items-center justify-center">
+            <AlertTriangle className="w-6 h-6 text-muted-foreground" />
+          </div>
+          <p className="text-muted-foreground">Intervention non trouvée ou erreur de chargement.</p>
+          <Button onClick={() => id && loadIntervention(parseInt(id))} variant="outline">Réessayer</Button>
+        </div>
       </div>
     );
   }
