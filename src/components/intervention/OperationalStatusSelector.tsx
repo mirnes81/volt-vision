@@ -1,7 +1,7 @@
 import * as React from 'react';
 import { 
   Clock, Play, Wrench, XCircle, RotateCcw, CheckCircle2, ChevronDown,
-  AlertTriangle, Camera, PenTool, Lock
+  AlertTriangle, Camera, PenTool, Lock, X
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
@@ -207,43 +207,62 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
         onClick={() => canEdit && !isSaving && setIsOpen(!isOpen)}
         disabled={!canEdit || isSaving}
         className={cn(
-          "flex items-center gap-2 px-3 py-1.5 rounded-xl text-sm font-semibold transition-all border",
+          "flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-sm font-semibold transition-all border",
           config.bgColor,
           config.color,
           isTermine && 'border-success/40',
           !isTermine && 'border-transparent',
-          canEdit && !isSaving && "hover:ring-2 hover:ring-primary/30 cursor-pointer",
+          canEdit && !isSaving && "active:scale-95 cursor-pointer",
           (!canEdit || isSaving) && "cursor-default opacity-90"
         )}
       >
-        <Icon className="w-4 h-4 shrink-0" />
-        <span>{config.label}</span>
+        <Icon className="w-3.5 h-3.5 shrink-0" />
+        <span className="leading-none">{config.label}</span>
         {canEdit && !isSaving && (
-          <ChevronDown className={cn("w-3.5 h-3.5 ml-0.5 transition-transform", isOpen && "rotate-180")} />
+          <ChevronDown className={cn("w-3 h-3 ml-0.5 transition-transform", isOpen && "rotate-180")} />
         )}
         {!canEdit && (
           <Lock className="w-3 h-3 ml-0.5 opacity-50" />
         )}
         {isSaving && (
-          <div className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin ml-0.5" />
+          <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin ml-0.5" />
         )}
       </button>
 
-      {/* Dropdown */}
+      {/* Mobile Bottom Sheet */}
       {isOpen && canEdit && (
         <>
-          <div className="fixed inset-0 z-40" onClick={() => setIsOpen(false)} />
-          <div className="absolute left-0 top-full mt-1.5 z-50 bg-card border border-border rounded-xl shadow-lg overflow-hidden min-w-[220px]">
-            <div className="p-2 border-b border-border/50">
-              <p className="text-xs font-medium text-muted-foreground px-2">Changer le statut opérationnel</p>
+          {/* Backdrop */}
+          <div 
+            className="fixed inset-0 z-40 bg-black/40 backdrop-blur-sm" 
+            onClick={() => setIsOpen(false)} 
+          />
+          {/* Sheet */}
+          <div className="fixed bottom-0 left-0 right-0 z-50 bg-card rounded-t-2xl shadow-2xl border-t border-border overflow-hidden">
+            {/* Handle */}
+            <div className="flex justify-center pt-3 pb-1">
+              <div className="w-10 h-1 bg-muted-foreground/30 rounded-full" />
             </div>
-            <div className="p-1">
+            {/* Header */}
+            <div className="px-4 pb-2 flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">Statut opérationnel</p>
+              <button
+                onClick={() => setIsOpen(false)}
+                className="w-7 h-7 rounded-full bg-muted flex items-center justify-center"
+              >
+                <X className="w-4 h-4 text-muted-foreground" />
+              </button>
+            </div>
+            {/* Options */}
+            <div className="px-3 pb-4 space-y-1.5 max-h-[60vh] overflow-y-auto">
               {STATUS_ORDER.map((s) => {
                 const cfg = OPERATIONAL_STATUS_CONFIG[s];
                 const Ic = cfg.icon;
                 const isSelected = s === status;
                 const isTermineOption = s === 'termine';
-                const canSelectTermine = isTermineOption ? (intervention.photos.length > 0 && !!intervention.signaturePath) : true;
+                const canSelectTermine = isTermineOption
+                  ? (intervention.photos.length > 0 && !!intervention.signaturePath)
+                  : true;
                 
                 return (
                   <button
@@ -251,19 +270,31 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
                     onClick={() => handleSelect(s)}
                     disabled={!canSelectTermine}
                     className={cn(
-                      "w-full flex items-start gap-2.5 px-3 py-2 rounded-lg text-left transition-colors",
-                      isSelected ? "bg-primary/10" : "hover:bg-secondary/80",
-                      !canSelectTermine && "opacity-50 cursor-not-allowed"
+                      "w-full flex items-center gap-3 px-4 py-3.5 rounded-xl text-left transition-colors active:scale-[0.98]",
+                      isSelected 
+                        ? cn("border-2", cfg.bgColor, cfg.color.replace('text-', 'border-').split(' ')[0])
+                        : "bg-secondary/60 hover:bg-secondary border-2 border-transparent",
+                      !canSelectTermine && "opacity-50"
                     )}
                   >
-                    <Ic className={cn("w-4 h-4 mt-0.5 shrink-0", cfg.color)} />
-                    <div className="min-w-0">
-                      <p className={cn("text-sm font-semibold leading-tight", cfg.color)}>{cfg.label}</p>
+                    <div className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center shrink-0",
+                      isSelected ? cfg.bgColor : "bg-muted"
+                    )}>
+                      <Ic className={cn("w-5 h-5", isSelected ? cfg.color : "text-muted-foreground")} />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className={cn(
+                        "text-sm font-semibold leading-tight",
+                        isSelected ? cfg.color : "text-foreground"
+                      )}>
+                        {cfg.label}
+                      </p>
                       <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{cfg.description}</p>
                       {isTermineOption && !canSelectTermine && (
-                        <div className="flex items-center gap-1 mt-1">
-                           <AlertTriangle className="w-3 h-3 text-warning" />
-                           <span className="text-[10px] text-warning font-medium">
+                        <div className="flex items-center gap-1 mt-1.5">
+                          <AlertTriangle className="w-3 h-3 text-warning" />
+                          <span className="text-[10px] text-warning font-medium">
                             {!intervention.signaturePath && !intervention.photos.length 
                               ? 'Signature + photos requises'
                               : !intervention.signaturePath ? 'Signature requise'
@@ -273,21 +304,20 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
                       )}
                     </div>
                     {isSelected && (
-                      <CheckCircle2 className="w-4 h-4 shrink-0 ml-auto text-primary mt-0.5" />
+                      <CheckCircle2 className={cn("w-5 h-5 shrink-0", cfg.color)} />
                     )}
                   </button>
                 );
               })}
             </div>
-            
-            {/* Info for non-admins: should never show since canEdit=false, but defensive */}
-            <div className="px-3 py-2 border-t border-border/50 bg-muted/30">
-              <div className="flex items-center gap-1.5">
-                <Camera className="w-3 h-3 text-muted-foreground" />
-                <PenTool className="w-3 h-3 text-muted-foreground" />
-                <p className="text-[10px] text-muted-foreground">Photos + signature obligatoires pour clôturer</p>
-              </div>
+            {/* Info footer */}
+            <div className="px-4 py-3 border-t border-border/50 bg-muted/30 flex items-center gap-2">
+              <Camera className="w-3.5 h-3.5 text-muted-foreground" />
+              <PenTool className="w-3.5 h-3.5 text-muted-foreground" />
+              <p className="text-xs text-muted-foreground">Photos + signature obligatoires pour clôturer</p>
             </div>
+            {/* Safe area bottom */}
+            <div className="pb-safe h-4" />
           </div>
         </>
       )}
