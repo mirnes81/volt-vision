@@ -182,11 +182,13 @@ export default function InterventionDetailPage() {
       ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
       : null;
 
-  // Check if current user is admin (kept for legacy reference, no longer gates UI)
+  // Check if current user is admin
   const isAdmin = (() => {
     try {
-      const worker = localStorage.getItem('worker');
-      return worker ? JSON.parse(worker).admin === '1' : false;
+      const workerData = localStorage.getItem('mv3_worker') || localStorage.getItem('worker');
+      if (!workerData) return false;
+      const worker = JSON.parse(workerData);
+      return worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
     } catch { return false; }
   })();
 
@@ -244,23 +246,14 @@ export default function InterventionDetailPage() {
               <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", status.color)}>
                 {status.label}
               </span>
-              {/* Operational status (admin only) */}
+              {/* Operational status - admin can edit, others read-only */}
               <OperationalStatusSelector
                 intervention={intervention}
                 onStatusChange={handleUpdate}
+                readOnly={!isAdmin}
               />
             </div>
           </div>
-
-          {/* Operational status info for non-admins */}
-          {!isAdmin && (
-            <div className="mb-3">
-              <OperationalStatusSelector
-                intervention={intervention}
-                readOnly
-              />
-            </div>
-          )}
 
           {/* Intervention Extrafields */}
           {(intervention.extraBon || intervention.extraAdresse || intervention.extraContact || intervention.extraCle || intervention.extraCode || intervention.extraNoImm || intervention.extraAdresseComplete || intervention.extraNCompt || intervention.extraPropImm || intervention.extraConcierge || intervention.extraAppartement) && (
@@ -411,19 +404,21 @@ export default function InterventionDetailPage() {
                     </Button>
                   }
                 />
-              {/* Dolibarr assignment panel - uses Supabase for storage */}
-              <DolibarrAssignmentPanel
-                interventionId={intervention.id}
-                interventionRef={intervention.ref}
-                interventionLabel={intervention.label}
-                clientName={intervention.clientName}
-                location={intervention.location}
-                datePlanned={intervention.dateStart}
-                priority={intervention.priority as 'normal' | 'urgent' | 'critical'}
-                description={intervention.description}
-                onAssignmentsChange={handleUpdate}
-                initialAssignmentsCount={supabaseAssignments.length}
-              />
+              {/* Dolibarr assignment panel - admin only */}
+              {isAdmin && (
+                <DolibarrAssignmentPanel
+                  interventionId={intervention.id}
+                  interventionRef={intervention.ref}
+                  interventionLabel={intervention.label}
+                  clientName={intervention.clientName}
+                  location={intervention.location}
+                  datePlanned={intervention.dateStart}
+                  priority={intervention.priority as 'normal' | 'urgent' | 'critical'}
+                  description={intervention.description}
+                  onAssignmentsChange={handleUpdate}
+                  initialAssignmentsCount={supabaseAssignments.length}
+                />
+              )}
             </div>
           </div>
 
@@ -453,12 +448,14 @@ export default function InterventionDetailPage() {
                   </span>
                 );
               })()}
-              {/* Date edit button */}
-              <DateEditDialog
-                interventionId={intervention.id}
-                currentDate={getDateOverride(intervention.id) || intervention.dateStart}
-                onDateUpdated={handleUpdate}
-              />
+              {/* Date edit button - admin only */}
+              {isAdmin && (
+                <DateEditDialog
+                  interventionId={intervention.id}
+                  currentDate={getDateOverride(intervention.id) || intervention.dateStart}
+                  onDateUpdated={handleUpdate}
+                />
+              )}
             </div>
             {/* Reminder button */}
             <Button
