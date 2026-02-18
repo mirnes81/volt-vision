@@ -8,7 +8,6 @@ console.log('[DolibarrApi Module] Loaded, supabase client exists:', !!supabase);
 // Helper to call the Dolibarr proxy (exported for direct usage)
 export async function callDolibarrApi<T>(action: string, params: Record<string, any> = {}): Promise<T> {
   console.log('[DolibarrApi] Starting call:', action, params);
-  console.log('[DolibarrApi] Supabase client:', !!supabase);
   
   try {
     const { data, error } = await supabase.functions.invoke('dolibarr-api', {
@@ -19,16 +18,29 @@ export async function callDolibarrApi<T>(action: string, params: Record<string, 
     
     if (error) {
       console.error('[DolibarrApi] Error:', error);
-      throw new Error(error.message || 'Erreur de communication avec Dolibarr');
+      // Detect ModSecurity / WAF 510 block - treat as connectivity issue, not crash
+      const msg = error.message || '';
+      if (msg.includes('510') || msg.includes('Access denied by security policy') || msg.includes('FunctionsHttpError')) {
+        throw new Error('DOLIBARR_WAF_BLOCKED');
+      }
+      throw new Error(msg || 'Erreur de communication avec Dolibarr');
     }
     
     if (data?.error) {
-      throw new Error(data.error);
+      const errMsg = data.error as string;
+      if (errMsg.includes('510') || errMsg.includes('Access denied')) {
+        throw new Error('DOLIBARR_WAF_BLOCKED');
+      }
+      throw new Error(errMsg);
     }
     
     return data as T;
-  } catch (err) {
+  } catch (err: any) {
     console.error('[DolibarrApi] Exception caught:', err);
+    // Re-map 510/WAF errors to a clean error code
+    if (err?.message?.includes('510') || err?.message?.includes('Access denied by security policy')) {
+      throw new Error('DOLIBARR_WAF_BLOCKED');
+    }
     throw err;
   }
 }
