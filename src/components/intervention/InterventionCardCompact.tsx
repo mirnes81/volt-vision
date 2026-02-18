@@ -1,9 +1,11 @@
-import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, Calendar, User, Building, Phone, Users } from 'lucide-react';
+import * as React from 'react';
+import { MapPin, Clock, AlertTriangle, CheckCircle2, Play, Calendar, User, Building, Phone, Users, Wrench, RotateCcw, XCircle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { Intervention, InterventionStatus } from '@/types/intervention';
 import { InterventionAssignment } from '@/types/assignments';
 import { cn } from '@/lib/utils';
 import { getDateOverride } from '@/components/intervention/DateEditDialog';
+import { loadOperationalStatus, OPERATIONAL_STATUS_CONFIG, OperationalStatus } from '@/components/intervention/OperationalStatusSelector';
 
 interface InterventionCardCompactProps {
   intervention: Intervention;
@@ -66,6 +68,12 @@ function formatDateTime(dateString?: string): { day: string; date: string; time:
 export function InterventionCardCompact({ intervention, supabaseAssignments = [] }: InterventionCardCompactProps) {
   const status = statusConfig[intervention.status] || statusConfig.a_planifier;
   const StatusIcon = status.icon;
+  const [opStatus, setOpStatus] = React.useState<OperationalStatus | null>(null);
+
+  React.useEffect(() => {
+    loadOperationalStatus(intervention.id).then(s => setOpStatus(s));
+  }, [intervention.id]);
+
   // Use local override if exists, otherwise dateStart or datePlanned
   const localOverride = getDateOverride(intervention.id);
   const dateInfo = formatDateTime(localOverride || intervention.dateStart || intervention.datePlanned);
@@ -79,6 +87,8 @@ export function InterventionCardCompact({ intervention, supabaseAssignments = []
   
   // Worker hours summary for this intervention
   const totalHours = intervention.hours?.reduce((sum, h) => sum + (h.durationHours || 0), 0) || 0;
+
+  const opConfig = opStatus ? OPERATIONAL_STATUS_CONFIG[opStatus] : null;
 
   return (
     <Link to={`/intervention/${intervention.id}`}>
@@ -116,14 +126,28 @@ export function InterventionCardCompact({ intervention, supabaseAssignments = []
               </h3>
             </div>
             
-            {/* Status badge - smaller */}
-            <div className={cn(
-              "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-semibold shrink-0",
-              status.bgColor,
-              status.color,
-              urgent && "mt-2"
-            )}>
-              <StatusIcon className="w-2.5 h-2.5" />
+            {/* Status badges */}
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              {/* Dolibarr status - small dot only */}
+              <div className={cn(
+                "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-semibold",
+                status.bgColor,
+                status.color,
+                urgent && "mt-2"
+              )}>
+                <StatusIcon className="w-2.5 h-2.5" />
+              </div>
+              {/* Operational status badge */}
+              {opConfig && opStatus !== 'a_faire' && (
+                <div className={cn(
+                  "flex items-center gap-0.5 px-1.5 py-0.5 rounded-full text-[8px] font-bold",
+                  opConfig.bgColor,
+                  opConfig.color
+                )}>
+                  {React.createElement(opConfig.icon, { className: "w-2.5 h-2.5" })}
+                  <span className="leading-none">{opConfig.label.replace(' ✓', '')}</span>
+                </div>
+              )}
             </div>
           </div>
           
