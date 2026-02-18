@@ -483,6 +483,42 @@ export type Database = {
         }
         Relationships: []
       }
+      intervention_photos: {
+        Row: {
+          created_at: string
+          id: string
+          intervention_id: number
+          original_filename: string | null
+          photo_type: string
+          public_url: string
+          storage_path: string
+          tenant_id: string
+          uploaded_by: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          intervention_id: number
+          original_filename?: string | null
+          photo_type: string
+          public_url: string
+          storage_path: string
+          tenant_id: string
+          uploaded_by: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          intervention_id?: number
+          original_filename?: string | null
+          photo_type?: string
+          public_url?: string
+          storage_path?: string
+          tenant_id?: string
+          uploaded_by?: string
+        }
+        Relationships: []
+      }
       push_subscriptions: {
         Row: {
           auth_key: string

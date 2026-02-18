@@ -271,38 +271,67 @@ export async function uploadPhoto(
   file: File, 
   type: 'avant' | 'pendant' | 'apres' | 'oibt' | 'defaut'
 ): Promise<{ id: number; filePath: string; offline?: boolean }> {
-  const filename = `${type}_${Date.now()}_${file.name}`;
-  
-  // Convert file to base64 for offline storage
-  const fileToBase64 = (): Promise<string> => {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader();
-      reader.onload = () => {
-        const result = reader.result as string;
-        resolve(result.split(',')[1]); // Remove data URL prefix
-      };
-      reader.onerror = reject;
-      reader.readAsDataURL(file);
-    });
-  };
-  
+  const worker = getCurrentWorker();
+  const filename = `${type}_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+  const storagePath = `${interventionId}/${filename}`;
+
   // Check if we should queue offline
   if (shouldQueueOffline()) {
-    const base64 = await fileToBase64();
     const localFilePath = URL.createObjectURL(file);
-    
-    await addPendingSync('photo', interventionId, {
-      base64,
-      type,
-      filename,
-      mimeType: file.type,
-    });
-    
-    console.log('[API] Photo queued for offline sync:', filename);
+    console.log('[API] Photo queued for offline display (no connection):', filename);
     return { id: Date.now(), filePath: localFilePath, offline: true };
   }
   
-  return dolibarrApi.dolibarrUploadPhoto(interventionId, file, type);
+  try {
+    // Upload to Supabase Storage (bypasses Dolibarr WAF issues)
+    const { supabase } = await import('@/integrations/supabase/client');
+    
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from('intervention-photos')
+      .upload(storagePath, file, {
+        contentType: file.type,
+        upsert: false,
+      });
+    
+    if (uploadError) {
+      console.error('[API] Storage upload error:', uploadError);
+      throw new Error(uploadError.message);
+    }
+    
+    // Get public URL
+    const { data: urlData } = supabase.storage
+      .from('intervention-photos')
+      .getPublicUrl(storagePath);
+    
+    const publicUrl = urlData.publicUrl;
+    
+    // Save photo record to database
+    const tenantId = localStorage.getItem('mv3_tenant_id') || 'default';
+    const { error: dbError } = await supabase
+      .from('intervention_photos' as any)
+      .insert({
+        intervention_id: interventionId,
+        tenant_id: tenantId,
+        uploaded_by: worker ? String(worker.id) : 'unknown',
+        photo_type: type,
+        storage_path: storagePath,
+        public_url: publicUrl,
+        original_filename: file.name,
+      });
+    
+    if (dbError) {
+      console.warn('[API] DB photo record error (non-critical):', dbError);
+    }
+    
+    console.log('[API] Photo uploaded to storage:', publicUrl);
+    return { id: Date.now(), filePath: publicUrl };
+    
+  } catch (error) {
+    console.error('[API] Upload failed, using local blob URL:', error);
+    // Fallback: local blob URL for current session display
+    const localFilePath = URL.createObjectURL(file);
+    return { id: Date.now(), filePath: localFilePath, offline: true };
+  }
 }
 
 // Signature
