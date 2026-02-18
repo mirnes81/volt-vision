@@ -4,7 +4,8 @@ import { useAssignments } from '@/contexts/AssignmentsContext';
 import { 
   MapPin, User, AlertTriangle, Clock, Package, CheckSquare, Camera, 
   PenTool, Sparkles, FileCheck, Navigation, Mic, History, Boxes,
-  Phone, Mail, FileText, Calendar, ExternalLink, ChevronDown, ChevronUp, Bell, BellRing, Zap
+  Phone, Mail, FileText, Calendar, ExternalLink, ChevronDown, ChevronUp, 
+  Bell, BellRing, Zap, Hash, Key, Lock, Home, Building2
 } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
 import { HoursSection } from '@/components/intervention/HoursSection';
@@ -50,49 +51,47 @@ const statusConfig: Record<string, { label: string; color: string }> = {
   facture: { label: 'Facturé', color: 'bg-muted text-muted-foreground' },
 };
 
+// Tab groups for mobile bottom bar
+const TAB_GROUPS = [
+  { id: 'info', label: 'Info', icon: FileText },
+  { id: 'tasks', label: 'Tâches', icon: CheckSquare },
+  { id: 'photos', label: 'Photos', icon: Camera },
+  { id: 'tools', label: 'Outils', icon: Sparkles },
+  { id: 'more', label: 'Plus', icon: ChevronDown },
+];
+
+const MORE_TABS = [
+  { id: 'hours', label: 'Heures', icon: Clock },
+  { id: 'oibt', label: 'OIBT', icon: FileCheck },
+  { id: 'gps', label: 'GPS', icon: Navigation },
+  { id: 'voice', label: 'Notes', icon: Mic },
+  { id: 'report', label: 'Rapport', icon: FileText },
+  { id: 'ai', label: 'IA', icon: Sparkles },
+  { id: 'history', label: 'Historique', icon: History },
+  { id: 'stock', label: 'Stock', icon: Boxes },
+  { id: 'signature', label: 'Signature', icon: PenTool },
+];
+
 export default function InterventionDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { t } = useLanguage();
   const [intervention, setIntervention] = React.useState<Intervention | null>(null);
   const [isLoading, setIsLoading] = React.useState(true);
-  const [activeTab, setActiveTab] = React.useState('overview');
+  const [activeTab, setActiveTab] = React.useState('info');
   const [showFullDescription, setShowFullDescription] = React.useState(false);
   const [hasReminder, setHasReminder] = React.useState(false);
+  const [showMoreMenu, setShowMoreMenu] = React.useState(false);
   
   // Use global assignments context
   const { getAssignmentsForIntervention, refresh: refreshAssignments } = useAssignments();
-  
-  // Get assignments for current intervention
   const supabaseAssignments = id ? getAssignmentsForIntervention(parseInt(id)) : [];
 
-  const tabs = [
-    { id: 'overview', label: 'Détails', icon: FileText },
-    { id: 'tasks', label: t('tab.tasks'), icon: CheckSquare },
-    { id: 'materials', label: t('tab.materials'), icon: Package },
-    { id: 'photos', label: t('tab.photos'), icon: Camera },
-    { id: 'hours', label: t('tab.hours'), icon: Clock },
-    { id: 'oibt', label: t('tab.oibt'), icon: FileCheck },
-    { id: 'gps', label: t('tab.gps'), icon: Navigation },
-    { id: 'voice', label: t('tab.voice'), icon: Mic },
-    { id: 'report', label: 'Rapport', icon: FileText },
-    { id: 'ai', label: t('tab.ai'), icon: Sparkles },
-    { id: 'history', label: t('tab.history'), icon: History },
-    { id: 'stock', label: 'Stock', icon: Boxes },
-    { id: 'signature', label: t('tab.signature'), icon: PenTool },
-  ];
-
   React.useEffect(() => {
-    if (id) {
-      const interventionId = parseInt(id);
-      loadIntervention(interventionId);
-    }
+    if (id) loadIntervention(parseInt(id));
   }, [id]);
 
-  // Check reminder status when intervention changes
   React.useEffect(() => {
-    if (id) {
-      setHasReminder(hasReminderScheduled(parseInt(id)));
-    }
+    if (id) setHasReminder(hasReminderScheduled(parseInt(id)));
   }, [id, intervention]);
 
   const loadIntervention = async (interventionId: number) => {
@@ -100,15 +99,6 @@ export default function InterventionDetailPage() {
     try {
       const data = await getIntervention(interventionId);
       setIntervention(data);
-      console.log('[InterventionDetail] Loaded:', data);
-      console.log('[InterventionDetail] Extrafields:', {
-        extraBon: data.extraBon,
-        extraAdresse: data.extraAdresse,
-        extraContact: data.extraContact,
-        extraCle: data.extraCle,
-        extraCode: data.extraCode,
-      });
-      // Check reminder status
       setHasReminder(hasReminderScheduled(interventionId));
     } catch (error) {
       console.error('Error:', error);
@@ -119,62 +109,41 @@ export default function InterventionDetailPage() {
 
   const handleToggleReminder = () => {
     if (!intervention || !id) return;
-    
     const interventionId = parseInt(id);
-    
     if (hasReminder) {
       cancelInterventionReminder(interventionId);
       setHasReminder(false);
       toast.success('Rappel supprimé');
     } else {
-      if (!intervention.dateStart) {
-        toast.error('Pas de date d\'intervention définie');
-        return;
-      }
-      
+      if (!intervention.dateStart) { toast.error('Pas de date d\'intervention définie'); return; }
       const settings = getReminderSettings();
-      if (!settings.enabled) {
-        toast.error('Activez les rappels dans les paramètres');
-        return;
-      }
-
+      if (!settings.enabled) { toast.error('Activez les rappels dans les paramètres'); return; }
       const success = scheduleInterventionReminder(
-        interventionId,
-        intervention.ref,
-        intervention.clientName,
-        intervention.dateStart,
-        intervention.extraAdresse || intervention.clientAddress
+        interventionId, intervention.ref, intervention.clientName,
+        intervention.dateStart, intervention.extraAdresse || intervention.clientAddress
       );
-      
       if (success) {
         setHasReminder(true);
-        const timeRemaining = formatTimeRemaining(intervention.dateStart);
         toast.success(`Rappel programmé (${settings.timeBefore} min avant)`, {
-          description: `Intervention ${timeRemaining}`,
+          description: `Intervention ${formatTimeRemaining(intervention.dateStart)}`,
         });
       } else {
-        toast.error('Impossible de programmer le rappel', {
-          description: 'La date est peut-être déjà passée',
-        });
+        toast.error('Impossible de programmer le rappel', { description: 'La date est peut-être déjà passée' });
       }
     }
   };
 
   const handleUpdate = async () => {
-    console.log('[InterventionDetail] handleUpdate called');
     try {
       if (id) {
-        const interventionId = parseInt(id);
         await refreshAssignments();
-        await loadIntervention(interventionId);
-        console.log('[InterventionDetail] Data refreshed');
+        await loadIntervention(parseInt(id));
       }
     } catch (error) {
       console.error('[InterventionDetail] handleUpdate error:', error);
     }
   };
 
-  // Compute assignee name from loaded assignments
   const primaryAssignment = supabaseAssignments.find(a => a.is_primary) || supabaseAssignments[0];
   const assigneeName = primaryAssignment 
     ? primaryAssignment.user_name
@@ -182,24 +151,24 @@ export default function InterventionDetailPage() {
       ? `${intervention.assignedTo.firstName} ${intervention.assignedTo.name}`.trim()
       : null;
 
-  // Check if current user is admin
-  const isAdmin = (() => {
+  // Admin check
+  const isAdmin = React.useMemo(() => {
     try {
       const workerData = localStorage.getItem('mv3_worker') || localStorage.getItem('worker');
       if (!workerData) return false;
       const worker = JSON.parse(workerData);
       return worker?.admin === '1' || worker?.admin === 1 || worker?.isAdmin === true;
     } catch { return false; }
-  })();
+  }, []);
 
   if (isLoading) {
     return (
-      <div>
+      <div className="min-h-screen bg-background">
         <Header title="..." showBack />
-        <div className="px-4 space-y-4 pt-4">
-          <Skeleton className="h-32 rounded-2xl" />
-          <Skeleton className="h-12 rounded-xl" />
-          <Skeleton className="h-64 rounded-2xl" />
+        <div className="px-4 space-y-3 pt-4 pb-24">
+          <Skeleton className="h-28 rounded-2xl" />
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-48 rounded-2xl" />
         </div>
       </div>
     );
@@ -214,39 +183,304 @@ export default function InterventionDetailPage() {
     );
   }
 
-  const status = statusConfig[intervention.status];
+  const status = statusConfig[intervention.status] || statusConfig.a_planifier;
+  const localOverride = getDateOverride(intervention.id);
+  const displayDate = localOverride || intervention.dateStart;
+  const dateObj = displayDate ? new Date(displayDate) : null;
+  const dayNames = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
+
+  const handleTabSelect = (tabId: string) => {
+    if (tabId === 'more') {
+      setShowMoreMenu(!showMoreMenu);
+      return;
+    }
+    setActiveTab(tabId);
+    setShowMoreMenu(false);
+  };
+
+  const handleMoreTabSelect = (tabId: string) => {
+    setActiveTab(tabId);
+    setShowMoreMenu(false);
+  };
+
+  const activeTabGroup = MORE_TABS.find(t => t.id === activeTab) ? 'more' : activeTab;
+
+  // Render tab content
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'info': return <InfoTab />;
+      case 'tasks': return <TasksSection intervention={intervention} onUpdate={handleUpdate} />;
+      case 'photos': return <PhotosSection intervention={intervention} onUpdate={handleUpdate} />;
+      case 'tools': return <ToolsTab />;
+      case 'hours': return <HoursSection intervention={intervention} onUpdate={handleUpdate} />;
+      case 'oibt': return <OIBTSection intervention={intervention} onUpdate={handleUpdate} />;
+      case 'gps': return <GPSSection intervention={intervention} />;
+      case 'voice': return <VoiceNotesSection intervention={intervention} />;
+      case 'report': return <ReportNotesSection intervention={intervention} />;
+      case 'ai': return <AiSection intervention={intervention} onUpdate={handleUpdate} />;
+      case 'history': return <HistorySection intervention={intervention} />;
+      case 'stock': return <StockSection />;
+      case 'signature': return <SignatureSection intervention={intervention} onUpdate={handleUpdate} />;
+      default: return <InfoTab />;
+    }
+  };
+
+  // Info Tab - Main intervention details
+  const InfoTab = () => (
+    <div className="space-y-3">
+      {/* Extra fields */}
+      {(intervention.extraBon || intervention.extraAdresse || intervention.extraContact || 
+        intervention.extraCle || intervention.extraCode || intervention.extraNoImm || 
+        intervention.extraAdresseComplete || intervention.extraNCompt || 
+        intervention.extraPropImm || intervention.extraConcierge || intervention.extraAppartement) && (
+        <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border/40 bg-muted/30">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Informations</h3>
+          </div>
+          <div className="p-3 space-y-2">
+            {intervention.extraBon && (
+              <div className="flex items-center justify-between py-1.5 px-2 bg-primary/5 rounded-lg">
+                <div className="flex items-center gap-2">
+                  <Hash className="w-3.5 h-3.5 text-primary" />
+                  <span className="text-xs text-muted-foreground">N° Bon</span>
+                </div>
+                <span className="text-sm font-bold text-primary">{intervention.extraBon}</span>
+              </div>
+            )}
+            {intervention.extraNoImm && (
+              <div className="flex items-center justify-between py-1 px-2">
+                <span className="text-xs text-muted-foreground flex items-center gap-1.5"><Building2 className="w-3.5 h-3.5" />N° Immeuble</span>
+                <span className="text-sm font-semibold">{intervention.extraNoImm}</span>
+              </div>
+            )}
+            {intervention.extraPropImm && (
+              <div className="flex items-center justify-between py-1 px-2">
+                <span className="text-xs text-muted-foreground flex items-center gap-1.5"><User className="w-3.5 h-3.5" />Propriétaire</span>
+                <span className="text-sm font-semibold">{intervention.extraPropImm}</span>
+              </div>
+            )}
+            {intervention.extraAppartement && (
+              <div className="flex items-center justify-between py-1 px-2">
+                <span className="text-xs text-muted-foreground flex items-center gap-1.5"><Home className="w-3.5 h-3.5" />Appartement</span>
+                <span className="text-sm font-semibold">{intervention.extraAppartement}</span>
+              </div>
+            )}
+            {intervention.extraConcierge && (
+              <div className="flex items-center justify-between py-1 px-2">
+                <span className="text-xs text-muted-foreground">🏠 Concierge</span>
+                <span className="text-sm font-semibold">{intervention.extraConcierge}</span>
+              </div>
+            )}
+            {intervention.extraNCompt && (
+              <div className="flex items-center justify-between py-1 px-2">
+                <span className="text-xs text-muted-foreground">⚡ N° Compteur</span>
+                <span className="text-sm font-semibold">{intervention.extraNCompt}</span>
+              </div>
+            )}
+            {(intervention.extraAdresse || intervention.extraAdresseComplete) && (
+              <div className="flex items-start gap-2 py-1 px-2">
+                <MapPin className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+                <span className="text-sm">{intervention.extraAdresse || intervention.extraAdresseComplete}</span>
+              </div>
+            )}
+            {intervention.extraContact && (
+              <div className="flex items-center gap-2 py-1 px-2">
+                <User className="w-3.5 h-3.5 text-primary shrink-0" />
+                <span className="text-sm">{intervention.extraContact}</span>
+              </div>
+            )}
+            {(intervention.extraCle || intervention.extraCode) && (
+              <div className="flex items-center gap-2 flex-wrap py-1 px-2">
+                {intervention.extraCle && (
+                  <div className="flex items-center gap-1.5 text-sm bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-3 py-1.5 rounded-lg font-medium">
+                    <Key className="w-3.5 h-3.5" />
+                    <span>Clé: {intervention.extraCle}</span>
+                  </div>
+                )}
+                {intervention.extraCode && (
+                  <div className="flex items-center gap-1.5 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-3 py-1.5 rounded-lg font-medium">
+                    <Lock className="w-3.5 h-3.5" />
+                    <span>Code: {intervention.extraCode}</span>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Client */}
+      <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-border/40 bg-muted/30">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Client</h3>
+        </div>
+        <div className="p-3 space-y-2">
+          <p className="font-bold text-base">{intervention.clientName}</p>
+          {intervention.clientAddress && (
+            <div className="flex items-start gap-2 text-sm text-muted-foreground">
+              <MapPin className="w-4 h-4 shrink-0 mt-0.5 text-primary" />
+              <span>{intervention.clientAddress}</span>
+            </div>
+          )}
+          <div className="flex gap-2 flex-wrap">
+            {intervention.clientPhone && (
+              <a href={`tel:${intervention.clientPhone}`}
+                className="flex items-center gap-1.5 text-sm text-primary bg-primary/10 px-3 py-1.5 rounded-lg font-medium active:scale-95 transition-transform">
+                <Phone className="w-4 h-4" />
+                <span>{intervention.clientPhone}</span>
+              </a>
+            )}
+            {intervention.clientEmail && (
+              <a href={`mailto:${intervention.clientEmail}`}
+                className="flex items-center gap-1.5 text-sm text-primary bg-primary/10 px-3 py-1.5 rounded-lg font-medium active:scale-95 transition-transform truncate max-w-full">
+                <Mail className="w-4 h-4 shrink-0" />
+                <span className="truncate">{intervention.clientEmail}</span>
+              </a>
+            )}
+          </div>
+        </div>
+      </div>
+
+      {/* Linked proposal */}
+      {intervention.linkedProposalRef && (
+        <div className="bg-card rounded-xl border border-border/50 p-3 flex items-center gap-2">
+          <ExternalLink className="w-4 h-4 text-primary shrink-0" />
+          <span className="text-sm">Devis lié : <span className="text-primary font-semibold">{intervention.linkedProposalRef}</span></span>
+        </div>
+      )}
+
+      {/* Description */}
+      {(intervention.description || intervention.briefing) && (
+        <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border/40 bg-muted/30">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Description / Briefing</h3>
+          </div>
+          <div className="p-3 space-y-2">
+            {intervention.briefing && (
+              <p className="text-sm whitespace-pre-wrap">{intervention.briefing}</p>
+            )}
+            {intervention.description && (
+              <>
+                <button onClick={() => setShowFullDescription(!showFullDescription)}
+                  className="flex items-center gap-2 text-sm font-medium text-primary">
+                  <span>{showFullDescription ? 'Masquer' : 'Description complète'}</span>
+                  {showFullDescription ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                {showFullDescription && (
+                  <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-secondary/30 p-3 rounded-lg">
+                    {intervention.description}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Quick summary */}
+      <div className="grid grid-cols-3 gap-2">
+        <button onClick={() => setActiveTab('tasks')}
+          className="bg-card rounded-xl p-3 text-center border border-border/50 active:scale-95 transition-transform">
+          <CheckSquare className="w-5 h-5 mx-auto mb-1 text-primary" />
+          <p className="text-lg font-bold">{intervention.tasks.length}</p>
+          <p className="text-xs text-muted-foreground">Tâches</p>
+        </button>
+        <button onClick={() => setActiveTab('photos')}
+          className="bg-card rounded-xl p-3 text-center border border-border/50 active:scale-95 transition-transform">
+          <Camera className="w-5 h-5 mx-auto mb-1 text-primary" />
+          <p className="text-lg font-bold">{intervention.photos.length}</p>
+          <p className="text-xs text-muted-foreground">Photos</p>
+        </button>
+        <button onClick={() => setActiveTab('signature')}
+          className="bg-card rounded-xl p-3 text-center border border-border/50 active:scale-95 transition-transform">
+          <PenTool className="w-5 h-5 mx-auto mb-1 text-primary" />
+          <p className="text-lg font-bold">{intervention.signaturePath ? '✓' : '—'}</p>
+          <p className="text-xs text-muted-foreground">Signature</p>
+        </button>
+      </div>
+
+      {/* Materials preview */}
+      {intervention.materials.length > 0 && (
+        <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
+          <div className="px-4 py-2.5 border-b border-border/40 bg-muted/30 flex items-center justify-between">
+            <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+              Matériaux ({intervention.materials.length})
+            </h3>
+            <button onClick={() => setActiveTab('materials')} className="text-xs text-primary font-medium">Voir tout</button>
+          </div>
+          <div className="divide-y divide-border/30">
+            {intervention.materials.slice(0, 4).map((mat) => (
+              <div key={mat.id} className="flex items-center justify-between px-4 py-2.5">
+                <div className="min-w-0 flex-1">
+                  <p className="font-medium text-sm truncate">{mat.productName}</p>
+                  {mat.productRef && <p className="text-xs text-muted-foreground">Réf: {mat.productRef}</p>}
+                </div>
+                <div className="text-right shrink-0 ml-3">
+                  <p className="font-semibold text-sm">{mat.qtyUsed} {mat.unit}</p>
+                  {mat.price && mat.price > 0 && <p className="text-xs text-muted-foreground">{mat.price.toFixed(2)} CHF</p>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+
+  // Tools Tab - quick access to more functions
+  const ToolsTab = () => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-2 gap-3">
+        {MORE_TABS.map((tab) => {
+          const Icon = tab.icon;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className="bg-card rounded-2xl p-4 flex flex-col items-center gap-2 border border-border/50 active:scale-95 transition-transform hover:border-primary/30"
+            >
+              <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <Icon className="w-5 h-5 text-primary" />
+              </div>
+              <span className="text-sm font-medium">{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 
   return (
-    <div className="pb-4">
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Header */}
       <Header title={intervention.ref} showBack />
 
-      <div className="px-4 space-y-4">
-        {/* Main Info Card */}
-        <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50 mt-4">
-          {/* Header with status */}
-          <div className="flex items-start justify-between gap-3 mb-3">
+      {/* Hero card - compact on mobile */}
+      <div className="px-3 pt-3 pb-0">
+        <div className="bg-card rounded-2xl border border-border/50 shadow-sm overflow-hidden">
+          {/* Top strip: badges + operational status */}
+          <div className="px-3 pt-3 pb-2 flex items-start justify-between gap-2">
             <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
+              <div className="flex items-center gap-1.5 flex-wrap mb-1">
+                <span className="text-xs font-bold px-2 py-0.5 rounded-full bg-primary/10 text-primary">
                   {intervention.ref}
                 </span>
-                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary">
-                  {typeLabels[intervention.type]}
+                <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                  {typeLabels[intervention.type] || intervention.type}
                 </span>
                 {intervention.priority === 'urgent' && (
-                  <span className="flex items-center gap-1 text-xs font-semibold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
-                    <AlertTriangle className="w-3 h-3" />{t('common.urgent')}
+                  <span className="flex items-center gap-0.5 text-xs font-bold text-destructive bg-destructive/10 px-2 py-0.5 rounded-full">
+                    <AlertTriangle className="w-3 h-3" />Urgent
                   </span>
                 )}
               </div>
-              <h2 className="font-bold text-lg">{intervention.label}</h2>
+              <h2 className="font-bold text-base leading-tight">{intervention.label}</h2>
+              <p className="text-sm text-muted-foreground font-medium mt-0.5">{intervention.clientName}</p>
             </div>
-            <div className="flex flex-col items-end gap-2 shrink-0">
-              {/* Dolibarr status badge */}
-              <span className={cn("px-3 py-1 rounded-full text-xs font-semibold", status.color)}>
+            <div className="flex flex-col items-end gap-1.5 shrink-0">
+              <span className={cn("px-2.5 py-1 rounded-full text-xs font-semibold", status.color)}>
                 {status.label}
               </span>
-              {/* Operational status - admin can edit, others read-only */}
               <OperationalStatusSelector
                 intervention={intervention}
                 onStatusChange={handleUpdate}
@@ -255,156 +489,71 @@ export default function InterventionDetailPage() {
             </div>
           </div>
 
-          {/* Intervention Extrafields */}
-          {(intervention.extraBon || intervention.extraAdresse || intervention.extraContact || intervention.extraCle || intervention.extraCode || intervention.extraNoImm || intervention.extraAdresseComplete || intervention.extraNCompt || intervention.extraPropImm || intervention.extraConcierge || intervention.extraAppartement) && (
-            <div className="space-y-2 border-t border-border/50 pt-3 mt-3">
-              <h3 className="font-semibold text-foreground text-sm mb-2">Informations complémentaires</h3>
-              
-              {intervention.extraBon && (
-                <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
-                  <span className="text-muted-foreground">N° Bon:</span>
-                  <span className="font-semibold text-primary">{intervention.extraBon}</span>
-                </div>
-              )}
-
-              {intervention.extraNoImm && (
-                <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
-                  <span className="text-muted-foreground">🏢 N° Immeuble:</span>
-                  <span className="font-semibold text-foreground">{intervention.extraNoImm}</span>
-                </div>
-              )}
-
-              {intervention.extraPropImm && (
-                <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
-                  <span className="text-muted-foreground">👤 Propriétaire:</span>
-                  <span className="font-semibold text-foreground">{intervention.extraPropImm}</span>
-                </div>
-              )}
-
-              {intervention.extraAppartement && (
-                <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
-                  <span className="text-muted-foreground">🚪 Appartement:</span>
-                  <span className="font-semibold text-foreground">{intervention.extraAppartement}</span>
-                </div>
-              )}
-              
-              {intervention.extraAdresse && (
-                <div className="flex items-start gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-                  <span className="text-foreground">{intervention.extraAdresse}</span>
-                </div>
-              )}
-
-              {intervention.extraAdresseComplete && !intervention.extraAdresse && (
-                <div className="flex items-start gap-2 text-sm">
-                  <MapPin className="w-4 h-4 text-accent shrink-0 mt-0.5" />
-                  <span className="text-foreground">{intervention.extraAdresseComplete}</span>
-                </div>
-              )}
-              
-              {intervention.extraContact && (
-                <div className="flex items-center gap-2 text-sm">
-                  <User className="w-4 h-4 text-primary shrink-0" />
-                  <span className="text-foreground">Contact: {intervention.extraContact}</span>
-                </div>
-              )}
-
-              {intervention.extraConcierge && (
-                <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
-                  <span className="text-muted-foreground">🏠 Concierge:</span>
-                  <span className="font-semibold text-foreground">{intervention.extraConcierge}</span>
-                </div>
-              )}
-
-              {intervention.extraNCompt && (
-                <div className="flex items-center gap-2 text-sm bg-secondary/50 px-2 py-1.5 rounded-lg">
-                  <span className="text-muted-foreground">⚡ N° Compteur:</span>
-                  <span className="font-semibold text-foreground">{intervention.extraNCompt}</span>
-                </div>
-              )}
-              
-              {(intervention.extraCle || intervention.extraCode) && (
-                <div className="flex items-center gap-3 flex-wrap">
-                  {intervention.extraCle && (
-                    <div className="flex items-center gap-1.5 text-sm bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 px-2 py-1 rounded-md">
-                      <span className="font-medium">🔑 Clé: {intervention.extraCle}</span>
-                    </div>
-                  )}
-                  {intervention.extraCode && (
-                    <div className="flex items-center gap-1.5 text-sm bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-200 px-2 py-1 rounded-md">
-                      <span className="font-medium">🔢 Code: {intervention.extraCode}</span>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Linked documents */}
-          {intervention.linkedProposalRef && (
-            <div className="flex items-center gap-2 mt-3 pt-3 border-t border-border/50 p-2 bg-secondary/50 rounded-lg">
-              <ExternalLink className="w-4 h-4 text-primary" />
-              <span className="text-sm font-medium">Devis lié : <span className="text-primary">{intervention.linkedProposalRef}</span></span>
-            </div>
-          )}
-
-          {/* Client info */}
-          <div className="space-y-2 text-sm border-t border-border/50 pt-3 mt-3">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <User className="w-4 h-4" />
-              Client
-            </h3>
-            <p className="font-bold text-foreground text-base">{intervention.clientName}</p>
-            
-            {intervention.clientAddress && (
-              <div className="flex items-start gap-2 text-muted-foreground">
-                <MapPin className="w-4 h-4 shrink-0 mt-0.5" />
-                <span>{intervention.clientAddress}</span>
+          {/* Date row */}
+          {dateObj && (
+            <div className="px-3 py-2 border-t border-border/40 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary shrink-0" />
+                <span className="font-semibold text-sm">
+                  {dayNames[dateObj.getDay()]} {dateObj.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </span>
+                {(dateObj.getHours() !== 0 || dateObj.getMinutes() !== 0) && (
+                  <span className="text-primary font-medium text-sm">
+                    • {dateObj.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                )}
+                {isAdmin && (
+                  <DateEditDialog
+                    interventionId={intervention.id}
+                    currentDate={localOverride || intervention.dateStart}
+                    onDateUpdated={handleUpdate}
+                  />
+                )}
               </div>
-            )}
-            
-            {intervention.clientPhone && (
-              <a 
-                href={`tel:${intervention.clientPhone}`}
-                className="flex items-center gap-2 text-primary hover:underline"
+              <Button
+                variant={hasReminder ? "default" : "ghost"}
+                size="sm"
+                onClick={handleToggleReminder}
+                className={cn("h-8 w-8 p-0 rounded-full", hasReminder && "bg-primary text-primary-foreground")}
               >
-                <Phone className="w-4 h-4" />
-                <span>{intervention.clientPhone}</span>
-              </a>
-            )}
-            
-            {intervention.clientEmail && (
-              <a 
-                href={`mailto:${intervention.clientEmail}`}
-                className="flex items-center gap-2 text-primary hover:underline"
-              >
-                <Mail className="w-4 h-4" />
-                <span className="truncate">{intervention.clientEmail}</span>
-              </a>
-            )}
-          </div>
-
-          {/* Assigned worker + Admin Edit + Multi-Assignment */}
-          <div className="flex items-center justify-between gap-2 text-sm mt-3 pt-3 border-t border-border/50 flex-wrap">
-            <div className="flex items-center gap-2">
-              <User className="w-4 h-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Assigné à :</span>
-              <span className="font-semibold text-foreground">
-                {assigneeName || 'Non assigné'}
-              </span>
+                {hasReminder ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
+              </Button>
             </div>
-            <div className="flex items-center gap-2">
-              {/* Emergency button */}
+          )}
+
+          {/* Location row */}
+          {(intervention.extraAdresse || intervention.location) && (
+            <div className="px-3 py-2 border-t border-border/40 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-sm truncate">{intervention.extraAdresse || intervention.location}</span>
+            </div>
+          )}
+
+          {/* Bottom actions row */}
+          <div className="px-3 py-2 border-t border-border/40 flex items-center justify-between gap-2">
+            {/* Assignee */}
+            <div className="flex items-center gap-1.5 min-w-0 flex-1">
+              <User className="w-4 h-4 text-muted-foreground shrink-0" />
+              <span className="text-sm font-medium truncate">
+                {assigneeName || <span className="text-muted-foreground text-xs">Non assigné</span>}
+              </span>
+              {supabaseAssignments.length > 1 && (
+                <span className="text-xs bg-secondary px-1.5 py-0.5 rounded-full text-muted-foreground">
+                  +{supabaseAssignments.length - 1}
+                </span>
+              )}
+            </div>
+            {/* Action buttons */}
+            <div className="flex items-center gap-1.5 shrink-0">
               <CreateEmergencyDialog
-                  intervention={intervention}
-                  trigger={
-                    <Button variant="outline" size="sm" className="gap-1 text-red-500 border-red-500 hover:bg-red-500/10">
-                      <Zap className="h-4 w-4" />
-                      Urgence
-                    </Button>
-                  }
-                />
-              {/* Dolibarr assignment panel - admin only */}
+                intervention={intervention}
+                trigger={
+                  <Button variant="outline" size="sm" className="h-8 px-2 gap-1 text-destructive border-destructive/40 hover:bg-destructive/10 text-xs">
+                    <Zap className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Urgence</span>
+                  </Button>
+                }
+              />
               {isAdmin && (
                 <DolibarrAssignmentPanel
                   interventionId={intervention.id}
@@ -421,267 +570,85 @@ export default function InterventionDetailPage() {
               )}
             </div>
           </div>
-
-        {/* Date with day of week, time and reminder button */}
-        {(intervention.dateStart || getDateOverride(intervention.id)) && (
-          <div className="flex items-center justify-between gap-2 text-sm mt-2">
-            <div className="flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-primary" />
-              <span className="font-semibold text-foreground">
-                {(() => {
-                  const localOverride = getDateOverride(intervention.id);
-                  const date = new Date(localOverride || intervention.dateStart!);
-                  const dayNames = ['Dimanche', 'Lundi', 'Mardi', 'Mercredi', 'Jeudi', 'Vendredi', 'Samedi'];
-                  return `${dayNames[date.getDay()]} ${date.toLocaleDateString('fr-CH', { day: 'numeric', month: 'long', year: 'numeric' })}`;
-                })()}
-              </span>
-              {(() => {
-                const localOverride = getDateOverride(intervention.id);
-                const date = new Date(localOverride || intervention.dateStart!);
-                const hours = date.getHours();
-                const minutes = date.getMinutes();
-                const hasTime = hours !== 0 || minutes !== 0;
-                if (!hasTime) return null;
-                return (
-                  <span className="text-primary font-medium">
-                    • {date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                );
-              })()}
-              {/* Date edit button - admin only */}
-              {isAdmin && (
-                <DateEditDialog
-                  interventionId={intervention.id}
-                  currentDate={getDateOverride(intervention.id) || intervention.dateStart}
-                  onDateUpdated={handleUpdate}
-                />
-              )}
-            </div>
-            {/* Reminder button */}
-            <Button
-              variant={hasReminder ? "default" : "outline"}
-              size="sm"
-              onClick={handleToggleReminder}
-              className={cn(
-                "h-8 px-3 gap-1.5",
-                hasReminder && "bg-primary text-primary-foreground"
-              )}
-            >
-              {hasReminder ? (
-                <>
-                  <BellRing className="w-4 h-4" />
-                  <span className="text-xs">Rappel actif</span>
-                </>
-              ) : (
-                <>
-                  <Bell className="w-4 h-4" />
-                  <span className="text-xs">Rappel</span>
-                </>
-              )}
-            </Button>
-          </div>
-        )}
+        </div>
       </div>
 
-      {/* Description / Briefing - FULL readable */}
-      {(intervention.description || intervention.briefing) && (
-        <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
-          <h3 className="font-semibold text-foreground flex items-center gap-2 mb-2">
-            <FileText className="w-4 h-4" />
-            Description / Briefing
-          </h3>
-          
-          {/* Show briefing if available */}
-          {intervention.briefing && (
-            <div className="text-sm text-foreground mb-3 whitespace-pre-wrap">
-              {intervention.briefing}
-            </div>
-          )}
-          
-          {/* Show full description - always expandable */}
-          {intervention.description && (
-            <div className="border-t border-border/50 pt-3 mt-2">
-              <button 
-                onClick={() => setShowFullDescription(!showFullDescription)}
-                className="flex items-center gap-2 text-sm font-medium text-primary mb-2"
-              >
-                <span>Description complète</span>
-                {showFullDescription ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              </button>
-              {showFullDescription && (
-                <div className="text-sm text-muted-foreground whitespace-pre-wrap bg-secondary/30 p-3 rounded-lg">
-                  {intervention.description}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      )}
+      {/* Tab content - scrollable */}
+      <div className="flex-1 px-3 pt-3 pb-24 overflow-y-auto">
+        {renderTabContent()}
+      </div>
 
-        {/* Quick summary cards */}
-        <div className="grid grid-cols-3 gap-2">
-          <div className="bg-card rounded-xl p-3 text-center border border-border/50">
-            <CheckSquare className="w-5 h-5 mx-auto mb-1 text-primary" />
-            <p className="text-lg font-bold">{intervention.tasks.length}</p>
-            <p className="text-xs text-muted-foreground">Tâches</p>
-          </div>
-          <div className="bg-card rounded-xl p-3 text-center border border-border/50">
-            <Package className="w-5 h-5 mx-auto mb-1 text-primary" />
-            <p className="text-lg font-bold">{intervention.materials.length}</p>
-            <p className="text-xs text-muted-foreground">Produits</p>
-          </div>
-          <div className="bg-card rounded-xl p-3 text-center border border-border/50">
-            <Camera className="w-5 h-5 mx-auto mb-1 text-primary" />
-            <p className="text-lg font-bold">{intervention.photos.length}</p>
-            <p className="text-xs text-muted-foreground">Photos</p>
-          </div>
-        </div>
-
-        {/* Materials preview (if any) */}
-        {intervention.materials.length > 0 && (
-          <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
-            <h3 className="font-semibold text-foreground flex items-center gap-2 mb-3">
-              <Package className="w-4 h-4" />
-              Produits / Matériaux ({intervention.materials.length})
-            </h3>
-            <div className="space-y-2">
-              {intervention.materials.slice(0, 5).map((mat) => (
-                <div key={mat.id} className="flex items-center justify-between p-2 bg-secondary/50 rounded-lg">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium text-sm truncate">{mat.productName}</p>
-                    {mat.productRef && (
-                      <p className="text-xs text-muted-foreground">Réf: {mat.productRef}</p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0 ml-2">
-                    <p className="font-semibold text-sm">{mat.qtyUsed} {mat.unit}</p>
-                    {mat.price && mat.price > 0 && (
-                      <p className="text-xs text-muted-foreground">{mat.price.toFixed(2)} CHF</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {intervention.materials.length > 5 && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setActiveTab('materials')}
-                  className="w-full mt-2"
-                >
-                  Voir tous les produits ({intervention.materials.length})
-                </Button>
-              )}
+      {/* Bottom tab bar - mobile fixed */}
+      <div className="fixed bottom-0 left-0 right-0 z-30 bg-background/95 backdrop-blur-sm border-t border-border safe-area-bottom">
+        {/* More menu popup */}
+        {showMoreMenu && (
+          <>
+            <div className="fixed inset-0 z-20" onClick={() => setShowMoreMenu(false)} />
+            <div className="absolute bottom-full left-0 right-0 bg-card border-t border-border shadow-lg z-30 p-3">
+              <div className="grid grid-cols-4 gap-2">
+                {MORE_TABS.map((tab) => {
+                  const Icon = tab.icon;
+                  const isActive = activeTab === tab.id;
+                  return (
+                    <button
+                      key={tab.id}
+                      onClick={() => handleMoreTabSelect(tab.id)}
+                      className={cn(
+                        "flex flex-col items-center gap-1 py-2 px-1 rounded-xl transition-colors",
+                        isActive ? "bg-primary/10 text-primary" : "text-muted-foreground hover:bg-secondary"
+                      )}
+                    >
+                      <Icon className="w-5 h-5" />
+                      <span className="text-[10px] font-medium">{tab.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          </>
         )}
 
-        {/* Tasks preview (if any) */}
-        {intervention.tasks.length > 0 && (
-          <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
-            <h3 className="font-semibold text-foreground flex items-center gap-2 mb-3">
-              <CheckSquare className="w-4 h-4" />
-              Tâches à faire ({intervention.tasks.filter(t => t.status === 'a_faire').length} restantes)
-            </h3>
-            <div className="space-y-2">
-              {intervention.tasks.slice(0, 5).map((task) => (
-                <div key={task.id} className="flex items-center gap-3 p-2 bg-secondary/50 rounded-lg">
-                  <div className={cn(
-                    "w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0",
-                    task.status === 'fait' ? "bg-success border-success text-success-foreground" : "border-muted-foreground"
-                  )}>
-                    {task.status === 'fait' && <CheckSquare className="w-3 h-3" />}
-                  </div>
-                  <p className={cn(
-                    "text-sm flex-1",
-                    task.status === 'fait' && "line-through text-muted-foreground"
-                  )}>
-                    {task.label}
-                  </p>
-                </div>
-              ))}
-              {intervention.tasks.length > 5 && (
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => setActiveTab('tasks')}
-                  className="w-full mt-2"
-                >
-                  Voir toutes les tâches ({intervention.tasks.length})
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {/* Photos preview */}
-        {intervention.photos.length > 0 && (
-          <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
-            <h3 className="font-semibold text-foreground flex items-center gap-2 mb-3">
-              <Camera className="w-4 h-4" />
-              Photos ({intervention.photos.length})
-            </h3>
-            <div className="grid grid-cols-3 gap-2">
-              {intervention.photos.slice(0, 6).map((photo) => (
-                <div key={photo.id} className="aspect-square rounded-lg bg-secondary overflow-hidden">
-                  <img 
-                    src={photo.filePath} 
-                    alt={`Photo ${photo.type}`}
-                    className="w-full h-full object-cover"
-                    onError={(e) => {
-                      (e.target as HTMLImageElement).src = '/placeholder.svg';
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-            {intervention.photos.length > 6 && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                onClick={() => setActiveTab('photos')}
-                className="w-full mt-3"
-              >
-                Voir toutes les photos ({intervention.photos.length})
-              </Button>
-            )}
-          </div>
-        )}
-
-        {/* Tabs */}
-        <div className="flex gap-1 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4 pt-4">
-          {tabs.map((tab) => {
+        {/* Main tab bar */}
+        <div className="flex items-stretch h-16">
+          {TAB_GROUPS.map((tab) => {
             const Icon = tab.icon;
+            const isActive = tab.id === 'more' 
+              ? showMoreMenu || activeTabGroup === 'more'
+              : activeTab === tab.id;
+            
             return (
               <button
                 key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
+                onClick={() => handleTabSelect(tab.id)}
                 className={cn(
-                  "flex items-center gap-1.5 px-3 py-2 rounded-xl whitespace-nowrap transition-all duration-200",
-                  activeTab === tab.id ? "bg-primary text-primary-foreground shadow-md" : "bg-secondary text-muted-foreground"
+                  "flex-1 flex flex-col items-center justify-center gap-0.5 transition-all duration-150 active:scale-95 relative",
+                  isActive 
+                    ? "text-primary" 
+                    : "text-muted-foreground"
                 )}
               >
-                <Icon className="w-4 h-4" />
-                <span className="text-xs font-medium">{tab.label}</span>
+                {isActive && tab.id !== 'more' && (
+                  <div className="absolute top-0 left-1/2 -translate-x-1/2 w-8 h-0.5 bg-primary rounded-full" />
+                )}
+                <div className={cn(
+                  "w-9 h-9 rounded-xl flex items-center justify-center transition-all",
+                  isActive ? "bg-primary/10" : ""
+                )}>
+                  <Icon className="w-5 h-5" />
+                </div>
+                <span className={cn(
+                  "text-[10px] font-medium leading-none",
+                  isActive ? "text-primary" : "text-muted-foreground"
+                )}>
+                  {tab.id === 'tasks' && intervention.tasks.length > 0
+                    ? `${tab.label} (${intervention.tasks.length})`
+                    : tab.id === 'photos' && intervention.photos.length > 0
+                    ? `${tab.label} (${intervention.photos.length})`
+                    : tab.label}
+                </span>
               </button>
             );
           })}
-        </div>
-
-        {/* Tab Content */}
-        <div className="animate-fade-in">
-          {activeTab === 'overview' && null}
-          {activeTab === 'hours' && <HoursSection intervention={intervention} onUpdate={handleUpdate} />}
-          {activeTab === 'materials' && <MaterialsSection intervention={intervention} onUpdate={handleUpdate} />}
-          {activeTab === 'tasks' && <TasksSection intervention={intervention} onUpdate={handleUpdate} />}
-          {activeTab === 'photos' && <PhotosSection intervention={intervention} onUpdate={handleUpdate} />}
-          {activeTab === 'oibt' && <OIBTSection intervention={intervention} onUpdate={handleUpdate} />}
-          {activeTab === 'gps' && <GPSSection intervention={intervention} />}
-          {activeTab === 'voice' && <VoiceNotesSection intervention={intervention} />}
-          {activeTab === 'report' && <ReportNotesSection intervention={intervention} />}
-          {activeTab === 'ai' && <AiSection intervention={intervention} onUpdate={handleUpdate} />}
-          {activeTab === 'history' && <HistorySection intervention={intervention} />}
-          {activeTab === 'stock' && <StockSection />}
-          {activeTab === 'signature' && <SignatureSection intervention={intervention} onUpdate={handleUpdate} />}
         </div>
       </div>
     </div>
