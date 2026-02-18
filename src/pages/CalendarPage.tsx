@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, User, AlertTriangle, Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
@@ -55,6 +56,32 @@ export default function CalendarPage() {
   // Load ALL interventions, then filter using Supabase assignments
   const { interventions: allInterventions, isLoading, refresh } = useInterventionsCache(false);
   const { assignments } = useAssignments();
+
+  // Load date overrides from Supabase (shared across devices, takes priority over localStorage)
+  const [supabaseOverrides, setSupabaseOverrides] = React.useState<Record<number, string>>({});
+
+  React.useEffect(() => {
+    const loadOverrides = async () => {
+      try {
+        const { data } = await supabase
+          .from('intervention_date_overrides')
+          .select('intervention_id, override_date, updated_at')
+          .eq('tenant_id', '00000000-0000-0000-0000-000000000001');
+        if (data) {
+          const map: Record<number, string> = {};
+          data.forEach((o: any) => {
+            map[o.intervention_id] = o.override_date;
+            // Sync localStorage with Supabase values to keep them consistent
+            localStorage.setItem(`intervention_date_override_${o.intervention_id}`, o.override_date);
+          });
+          setSupabaseOverrides(map);
+        }
+      } catch (err) {
+        console.warn('[CalendarPage] Could not load Supabase date overrides:', err);
+      }
+    };
+    loadOverrides();
+  }, []);
 
   // Auto-refresh on Dolibarr webhook events
   useWebhookRefresh(refresh, {
@@ -157,10 +184,13 @@ export default function CalendarPage() {
     return dates;
   };
 
-  // Get effective date for intervention (local override or dateStart)
+  // Get effective date for intervention: Supabase override > localStorage override > Dolibarr dateStart
   const getEffectiveDate = (int: Intervention): string | null => {
+    const supabaseOverride = supabaseOverrides[int.id];
+    if (supabaseOverride) return supabaseOverride;
     const localOverride = getDateOverride(int.id);
-    return localOverride || int.dateStart || null;
+    if (localOverride) return localOverride;
+    return int.dateStart || null;
   };
 
   // Filter interventions by date using effective date (local override or dateStart)

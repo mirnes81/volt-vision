@@ -220,7 +220,16 @@ function mapDolibarrIntervention(data: any): Intervention {
       const extraOpts = data.array_options || data.intervention_extrafields || {};
       const customDateTs = Number(extraOpts.options_interventiondateheur || 0);
       if (customDateTs > 0) return new Date(customDateTs * 1000).toISOString();
-      if (data.dateo) return typeof data.dateo === 'number' ? new Date(data.dateo * 1000).toISOString() : data.dateo;
+      if (data.dateo) {
+        if (typeof data.dateo === 'number' && data.dateo > 0) return new Date(data.dateo * 1000).toISOString();
+        if (typeof data.dateo === 'string' && data.dateo !== '0') {
+          // Handle both ISO strings and Unix timestamp strings
+          const asNum = Number(data.dateo);
+          if (!isNaN(asNum) && asNum > 0) return new Date(asNum * 1000).toISOString();
+          const parsed = new Date(data.dateo);
+          if (!isNaN(parsed.getTime())) return parsed.toISOString();
+        }
+      }
       return undefined;
     })(),
     datePlanned: data.datep ? (typeof data.datep === 'number' ? new Date(data.datep * 1000).toISOString() : data.datep) : undefined,

@@ -322,7 +322,8 @@ serve(async (req) => {
 
       // Interventions - OPTIMIZED: Parallel fetching
       case 'get-interventions': {
-        let query = '?sortfield=t.dateo&sortorder=DESC&limit=500';
+        // includeextrafields=1 ensures array_options (custom date fields like options_interventiondateheur) are returned
+        let query = '?sortfield=t.dateo&sortorder=DESC&limit=500&includeextrafields=1';
         
         if (params?.status !== undefined) {
           query += `&sqlfilters=(t.fk_statut:=:${params.status})`;
