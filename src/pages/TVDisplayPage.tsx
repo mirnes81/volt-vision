@@ -2,7 +2,8 @@ import * as React from 'react';
 import {
   Cloud, Sun, CloudRain, CloudSnow, Wind, MapPin,
   Zap, Clock, Users, Wrench, CheckCircle2, Circle,
-  AlertCircle, Building2, BarChart3, ListChecks, TrendingUp, Timer
+  AlertCircle, Building2, BarChart3, ListChecks, TrendingUp, Timer,
+  Hash, Home, Phone
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { decodeHtmlEntities } from '@/lib/htmlUtils';
@@ -32,6 +33,10 @@ interface TodayIntervention {
   bon_gerance?: string | null;
   operational_status: string | null;
   intervention_type: string | null;
+  no_immeuble: string | null;
+  proprietaire: string | null;
+  concierge: string | null;
+  appartement: string | null;
 }
 
 interface TechSummary {
@@ -314,9 +319,14 @@ function useTVData() {
         const finalLocation = dolibarrAddress || (row.location ? decodeHtmlEntities(row.location) : null);
 
         // Intervention type from Dolibarr extrafields
-        const intType = dolibarrInt?.array_options?.options_typetravaux
-          || dolibarrInt?.type_label
-          || null;
+        const ef = dolibarrInt?.array_options || {};
+        const intType = ef.options_typetravaux || dolibarrInt?.type_label || null;
+
+        // Extra building/contact info from Dolibarr extrafields
+        const noImmeuble = ef.options_noimm || null;
+        const proprietaire = ef.options_propimm || null;
+        const concierge = ef.options_concierge || null;
+        const appartement = ef.options_appartement || null;
 
         techTodayMap.get(name)!.push({
           intervention_id: intId,
@@ -334,6 +344,10 @@ function useTVData() {
           bon_gerance: bonGerance,
           operational_status: intId ? (opStatusMap.get(intId) || null) : null,
           intervention_type: intType,
+          no_immeuble: noImmeuble,
+          proprietaire: proprietaire,
+          concierge: concierge,
+          appartement: appartement,
         });
       }
 
@@ -348,8 +362,8 @@ function useTVData() {
         if (!dateStr || (dateStr !== todayStr && dateStr !== yesterdayStr)) continue;
         const rawDesc = (int.description || int.note_public || '').replace(/<[^>]*>/g, '').trim();
         // Compute date & time from dolibarr data for unassigned
-        const ef = int.array_options || {};
-        const customTs = Number(ef.options_interventiondateheur || 0);
+        const uef = int.array_options || {};
+        const customTs = Number(uef.options_interventiondateheur || 0);
         const rawTs = customTs > 0 ? customTs : Number(int.dateo || 0);
         let unassignedDateFull: string | null = null;
         let unassignedTime: string | null = null;
@@ -361,14 +375,13 @@ function useTVData() {
         }
         // Duration from dolibarr
         let unassignedDuration: number | null = null;
-        if (ef.options_dureeestimee) {
-          unassignedDuration = parseFloat(ef.options_dureeestimee) || null;
+        if (uef.options_dureeestimee) {
+          unassignedDuration = parseFloat(uef.options_dureeestimee) || null;
         } else if (int.dateo && int.datee) {
           const diffMs = (Number(int.datee) - Number(int.dateo)) * 1000;
           if (diffMs > 0) unassignedDuration = Math.round((diffMs / 3600000) * 10) / 10;
         }
         const unassignedAddress = [int.address, int.zip, int.town].filter(Boolean).join(', ');
-        const unassignedType = ef.options_typetravaux || int.type_label || null;
         unassigned.push({
           intervention_id: intId,
           intervention_ref: int.ref || '',
@@ -382,9 +395,13 @@ function useTVData() {
           time_planned: unassignedTime,
           date_planned_full: unassignedDateFull,
           duration_hours: unassignedDuration,
-          bon_gerance: ef.options_bongerance || null,
+          bon_gerance: uef.options_bongerance || null,
           operational_status: opStatusMap.get(intId) || null,
-          intervention_type: unassignedType,
+          intervention_type: uef.options_typetravaux || int.type_label || null,
+          no_immeuble: uef.options_noimm || null,
+          proprietaire: uef.options_propimm || null,
+          concierge: uef.options_concierge || null,
+          appartement: uef.options_appartement || null,
         });
       }
 
@@ -527,99 +544,135 @@ function OpStatusBadge({ status }: { status: string | null }) {
 function InterventionCard({ item, palette }: { item: TodayIntervention; palette: typeof TECH_PALETTE[0] }) {
   const isUrgent = item.priority === 'urgent' || item.priority === 'critical';
   const isDone = item.operational_status === 'termine';
+
   return (
-    <div className="rounded-xl overflow-hidden flex flex-col" style={{
-      background: isDone ? 'rgba(16,185,129,0.05)' : isUrgent ? 'rgba(239,68,68,0.08)' : palette.bg,
-      border: `1px solid ${isDone ? 'rgba(16,185,129,0.3)' : isUrgent ? 'rgba(239,68,68,0.5)' : palette.border}`,
-      opacity: isDone ? 0.8 : 1,
+    <div className="rounded-xl overflow-hidden flex flex-col text-sm" style={{
+      background: isDone ? 'rgba(16,185,129,0.05)' : isUrgent ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.03)',
+      border: `1px solid ${isDone ? 'rgba(16,185,129,0.35)' : isUrgent ? 'rgba(239,68,68,0.5)' : palette.border}`,
+      opacity: isDone ? 0.85 : 1,
     }}>
 
-      {/* ── Bande technicien + date/heure ── */}
-      <div className="flex flex-col gap-0" style={{
-        background: isDone ? 'rgba(16,185,129,0.15)' : isUrgent ? 'rgba(239,68,68,0.2)' : palette.accent + '25',
-        borderBottom: `1px solid ${isDone ? 'rgba(16,185,129,0.25)' : palette.border}`,
+      {/* ── Header: Technicien + Heure ── */}
+      <div className="flex items-center justify-between px-3 py-2 gap-2" style={{
+        background: isDone ? 'rgba(16,185,129,0.15)' : isUrgent ? 'rgba(239,68,68,0.18)' : palette.accent + '22',
+        borderBottom: `1px solid ${isDone ? 'rgba(16,185,129,0.2)' : palette.border}`,
       }}>
-        {/* Ligne 1: Technicien assigné (grand et visible) */}
-        <div className="flex items-center gap-2 px-3 pt-2 pb-1">
-          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black flex-shrink-0"
-            style={{ background: palette.accent + '60', color: '#fff', border: `1px solid ${palette.accent}80` }}>
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black flex-shrink-0"
+            style={{ background: palette.accent + '55', color: '#fff' }}>
             {item.user_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2)}
           </div>
-          <div className="flex flex-col min-w-0">
-            <span className="text-xs font-black leading-tight" style={{ color: '#fff', opacity: 0.5, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assigné à</span>
-            <span className="text-sm font-black leading-tight truncate" style={{ color: palette.light }}>
-              {item.user_name}
-            </span>
-          </div>
+          <span className="text-xs font-black truncate" style={{ color: palette.light }}>{item.user_name}</span>
         </div>
-        {/* Ligne 2: Date + heure + durée */}
-        <div className="flex items-center gap-1.5 px-3 pb-2 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           {item.date_planned_full && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' }}>
-              📅 {item.date_planned_full}
+            <span className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
+              {item.date_planned_full}
             </span>
           )}
           {item.time_planned && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.35)', color: '#fff', border: '1px solid rgba(59,130,246,0.5)' }}>
-              <Clock className="h-2.5 w-2.5" /> {item.time_planned}
+            <span className="inline-flex items-center gap-1 text-[11px] font-black px-2 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.4)', color: '#fff' }}>
+              <Clock className="h-2.5 w-2.5" />{item.time_planned}
             </span>
           )}
           {item.duration_hours && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.25)', color: '#fcd34d' }}>
-              <Timer className="h-2.5 w-2.5" /> ~{item.duration_hours}h
-            </span>
+            <span className="text-[10px] font-bold" style={{ color: '#fcd34d' }}>~{item.duration_hours}h</span>
           )}
         </div>
       </div>
 
-      {/* ── Corps de la carte ── */}
-      <div className="p-3 flex flex-col gap-1.5">
-        {/* Ref + bon + statut + priorité */}
+      {/* ── Corps ── */}
+      <div className="p-2.5 flex flex-col gap-1.5">
+
+        {/* Ligne 1: Ref + Bon + Type + Statut */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.15)', color: '#93c5fd', border: '1px solid rgba(96,165,250,0.3)' }}>
+          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.15)', color: '#93c5fd', border: '1px solid rgba(96,165,250,0.25)' }}>
             {item.intervention_ref}
           </span>
           {item.bon_gerance && (
-            <span className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: 'rgba(250,204,21,0.15)', color: '#fde047', border: '1px solid rgba(250,204,21,0.3)' }}>
-              #{item.bon_gerance}
+            <span className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: 'rgba(250,204,21,0.2)', color: '#fde047', border: '1px solid rgba(250,204,21,0.35)' }}>
+              BON #{item.bon_gerance}
             </span>
           )}
-          <OpStatusBadge status={item.operational_status} />
-          <div className="ml-auto"><PriorityBadge priority={item.priority} /></div>
+          {item.intervention_type && (
+            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.3)' }}>
+              {item.intervention_type}
+            </span>
+          )}
+          <div className="ml-auto flex gap-1">
+            <OpStatusBadge status={item.operational_status} />
+            <PriorityBadge priority={item.priority} />
+          </div>
         </div>
 
-        {/* Client (gros, bien visible) */}
+        {/* Ligne 2: Client (principal, en gras) */}
         {item.client_name && (
-          <div className="text-sm font-black leading-snug" style={{ color: '#fff' }}>
+          <div className="font-black text-sm leading-tight" style={{ color: '#fff' }}>
             {item.client_name}
           </div>
         )}
 
-        {/* Label intervention */}
-        <div className="text-xs leading-snug" style={{ color: isDone ? '#6ee7b7' : isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.6)' }}>
-          {isDone && '✓ '}{item.intervention_label}
-        </div>
-
-        {/* Type d'intervention */}
-        {item.intervention_type && (
-          <div className="inline-flex">
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.3)' }}>
-              {item.intervention_type}
-            </span>
+        {/* Ligne 3: Label / description courte */}
+        {item.intervention_label && item.intervention_label !== 'Intervention' && (
+          <div className="text-[11px] leading-snug italic" style={{ color: isDone ? '#6ee7b7' : 'rgba(255,255,255,0.55)' }}>
+            {isDone && '✓ '}{item.intervention_label}
           </div>
         )}
 
-        {/* Adresse chantier (prominent) */}
+        {/* Séparateur */}
+        {(item.location || item.no_immeuble || item.proprietaire || item.concierge) && (
+          <div className="h-px my-0.5" style={{ background: `${palette.border}` }} />
+        )}
+
+        {/* Bloc Bâtiment: N° Imm + Appt + Propriétaire + Concierge */}
+        {(item.no_immeuble || item.proprietaire || item.concierge || item.appartement) && (
+          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
+            {item.no_immeuble && (
+              <div className="flex items-center gap-1">
+                <Hash className="h-2.5 w-2.5 flex-shrink-0" style={{ color: palette.light }} />
+                <span className="text-[10px] font-bold" style={{ color: 'rgba(255,255,255,0.75)' }}>Imm. {item.no_immeuble}</span>
+              </div>
+            )}
+            {item.appartement && (
+              <div className="flex items-center gap-1">
+                <Home className="h-2.5 w-2.5 flex-shrink-0" style={{ color: palette.light }} />
+                <span className="text-[10px] font-bold" style={{ color: 'rgba(255,255,255,0.75)' }}>App. {item.appartement}</span>
+              </div>
+            )}
+            {item.proprietaire && (
+              <div className="flex items-center gap-1 col-span-2">
+                <Building2 className="h-2.5 w-2.5 flex-shrink-0" style={{ color: '#fbbf24' }} />
+                <span className="text-[10px] leading-tight truncate" style={{ color: 'rgba(255,255,255,0.65)' }}>{item.proprietaire}</span>
+              </div>
+            )}
+            {item.concierge && (
+              <div className="flex items-center gap-1 col-span-2">
+                <Phone className="h-2.5 w-2.5 flex-shrink-0" style={{ color: '#34d399' }} />
+                <span className="text-[10px] leading-tight truncate" style={{ color: 'rgba(255,255,255,0.65)' }}>{item.concierge}</span>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Adresse chantier */}
         {item.location && (
-          <div className="flex items-start gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.75)' }}>
+          <div className="flex items-start gap-1.5" style={{ color: 'rgba(255,255,255,0.8)' }}>
             <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: '#f87171' }} />
-            <span className="line-clamp-2 leading-tight font-medium">{item.location}</span>
+            <span className="text-[11px] font-semibold leading-tight line-clamp-2">{item.location}</span>
+          </div>
+        )}
+
+        {/* Description */}
+        {item.description && (
+          <div className="rounded-lg px-2 py-1.5 text-[10px] leading-snug italic" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', borderLeft: `2px solid ${palette.accent}50` }}>
+            {item.description.slice(0, 120)}{item.description.length > 120 ? '…' : ''}
           </div>
         )}
       </div>
     </div>
   );
 }
+
 
 // ─── Tech Column ─────────────────────────────────────────────────────
 function TechColumn({ tech }: { tech: TechSummary }) {
