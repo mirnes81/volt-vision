@@ -256,14 +256,26 @@ function useTVData() {
         // Today's assignments per tech
         if (!techTodayMap.has(name)) techTodayMap.set(name, []);
 
+        const dolibarrInt = intId ? dolibarrDataMap.get(intId) : null;
+
+        // Extract time: try date_planned UTC hours first, then Dolibarr timestamp
         let timePlanned: string | null = null;
         if (row.date_planned) {
           const dp = new Date(row.date_planned);
-          const h = dp.getHours(), m = dp.getMinutes();
+          // Use UTC hours (Dolibarr stores 07:00 local as 07:00 UTC)
+          const h = dp.getUTCHours(), m = dp.getUTCMinutes();
           if (h > 0 || m > 0) timePlanned = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
         }
-
-        const dolibarrInt = intId ? dolibarrDataMap.get(intId) : null;
+        if (!timePlanned && dolibarrInt) {
+          const ef2 = dolibarrInt.array_options || {};
+          const customTs2 = Number(ef2.options_interventiondateheur || 0);
+          const rawTs2 = customTs2 > 0 ? customTs2 : Number(dolibarrInt.dateo || 0);
+          if (rawTs2 > 0) {
+            const d2 = new Date(rawTs2 * 1000);
+            const h2 = d2.getUTCHours(), m2 = d2.getUTCMinutes();
+            if (h2 > 0 || m2 > 0) timePlanned = `${h2.toString().padStart(2, '0')}:${m2.toString().padStart(2, '0')}`;
+          }
+        }
         const rawDesc = (row as any).description || dolibarrInt?.description || dolibarrInt?.note_public || '';
         const cleanDesc = rawDesc.replace(/<[^>]*>/g, '').trim();
 
@@ -288,12 +300,24 @@ function useTVData() {
 
         const bonGerance = dolibarrInt?.array_options?.options_bongerance || null;
 
+        // Use Dolibarr label if the assignment label is generic
+        const dolibarrLabel = dolibarrInt ? decodeHtmlEntities(dolibarrInt.label || dolibarrInt.ref || '') : '';
+        const finalLabel = (row.intervention_label && row.intervention_label !== 'Intervention')
+          ? decodeHtmlEntities(row.intervention_label)
+          : (dolibarrLabel || decodeHtmlEntities(row.intervention_label || 'Intervention'));
+
+        // Use Dolibarr address if location is generic
+        const dolibarrAddress = dolibarrInt
+          ? [dolibarrInt.address, dolibarrInt.zip, dolibarrInt.town].filter(Boolean).join(', ')
+          : '';
+        const finalLocation = row.location ? decodeHtmlEntities(row.location) : (dolibarrAddress || null);
+
         techTodayMap.get(name)!.push({
           intervention_id: intId,
           intervention_ref: row.intervention_ref || '',
-          intervention_label: decodeHtmlEntities(row.intervention_label || 'Intervention'),
+          intervention_label: finalLabel,
           client_name: row.client_name ? decodeHtmlEntities(row.client_name) : null,
-          location: row.location ? decodeHtmlEntities(row.location) : null,
+          location: finalLocation,
           priority: row.priority || 'normal',
           user_name: name,
           description: cleanDesc || null,
@@ -501,34 +525,37 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
     }}>
 
       {/* ── Bande technicien + date/heure ── */}
-      <div className="flex items-center justify-between px-3 py-1.5 gap-2 flex-wrap" style={{
-        background: isDone ? 'rgba(16,185,129,0.1)' : palette.accent + '18',
-        borderBottom: `1px solid ${isDone ? 'rgba(16,185,129,0.2)' : palette.border}`,
+      <div className="flex flex-col gap-0" style={{
+        background: isDone ? 'rgba(16,185,129,0.15)' : isUrgent ? 'rgba(239,68,68,0.2)' : palette.accent + '25',
+        borderBottom: `1px solid ${isDone ? 'rgba(16,185,129,0.25)' : palette.border}`,
       }}>
-        {/* Technicien assigné */}
-        <div className="flex items-center gap-1.5">
-          <div className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black flex-shrink-0"
-            style={{ background: palette.accent + '50', color: palette.light }}>
+        {/* Ligne 1: Technicien assigné (grand et visible) */}
+        <div className="flex items-center gap-2 px-3 pt-2 pb-1">
+          <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[11px] font-black flex-shrink-0"
+            style={{ background: palette.accent + '60', color: '#fff', border: `1px solid ${palette.accent}80` }}>
             {item.user_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2)}
           </div>
-          <span className="text-[11px] font-bold" style={{ color: palette.light }}>
-            {item.user_name}
-          </span>
+          <div className="flex flex-col min-w-0">
+            <span className="text-xs font-black leading-tight" style={{ color: '#fff', opacity: 0.5, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Assigné à</span>
+            <span className="text-sm font-black leading-tight truncate" style={{ color: palette.light }}>
+              {item.user_name}
+            </span>
+          </div>
         </div>
-        {/* Date + heure */}
-        <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Ligne 2: Date + heure + durée */}
+        <div className="flex items-center gap-1.5 px-3 pb-2 flex-wrap">
           {item.date_planned_full && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.7)' }}>
               📅 {item.date_planned_full}
             </span>
           )}
           {item.time_planned && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.25)', color: '#93c5fd' }}>
+            <span className="inline-flex items-center gap-1 text-[10px] font-black px-2 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.35)', color: '#fff', border: '1px solid rgba(59,130,246,0.5)' }}>
               <Clock className="h-2.5 w-2.5" /> {item.time_planned}
             </span>
           )}
           {item.duration_hours && (
-            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.2)', color: '#fcd34d' }}>
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.25)', color: '#fcd34d' }}>
               <Timer className="h-2.5 w-2.5" /> ~{item.duration_hours}h
             </span>
           )}
