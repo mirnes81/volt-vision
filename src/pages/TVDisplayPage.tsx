@@ -316,6 +316,26 @@ function useTVData() {
         const dateStr = dolibarrDateMap.get(intId);
         if (!dateStr || (dateStr !== todayStr && dateStr !== yesterdayStr)) continue;
         const rawDesc = (int.description || int.note_public || '').replace(/<[^>]*>/g, '').trim();
+        // Compute date & time from dolibarr data for unassigned
+        const ef = int.array_options || {};
+        const customTs = Number(ef.options_interventiondateheur || 0);
+        const rawTs = customTs > 0 ? customTs : Number(int.dateo || 0);
+        let unassignedDateFull: string | null = null;
+        let unassignedTime: string | null = null;
+        if (rawTs > 0) {
+          const d = new Date((rawTs + 3600) * 1000);
+          unassignedDateFull = d.toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+          const h = d.getHours(), m = d.getMinutes();
+          if (h > 0 || m > 0) unassignedTime = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
+        }
+        // Duration from dolibarr
+        let unassignedDuration: number | null = null;
+        if (ef.options_dureeestimee) {
+          unassignedDuration = parseFloat(ef.options_dureeestimee) || null;
+        } else if (int.dateo && int.datee) {
+          const diffMs = (Number(int.datee) - Number(int.dateo)) * 1000;
+          if (diffMs > 0) unassignedDuration = Math.round((diffMs / 3600000) * 10) / 10;
+        }
         unassigned.push({
           intervention_id: intId,
           intervention_ref: int.ref || '',
@@ -326,10 +346,10 @@ function useTVData() {
           user_name: 'Non assigné',
           description: rawDesc || null,
           isAssigned: false,
-          time_planned: null,
-          date_planned_full: null,
-          duration_hours: null,
-          bon_gerance: (int.array_options?.options_bongerance) || null,
+          time_planned: unassignedTime,
+          date_planned_full: unassignedDateFull,
+          duration_hours: unassignedDuration,
+          bon_gerance: ef.options_bongerance || null,
           operational_status: opStatusMap.get(intId) || null,
         });
       }
@@ -474,66 +494,83 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
   const isUrgent = item.priority === 'urgent' || item.priority === 'critical';
   const isDone = item.operational_status === 'termine';
   return (
-    <div className="rounded-xl p-3 flex flex-col gap-2" style={{
+    <div className="rounded-xl overflow-hidden flex flex-col" style={{
       background: isDone ? 'rgba(16,185,129,0.05)' : isUrgent ? 'rgba(239,68,68,0.08)' : palette.bg,
-      border: `1px solid ${isDone ? 'rgba(16,185,129,0.25)' : isUrgent ? 'rgba(239,68,68,0.5)' : palette.border}`,
-      opacity: isDone ? 0.75 : 1,
+      border: `1px solid ${isDone ? 'rgba(16,185,129,0.3)' : isUrgent ? 'rgba(239,68,68,0.5)' : palette.border}`,
+      opacity: isDone ? 0.8 : 1,
     }}>
-      {/* Top row: ref + badge priorité */}
-      <div className="flex items-center justify-between gap-2">
+
+      {/* ── Bande technicien + date/heure ── */}
+      <div className="flex items-center justify-between px-3 py-1.5 gap-2 flex-wrap" style={{
+        background: isDone ? 'rgba(16,185,129,0.1)' : palette.accent + '18',
+        borderBottom: `1px solid ${isDone ? 'rgba(16,185,129,0.2)' : palette.border}`,
+      }}>
+        {/* Technicien assigné */}
+        <div className="flex items-center gap-1.5">
+          <div className="w-5 h-5 rounded-md flex items-center justify-center text-[9px] font-black flex-shrink-0"
+            style={{ background: palette.accent + '50', color: palette.light }}>
+            {item.user_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2)}
+          </div>
+          <span className="text-[11px] font-bold" style={{ color: palette.light }}>
+            {item.user_name}
+          </span>
+        </div>
+        {/* Date + heure */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {item.bon_gerance && (
+          {item.date_planned_full && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.6)' }}>
+              📅 {item.date_planned_full}
+            </span>
+          )}
+          {item.time_planned && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.25)', color: '#93c5fd' }}>
+              <Clock className="h-2.5 w-2.5" /> {item.time_planned}
+            </span>
+          )}
+          {item.duration_hours && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.2)', color: '#fcd34d' }}>
+              <Timer className="h-2.5 w-2.5" /> ~{item.duration_hours}h
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* ── Corps de la carte ── */}
+      <div className="p-3 flex flex-col gap-1.5">
+        {/* Ref + statut + priorité */}
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {item.bon_gerance ? (
             <span className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: 'rgba(250,204,21,0.15)', color: '#fde047', border: '1px solid rgba(250,204,21,0.3)' }}>
               BON #{item.bon_gerance}
             </span>
-          )}
-          {!item.bon_gerance && item.intervention_ref && (
+          ) : item.intervention_ref && (
             <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
               #{item.intervention_ref}
             </span>
           )}
           <OpStatusBadge status={item.operational_status} />
+          <div className="ml-auto"><PriorityBadge priority={item.priority} /></div>
         </div>
-        <PriorityBadge priority={item.priority} />
-      </div>
 
-      {/* Label intervention */}
-      <div className="text-sm font-bold leading-snug" style={{ color: isDone ? '#6ee7b7' : isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.92)' }}>
-        {isDone && '✓ '}{item.intervention_label}
-      </div>
-
-      {/* Client */}
-      {item.client_name && (
-        <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
-          <Building2 className="h-3 w-3 flex-shrink-0" style={{ color: palette.light }} />
-          <span className="truncate font-semibold">{item.client_name}</span>
+        {/* Label */}
+        <div className="text-sm font-bold leading-snug" style={{ color: isDone ? '#6ee7b7' : isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.92)' }}>
+          {isDone && '✓ '}{item.intervention_label}
         </div>
-      )}
 
-      {/* Address */}
-      {item.location && (
-        <div className="flex items-start gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
-          <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" />
-          <span className="line-clamp-2 leading-tight">{item.location}</span>
-        </div>
-      )}
-
-      {/* Bottom row: heure + durée + technicien */}
-      <div className="flex items-center gap-2 flex-wrap pt-0.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-        {item.time_planned && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd' }}>
-            <Clock className="h-2.5 w-2.5" /> {item.time_planned}
-          </span>
+        {/* Client */}
+        {item.client_name && (
+          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
+            <Building2 className="h-3 w-3 flex-shrink-0" style={{ color: palette.light }} />
+            <span className="truncate font-semibold">{item.client_name}</span>
+          </div>
         )}
-        {item.duration_hours && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.15)', color: '#fcd34d' }}>
-            <Timer className="h-2.5 w-2.5" /> ~{item.duration_hours}h
-          </span>
-        )}
-        {item.isAssigned && (
-          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: palette.accent + '25', color: palette.light }}>
-            <Users className="h-2.5 w-2.5" /> {item.user_name.split(' ')[0]}
-          </span>
+
+        {/* Adresse chantier */}
+        {item.location && (
+          <div className="flex items-start gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+            <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: '#f87171' }} />
+            <span className="line-clamp-2 leading-tight">{item.location}</span>
+          </div>
         )}
       </div>
     </div>
