@@ -2,7 +2,7 @@ import * as React from 'react';
 import {
   Cloud, Sun, CloudRain, CloudSnow, Wind, MapPin,
   Zap, Clock, Users, Wrench, CheckCircle2, Circle,
-  AlertCircle, Building2, BarChart3, ListChecks, TrendingUp
+  AlertCircle, Building2, BarChart3, ListChecks, TrendingUp, Timer
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { decodeHtmlEntities } from '@/lib/htmlUtils';
@@ -27,6 +27,9 @@ interface TodayIntervention {
   description: string | null;
   isAssigned: boolean;
   time_planned: string | null;
+  date_planned_full: string | null;  // full date for display
+  duration_hours: number | null;     // estimated duration in hours
+  bon_gerance?: string | null;       // N° bon de gérance
 }
 
 interface TechSummary {
@@ -263,6 +266,27 @@ function useTVData() {
         const rawDesc = (row as any).description || dolibarrInt?.description || dolibarrInt?.note_public || '';
         const cleanDesc = rawDesc.replace(/<[^>]*>/g, '').trim();
 
+        // Duration from Dolibarr (durationHours or computed from dateo/datee)
+        let durationHours: number | null = null;
+        if (dolibarrInt) {
+          const ef = dolibarrInt.array_options || {};
+          if (ef.options_dureeestimee) {
+            durationHours = parseFloat(ef.options_dureeestimee) || null;
+          } else if (dolibarrInt.dateo && dolibarrInt.datee) {
+            const diffMs = (Number(dolibarrInt.datee) - Number(dolibarrInt.dateo)) * 1000;
+            if (diffMs > 0) durationHours = Math.round((diffMs / 3600000) * 10) / 10;
+          }
+        }
+
+        // Full planned date/time string
+        let datePlannedFull: string | null = null;
+        if (row.date_planned) {
+          const dp = new Date(row.date_planned);
+          datePlannedFull = dp.toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+        }
+
+        const bonGerance = dolibarrInt?.array_options?.options_bongerance || null;
+
         techTodayMap.get(name)!.push({
           intervention_id: intId,
           intervention_ref: row.intervention_ref || '',
@@ -274,6 +298,9 @@ function useTVData() {
           description: cleanDesc || null,
           isAssigned: true,
           time_planned: timePlanned,
+          date_planned_full: datePlannedFull,
+          duration_hours: durationHours,
+          bon_gerance: bonGerance,
         });
       }
 
@@ -298,6 +325,9 @@ function useTVData() {
           description: rawDesc || null,
           isAssigned: false,
           time_planned: null,
+          date_planned_full: null,
+          duration_hours: null,
+          bon_gerance: (int.array_options?.options_bongerance) || null,
         });
       }
 
@@ -405,42 +435,66 @@ function PriorityBadge({ priority }: { priority: string }) {
 function InterventionCard({ item, palette }: { item: TodayIntervention; palette: typeof TECH_PALETTE[0] }) {
   const isUrgent = item.priority === 'urgent' || item.priority === 'critical';
   return (
-    <div className="rounded-xl p-3 flex flex-col gap-1.5" style={{
+    <div className="rounded-xl p-3 flex flex-col gap-2" style={{
       background: isUrgent ? 'rgba(239,68,68,0.08)' : palette.bg,
       border: `1px solid ${isUrgent ? 'rgba(239,68,68,0.5)' : palette.border}`,
     }}>
-      <div className="flex items-start justify-between gap-2">
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
-            {item.intervention_ref && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
-                #{item.intervention_ref}
-              </span>
-            )}
-            {item.time_planned && (
-              <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd' }}>
-                <Clock className="h-2.5 w-2.5" /> {item.time_planned}
-              </span>
-            )}
-          </div>
-          <div className="text-sm font-bold leading-snug" style={{ color: isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.92)' }}>
-            {item.intervention_label}
-          </div>
+      {/* Top row: ref + badge priorité */}
+      <div className="flex items-center justify-between gap-2">
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {item.bon_gerance && (
+            <span className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: 'rgba(250,204,21,0.15)', color: '#fde047', border: '1px solid rgba(250,204,21,0.3)' }}>
+              BON #{item.bon_gerance}
+            </span>
+          )}
+          {!item.bon_gerance && item.intervention_ref && (
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
+              #{item.intervention_ref}
+            </span>
+          )}
         </div>
         <PriorityBadge priority={item.priority} />
       </div>
+
+      {/* Label intervention */}
+      <div className="text-sm font-bold leading-snug" style={{ color: isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.92)' }}>
+        {item.intervention_label}
+      </div>
+
+      {/* Client */}
       {item.client_name && (
-        <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
+        <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
           <Building2 className="h-3 w-3 flex-shrink-0" style={{ color: palette.light }} />
-          <span className="truncate font-medium">{item.client_name}</span>
+          <span className="truncate font-semibold">{item.client_name}</span>
         </div>
       )}
+
+      {/* Address */}
       {item.location && (
-        <div className="flex items-center gap-1.5 text-xs truncate" style={{ color: 'rgba(255,255,255,0.35)' }}>
-          <MapPin className="h-3 w-3 flex-shrink-0" />
-          <span className="truncate">{item.location}</span>
+        <div className="flex items-start gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" />
+          <span className="line-clamp-2 leading-tight">{item.location}</span>
         </div>
       )}
+
+      {/* Bottom row: date/heure + durée + technicien */}
+      <div className="flex items-center gap-2 flex-wrap pt-0.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+        {item.time_planned && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd' }}>
+            <Clock className="h-2.5 w-2.5" /> {item.time_planned}
+          </span>
+        )}
+        {item.duration_hours && (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(16,185,129,0.15)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.2)' }}>
+            <Timer className="h-2.5 w-2.5" /> ~{item.duration_hours}h
+          </span>
+        )}
+        {item.isAssigned && (
+          <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: palette.accent + '25', color: palette.light }}>
+            <Users className="h-2.5 w-2.5" /> {item.user_name.split(' ')[0]}
+          </span>
+        )}
+      </div>
     </div>
   );
 }
