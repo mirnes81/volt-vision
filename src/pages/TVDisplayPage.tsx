@@ -30,7 +30,8 @@ interface TodayIntervention {
   date_planned_full: string | null;
   duration_hours: number | null;
   bon_gerance?: string | null;
-  operational_status: string | null;  // statut opérationnel
+  operational_status: string | null;
+  intervention_type: string | null;
 }
 
 interface TechSummary {
@@ -306,11 +307,16 @@ function useTVData() {
           ? decodeHtmlEntities(row.intervention_label)
           : (dolibarrLabel || decodeHtmlEntities(row.intervention_label || 'Intervention'));
 
-        // Use Dolibarr address if location is generic
+        // Always prefer Dolibarr address (more precise than assignment location)
         const dolibarrAddress = dolibarrInt
           ? [dolibarrInt.address, dolibarrInt.zip, dolibarrInt.town].filter(Boolean).join(', ')
           : '';
-        const finalLocation = row.location ? decodeHtmlEntities(row.location) : (dolibarrAddress || null);
+        const finalLocation = dolibarrAddress || (row.location ? decodeHtmlEntities(row.location) : null);
+
+        // Intervention type from Dolibarr extrafields
+        const intType = dolibarrInt?.array_options?.options_typetravaux
+          || dolibarrInt?.type_label
+          || null;
 
         techTodayMap.get(name)!.push({
           intervention_id: intId,
@@ -327,6 +333,7 @@ function useTVData() {
           duration_hours: durationHours,
           bon_gerance: bonGerance,
           operational_status: intId ? (opStatusMap.get(intId) || null) : null,
+          intervention_type: intType,
         });
       }
 
@@ -360,12 +367,14 @@ function useTVData() {
           const diffMs = (Number(int.datee) - Number(int.dateo)) * 1000;
           if (diffMs > 0) unassignedDuration = Math.round((diffMs / 3600000) * 10) / 10;
         }
+        const unassignedAddress = [int.address, int.zip, int.town].filter(Boolean).join(', ');
+        const unassignedType = ef.options_typetravaux || int.type_label || null;
         unassigned.push({
           intervention_id: intId,
           intervention_ref: int.ref || '',
           intervention_label: decodeHtmlEntities(int.label || int.ref || 'Intervention'),
           client_name: int.thirdparty_name ? decodeHtmlEntities(int.thirdparty_name) : null,
-          location: int.address ? decodeHtmlEntities(int.address) : null,
+          location: unassignedAddress || (int.address ? decodeHtmlEntities(int.address) : null),
           priority: 'normal',
           user_name: 'Non assigné',
           description: rawDesc || null,
@@ -375,6 +384,7 @@ function useTVData() {
           duration_hours: unassignedDuration,
           bon_gerance: ef.options_bongerance || null,
           operational_status: opStatusMap.get(intId) || null,
+          intervention_type: unassignedType,
         });
       }
 
@@ -564,39 +574,46 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
 
       {/* ── Corps de la carte ── */}
       <div className="p-3 flex flex-col gap-1.5">
-        {/* Ref + statut + priorité */}
+        {/* Ref + bon + statut + priorité */}
         <div className="flex items-center gap-1.5 flex-wrap">
-          {item.bon_gerance ? (
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.15)', color: '#93c5fd', border: '1px solid rgba(96,165,250,0.3)' }}>
+            {item.intervention_ref}
+          </span>
+          {item.bon_gerance && (
             <span className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: 'rgba(250,204,21,0.15)', color: '#fde047', border: '1px solid rgba(250,204,21,0.3)' }}>
-              BON #{item.bon_gerance}
-            </span>
-          ) : item.intervention_ref && (
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
-              #{item.intervention_ref}
+              #{item.bon_gerance}
             </span>
           )}
           <OpStatusBadge status={item.operational_status} />
           <div className="ml-auto"><PriorityBadge priority={item.priority} /></div>
         </div>
 
-        {/* Label */}
-        <div className="text-sm font-bold leading-snug" style={{ color: isDone ? '#6ee7b7' : isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.92)' }}>
-          {isDone && '✓ '}{item.intervention_label}
-        </div>
-
-        {/* Client */}
+        {/* Client (gros, bien visible) */}
         {item.client_name && (
-          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.6)' }}>
-            <Building2 className="h-3 w-3 flex-shrink-0" style={{ color: palette.light }} />
-            <span className="truncate font-semibold">{item.client_name}</span>
+          <div className="text-sm font-black leading-snug" style={{ color: '#fff' }}>
+            {item.client_name}
           </div>
         )}
 
-        {/* Adresse chantier */}
+        {/* Label intervention */}
+        <div className="text-xs leading-snug" style={{ color: isDone ? '#6ee7b7' : isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.6)' }}>
+          {isDone && '✓ '}{item.intervention_label}
+        </div>
+
+        {/* Type d'intervention */}
+        {item.intervention_type && (
+          <div className="inline-flex">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.3)' }}>
+              {item.intervention_type}
+            </span>
+          </div>
+        )}
+
+        {/* Adresse chantier (prominent) */}
         {item.location && (
-          <div className="flex items-start gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.45)' }}>
+          <div className="flex items-start gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.75)' }}>
             <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: '#f87171' }} />
-            <span className="line-clamp-2 leading-tight">{item.location}</span>
+            <span className="line-clamp-2 leading-tight font-medium">{item.location}</span>
           </div>
         )}
       </div>
