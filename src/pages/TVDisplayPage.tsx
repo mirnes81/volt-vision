@@ -1,33 +1,60 @@
 import * as React from 'react';
-import { Cloud, Sun, CloudRain, CloudSnow, Wind, MapPin, Calendar, AlertTriangle, User, Car, Navigation, TriangleAlert, Trophy, Zap, Clock, Users, TrendingUp, Wrench, ImageIcon, QrCode } from 'lucide-react';
+import {
+  Cloud, Sun, CloudRain, CloudSnow, Wind, MapPin, Calendar,
+  AlertTriangle, User, Car, Navigation, Zap, Clock, Users,
+  Wrench, CheckCircle2, Circle, AlertCircle, ArrowRight, Building2
+} from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { decodeHtmlEntities } from '@/lib/htmlUtils';
 import { useWebhookRefresh } from '@/hooks/useWebhookRefresh';
 import logoEnes from '@/assets/logo-enes.png';
 
-// ─── QR Code URL generator (using free qrserver API) ─────────────────
-function getQrUrl(interventionRef: string, interventionLabel: string, interventionId?: number | null): string {
-  const baseUrl = window.location.origin;
-  const params = new URLSearchParams({
-    ref: interventionRef,
-    label: interventionLabel,
-    ...(interventionId ? { id: String(interventionId) } : {}),
-  });
-  const targetUrl = `${baseUrl}/take-intervention?${params.toString()}`;
-  return `https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(targetUrl)}&bgcolor=0d1b3e&color=ffffff&format=svg`;
-}
-
 // ─── Constants ───────────────────────────────────────────────────────
-const ENES_ORIGIN = { lat: 46.5107, lon: 6.5004, label: 'ENES – Cossonay' };
+const ENES_ORIGIN = { lat: 46.5107, lon: 6.5004 };
 const TENANT_ID = '00000000-0000-0000-0000-000000000001';
 
 // ─── Types ───────────────────────────────────────────────────────────
-interface WeatherData { temp: number; description: string; city: string; humidity: number; wind: number; }
-interface DayAssignment { intervention_label: string; intervention_ref?: string; intervention_id?: number | null; client_name: string | null; location: string | null; priority: string; date_planned: string; user_name?: string; description?: string | null; }
-interface TechWeekPlan { userName: string; days: Map<string, DayAssignment[]>; }
-interface TravelInfo { location: string; client: string; durationMin: number; distanceKm: number; trafficFactor: number; estimatedWithTraffic: number; delayWarning: string | null; priority: string; }
-interface LeaderboardEntry { name: string; interventions: number; hoursWorked: number; }
-interface LiveCounters { todayTotal: number; todayUrgent: number; activeTechs: number; weeklyHours: number; }
+interface WeatherData { temp: number; description: string; humidity: number; wind: number; }
+interface TodayIntervention {
+  intervention_id: number | null;
+  intervention_ref: string;
+  intervention_label: string;
+  client_name: string | null;
+  location: string | null;
+  priority: string;
+  user_name: string;
+  description: string | null;
+  isAssigned: boolean;
+  time_planned: string | null;
+}
+interface TechSummary {
+  name: string;
+  interventions: TodayIntervention[];
+  colorIdx: number;
+}
+interface DayAssignment {
+  intervention_label: string;
+  intervention_ref?: string;
+  intervention_id?: number | null;
+  client_name: string | null;
+  location: string | null;
+  priority: string;
+  date_planned: string;
+  user_name?: string;
+  description?: string | null;
+}
+
+// ─── Tech color palette ───────────────────────────────────────────────
+const TECH_PALETTE = [
+  { gradient: 'from-blue-600 to-blue-800', accent: '#3b82f6', light: '#93c5fd', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.3)' },
+  { gradient: 'from-emerald-600 to-emerald-800', accent: '#10b981', light: '#6ee7b7', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)' },
+  { gradient: 'from-violet-600 to-violet-800', accent: '#8b5cf6', light: '#c4b5fd', bg: 'rgba(139,92,246,0.12)', border: 'rgba(139,92,246,0.3)' },
+  { gradient: 'from-amber-600 to-amber-800', accent: '#f59e0b', light: '#fcd34d', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)' },
+  { gradient: 'from-cyan-600 to-cyan-800', accent: '#06b6d4', light: '#67e8f9', bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.3)' },
+  { gradient: 'from-rose-600 to-rose-800', accent: '#f43f5e', light: '#fda4af', bg: 'rgba(244,63,94,0.12)', border: 'rgba(244,63,94,0.3)' },
+  { gradient: 'from-teal-600 to-teal-800', accent: '#14b8a6', light: '#5eead4', bg: 'rgba(20,184,166,0.12)', border: 'rgba(20,184,166,0.3)' },
+  { gradient: 'from-orange-600 to-orange-800', accent: '#f97316', light: '#fdba74', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.3)' },
+];
 
 // ─── Clock hook ──────────────────────────────────────────────────────
 function useClock() {
@@ -39,1142 +66,654 @@ function useClock() {
   return now;
 }
 
-// ─── Giant Digital Clock (LED / 7-segment style) ─────────────────────
-function DigitalClock({ now }: { now: Date }) {
-  const hours = now.getHours().toString().padStart(2, '0');
-  const minutes = now.getMinutes().toString().padStart(2, '0');
-  const seconds = now.getSeconds().toString().padStart(2, '0');
-  const showColon = now.getSeconds() % 2 === 0;
-
-  return (
-    <div className="flex items-center gap-1">
-      <div className="flex items-baseline">
-        <span className="text-7xl font-black tabular-nums tracking-tight" style={{
-          fontFamily: "'Inter', monospace",
-          textShadow: '0 0 30px rgba(96,165,250,0.6), 0 0 60px rgba(96,165,250,0.3)',
-          color: '#93c5fd',
-        }}>
-          {hours}
-        </span>
-        <span className="text-7xl font-black mx-1" style={{
-          color: showColon ? '#93c5fd' : 'transparent',
-          textShadow: showColon ? '0 0 30px rgba(96,165,250,0.6)' : 'none',
-          transition: 'color 0.15s, text-shadow 0.15s',
-        }}>:</span>
-        <span className="text-7xl font-black tabular-nums tracking-tight" style={{
-          fontFamily: "'Inter', monospace",
-          textShadow: '0 0 30px rgba(96,165,250,0.6), 0 0 60px rgba(96,165,250,0.3)',
-          color: '#93c5fd',
-        }}>
-          {minutes}
-        </span>
-        <span className="text-3xl font-bold tabular-nums ml-2 self-end mb-2" style={{
-          fontFamily: "'Inter', monospace",
-          textShadow: '0 0 15px rgba(96,165,250,0.4)',
-          color: '#60a5fa',
-          opacity: 0.7,
-        }}>
-          {seconds}
-        </span>
-      </div>
-    </div>
-  );
-}
-
 // ─── Weather ─────────────────────────────────────────────────────────
 function wmoCodeToText(code: number): string {
   const map: Record<number, string> = {
     0: 'Ciel dégagé', 1: 'Peu nuageux', 2: 'Partiellement nuageux', 3: 'Couvert',
-    45: 'Brouillard', 48: 'Brouillard givrant', 51: 'Bruine légère', 53: 'Bruine modérée', 55: 'Bruine forte',
-    61: 'Pluie légère', 63: 'Pluie modérée', 65: 'Pluie forte', 71: 'Neige légère', 73: 'Neige modérée', 75: 'Neige forte',
-    80: 'Averses légères', 81: 'Averses modérées', 82: 'Averses fortes', 95: 'Orage', 96: 'Orage avec grêle', 99: 'Orage violent',
+    45: 'Brouillard', 48: 'Brouillard givrant', 51: 'Bruine légère', 53: 'Bruine', 55: 'Bruine forte',
+    61: 'Pluie légère', 63: 'Pluie modérée', 65: 'Pluie forte',
+    71: 'Neige légère', 73: 'Neige', 75: 'Neige forte',
+    80: 'Averses', 81: 'Averses modérées', 82: 'Averses fortes',
+    95: 'Orage', 96: 'Orage avec grêle', 99: 'Orage violent',
   };
-  return map[code] || 'Inconnu';
+  return map[code] || 'Variable';
 }
 
-function WeatherIcon({ desc, className }: { desc: string; className?: string }) {
+function WeatherIcon({ desc, size = 'md' }: { desc: string; size?: 'sm' | 'md' | 'lg' }) {
+  const cls = size === 'lg' ? 'h-10 w-10' : size === 'sm' ? 'h-5 w-5' : 'h-7 w-7';
   const d = desc.toLowerCase();
-  if (d.includes('neige') || d.includes('snow')) return <CloudSnow className={className || "h-8 w-8 text-blue-200"} />;
-  if (d.includes('pluie') || d.includes('rain') || d.includes('averse')) return <CloudRain className={className || "h-8 w-8 text-blue-300"} />;
-  if (d.includes('nuag') || d.includes('cloud') || d.includes('couvert') || d.includes('brouillard')) return <Cloud className={className || "h-8 w-8 text-gray-300"} />;
-  return <Sun className={className || "h-8 w-8 text-yellow-400"} />;
+  if (d.includes('neige')) return <CloudSnow className={`${cls} text-blue-200`} />;
+  if (d.includes('pluie') || d.includes('averse') || d.includes('bruine')) return <CloudRain className={`${cls} text-blue-300`} />;
+  if (d.includes('nuag') || d.includes('couvert') || d.includes('brouillard')) return <Cloud className={`${cls} text-gray-300`} />;
+  return <Sun className={`${cls} text-yellow-400`} />;
 }
 
 function useWeather() {
   const [weather, setWeather] = React.useState<WeatherData | null>(null);
   React.useEffect(() => {
     let cancelled = false;
-    async function fetchWeather(lat: number, lon: number) {
+    async function fetch_() {
       try {
-        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=auto`);
+        const res = await fetch(`https://api.open-meteo.com/v1/forecast?latitude=${ENES_ORIGIN.lat}&longitude=${ENES_ORIGIN.lon}&current=temperature_2m,relative_humidity_2m,wind_speed_10m,weather_code&timezone=auto`);
         const data = await res.json();
-        const current = data.current;
-        let city = 'Cossonay';
-        try {
-          const geo = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=fr`);
-          const geoData = await geo.json();
-          city = geoData.address?.city || geoData.address?.town || geoData.address?.village || city;
-        } catch { /* ignore */ }
-        if (!cancelled) {
-          setWeather({ temp: Math.round(current.temperature_2m), description: wmoCodeToText(current.weather_code), city, humidity: current.relative_humidity_2m, wind: Math.round(current.wind_speed_10m) });
-        }
-      } catch (err) { console.error('Weather fetch failed:', err); }
+        const c = data.current;
+        if (!cancelled) setWeather({ temp: Math.round(c.temperature_2m), description: wmoCodeToText(c.weather_code), humidity: c.relative_humidity_2m, wind: Math.round(c.wind_speed_10m) });
+      } catch { /* ignore */ }
     }
-    fetchWeather(ENES_ORIGIN.lat, ENES_ORIGIN.lon);
-    return () => { cancelled = true; };
+    fetch_();
+    const interval = setInterval(fetch_, 10 * 60 * 1000);
+    return () => { cancelled = true; clearInterval(interval); };
   }, []);
   return weather;
 }
 
-// ─── Traffic ─────────────────────────────────────────────────────────
-function getTrafficFactor(hour: number): { factor: number; label: string } {
-  if (hour >= 7 && hour <= 9) return { factor: 1.4, label: 'Heure de pointe matin' };
-  if (hour >= 16 && hour <= 18) return { factor: 1.45, label: 'Heure de pointe soir' };
-  if (hour >= 11 && hour <= 13) return { factor: 1.15, label: 'Trafic modéré midi' };
-  if (hour >= 9 && hour < 11) return { factor: 1.1, label: 'Trafic fluide' };
-  if (hour >= 13 && hour < 16) return { factor: 1.1, label: 'Trafic fluide' };
-  return { factor: 1.0, label: 'Trafic libre' };
+// ─── Traffic helper ──────────────────────────────────────────────────
+function getTrafficLabel(hour: number): { label: string; color: string } {
+  if (hour >= 7 && hour <= 9) return { label: '🚗 Heure de pointe matin', color: '#ef4444' };
+  if (hour >= 16 && hour <= 18) return { label: '🚗 Heure de pointe soir', color: '#ef4444' };
+  if (hour >= 11 && hour <= 13) return { label: '🚙 Trafic modéré', color: '#f59e0b' };
+  return { label: '✅ Trafic fluide', color: '#10b981' };
 }
 
-function getWeatherTrafficPenalty(weatherDesc: string | null): number {
-  if (!weatherDesc) return 0;
-  const d = weatherDesc.toLowerCase();
-  if (d.includes('neige') || d.includes('verglas')) return 0.3;
-  if (d.includes('pluie forte') || d.includes('averse forte') || d.includes('orage')) return 0.2;
-  if (d.includes('pluie') || d.includes('averse') || d.includes('bruine')) return 0.1;
-  if (d.includes('brouillard')) return 0.15;
-  return 0;
-}
-
-// ─── Travel hook ─────────────────────────────────────────────────────
-function useTravelInfo(todayAssignments: DayAssignment[], weatherDesc: string | null) {
-  const [travels, setTravels] = React.useState<TravelInfo[]>([]);
+// ─── Main data hook ──────────────────────────────────────────────────
+function useTVData() {
+  const [techSummaries, setTechSummaries] = React.useState<TechSummary[]>([]);
+  const [unassignedToday, setUnassignedToday] = React.useState<TodayIntervention[]>([]);
+  const [weekPlan, setWeekPlan] = React.useState<{ date: Date; dayLabel: string; count: number; techs: string[] }[]>([]);
+  const [stats, setStats] = React.useState({ total: 0, urgent: 0, techs: 0, weeklyHours: 0 });
   const [loading, setLoading] = React.useState(true);
-  const [lastUpdate, setLastUpdate] = React.useState<Date | null>(null);
 
-  const fetchTravel = React.useCallback(async () => {
-    if (todayAssignments.length === 0) { setTravels([]); setLoading(false); return; }
-    const uniqueLocations = new Map<string, DayAssignment>();
-    for (const a of todayAssignments) {
-      const loc = a.location?.trim();
-      if (loc && !uniqueLocations.has(loc)) uniqueLocations.set(loc, a);
-    }
-    const results: TravelInfo[] = [];
-    const now = new Date();
-    const traffic = getTrafficFactor(now.getHours());
-    const weatherPenalty = getWeatherTrafficPenalty(weatherDesc);
-
-    for (const [loc, assignment] of uniqueLocations) {
-      try {
-        const geoRes = await fetch(`https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(loc + ', Suisse')}&format=json&limit=1`);
-        const geoData = await geoRes.json();
-        if (!geoData || geoData.length === 0) continue;
-        const destLat = parseFloat(geoData[0].lat);
-        const destLon = parseFloat(geoData[0].lon);
-        const routeRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${ENES_ORIGIN.lon},${ENES_ORIGIN.lat};${destLon},${destLat}?overview=false`);
-        const routeData = await routeRes.json();
-        if (routeData.routes && routeData.routes.length > 0) {
-          const route = routeData.routes[0];
-          const baseDuration = Math.round(route.duration / 60);
-          const distanceKm = Math.round(route.distance / 1000 * 10) / 10;
-          const totalFactor = traffic.factor + weatherPenalty;
-          const withTraffic = Math.round(baseDuration * totalFactor);
-          const delay = withTraffic - baseDuration;
-          let delayWarning: string | null = null;
-          if (delay >= 15) delayWarning = `⚠️ +${delay} min de retard estimé`;
-          else if (delay >= 5) delayWarning = `+${delay} min`;
-          results.push({ location: loc, client: assignment.client_name || 'Client', durationMin: baseDuration, distanceKm, trafficFactor: totalFactor, estimatedWithTraffic: withTraffic, delayWarning, priority: assignment.priority });
-        }
-        await new Promise(r => setTimeout(r, 300));
-      } catch (err) { console.error(`Travel calc failed for ${loc}:`, err); }
-    }
-    results.sort((a, b) => b.estimatedWithTraffic - a.estimatedWithTraffic);
-    setTravels(results);
-    setLastUpdate(new Date());
-    setLoading(false);
-  }, [todayAssignments, weatherDesc]);
-
-  React.useEffect(() => {
-    fetchTravel();
-    const interval = setInterval(fetchTravel, 300_000);
-    return () => clearInterval(interval);
-  }, [fetchTravel]);
-
-  return { travels, loading, lastUpdate };
-}
-
-// ─── Week assignments hook (ALL non-completed) ──────────────────────
-function useWeekAssignments() {
-  const [techPlans, setTechPlans] = React.useState<TechWeekPlan[]>([]);
-  const [allTodayAssignments, setAllTodayAssignments] = React.useState<DayAssignment[]>([]);
-  const [overdueCount, setOverdueCount] = React.useState(0);
-  const [unplannedCount, setUnplannedCount] = React.useState(0);
-  const [loading, setLoading] = React.useState(true);
-  const [weekDays, setWeekDays] = React.useState<Date[]>([]);
-
-  const fetchAssignments = React.useCallback(async () => {
+  const fetchData = React.useCallback(async () => {
     try {
       const today = new Date();
-      const days: Date[] = [];
-      for (let i = 0; i < 7; i++) { const d = new Date(today); d.setDate(today.getDate() + i); days.push(d); }
-      setWeekDays(days);
-
-      // Use CET (UTC+1) for today's date string to match Dolibarr/Swiss timezone
+      // CET offset for Swiss timezone
       const cetNow = new Date(today.getTime() + 3600000);
       const todayStr = cetNow.toISOString().split('T')[0];
 
-      // Fetch assignments, Dolibarr interventions, AND date overrides in PARALLEL
-      const [assignResult, dolibarrResult, dateOverridesResult] = await Promise.all([
+      // Build week days (today + 6)
+      const days: Date[] = [];
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(today);
+        d.setDate(today.getDate() + i);
+        days.push(d);
+      }
+
+      const [assignResult, dolibarrResult, dateOverridesResult, weekHoursResult] = await Promise.all([
         supabase
           .from('intervention_assignments')
           .select('user_name, intervention_label, intervention_ref, intervention_id, client_name, location, priority, date_planned, description')
           .eq('tenant_id', TENANT_ID)
-          .order('user_name')
-          .order('date_planned', { ascending: true }),
-        supabase.functions.invoke('dolibarr-api', {
-          body: { action: 'get-interventions', params: {} },
-        }).catch(() => ({ data: null, error: 'fetch failed' })),
-        supabase
-          .from('intervention_date_overrides')
-          .select('intervention_id, override_date')
-          .eq('tenant_id', TENANT_ID),
+          .order('user_name'),
+        supabase.functions.invoke('dolibarr-api', { body: { action: 'get-interventions', params: {} } }).catch(() => ({ data: null })),
+        supabase.from('intervention_date_overrides').select('intervention_id, override_date').eq('tenant_id', TENANT_ID),
+        supabase.from('weekly_work_summary').select('total_minutes').eq('tenant_id', TENANT_ID),
       ]);
 
       // Build date overrides map
       const dateOverrides = new Map<number, string>();
-      if (dateOverridesResult?.data) {
-        for (const row of dateOverridesResult.data) {
-          dateOverrides.set(row.intervention_id, row.override_date);
-        }
+      for (const row of (dateOverridesResult?.data || [])) {
+        dateOverrides.set(row.intervention_id, row.override_date);
       }
-      console.log(`[TV] Date overrides from Supabase: ${dateOverrides.size}`);
 
-      if (assignResult.error) { console.error('TV planning error:', assignResult.error); setLoading(false); return; }
-
-      // Build a map of intervention_id -> description AND full data from Dolibarr
-      const descriptionMap = new Map<number, string>();
-      const dolibarrInterventions: any[] = [];
-      if (dolibarrResult?.data && Array.isArray(dolibarrResult.data)) {
-        for (const int of dolibarrResult.data) {
-          dolibarrInterventions.push(int);
-          const id = Number(int.id);
-          const desc = int.description || int.note_public || int.note_private || '';
-          if (id && desc) {
-            const cleanDesc = desc.replace(/<[^>]*>/g, '').trim();
-            if (cleanDesc) descriptionMap.set(id, cleanDesc);
-          }
-        }
-      }
-      // Debug: log first intervention to check available date fields
-      if (dolibarrInterventions.length > 0) {
-        const sample = dolibarrInterventions[0];
-        console.log(`[TV] Sample intervention keys:`, Object.keys(sample).join(', '));
-        console.log(`[TV] Sample intervention date fields: dateo=${sample.dateo}, array_options=${JSON.stringify(sample.array_options)}, intervention_extrafields=${JSON.stringify(sample.intervention_extrafields)}`);
-        // Check a few interventions for the custom date field
-        const withCustomDate = dolibarrInterventions.filter((i: any) => {
-          const ef = i.array_options || i.intervention_extrafields || {};
-          return Number(ef.options_interventiondateheur || 0) > 0;
-        });
-        console.log(`[TV] Interventions with options_interventiondateheur: ${withCustomDate.length}/${dolibarrInterventions.length}`);
-        if (withCustomDate.length > 0) {
-          const s = withCustomDate[0];
-          const ef = s.array_options || s.intervention_extrafields || {};
-          console.log(`[TV] Sample custom date: ref=${s.ref}, ts=${ef.options_interventiondateheur}, date=${new Date((Number(ef.options_interventiondateheur) + 3600) * 1000).toISOString()}`);
-        }
-      }
-      console.log(`[TV] Dolibarr interventions loaded: ${dolibarrInterventions.length}, descriptions: ${descriptionMap.size}`);
-
-      const todayItems: DayAssignment[] = [];
-      const techMap = new Map<string, TechWeekPlan>();
-      let overdue = 0;
-      let unplanned = 0;
-
-      // Build a map of Dolibarr intervention id -> CET date string
-      // Priority: Supabase date override > extrafield options_interventiondateheur > Dolibarr dateo
+      // Build Dolibarr date map
+      const dolibarrInterventions: any[] = Array.isArray(dolibarrResult?.data) ? dolibarrResult.data : [];
       const dolibarrDateMap = new Map<number, string>();
-      let todayMatchCount = 0;
+      const dolibarrDataMap = new Map<number, any>();
+
       for (const int of dolibarrInterventions) {
         const intId = Number(int.id);
-        
-        // Check for Supabase date override first
+        dolibarrDataMap.set(intId, int);
+
         const override = dateOverrides.get(intId);
         if (override) {
-          const overrideDate = new Date(override);
-          const cetOverride = new Date(overrideDate.getTime() + 3600000);
-          const dateStr = cetOverride.toISOString().split('T')[0];
-          dolibarrDateMap.set(intId, dateStr);
-          if (dateStr === todayStr) todayMatchCount++;
+          const d = new Date(new Date(override).getTime() + 3600000);
+          dolibarrDateMap.set(intId, d.toISOString().split('T')[0]);
           continue;
         }
-        
-        // Check custom extrafield "Date d'intervention" (options_interventiondateheur) first
-        const extraOpts = int.array_options || int.intervention_extrafields || {};
-        const customDateTs = Number(extraOpts.options_interventiondateheur || 0);
-        
-        if (customDateTs > 0) {
-          // Custom date field - CET timestamp, add 1h for correct UTC mapping
-          const d = new Date((customDateTs + 3600) * 1000);
-          const dateStr = d.toISOString().split('T')[0];
-          dolibarrDateMap.set(intId, dateStr);
-          if (dateStr === todayStr) todayMatchCount++;
+        const ef = int.array_options || {};
+        const customTs = Number(ef.options_interventiondateheur || 0);
+        if (customTs > 0) {
+          dolibarrDateMap.set(intId, new Date((customTs + 3600) * 1000).toISOString().split('T')[0]);
           continue;
         }
-        
         const ts = Number(int.dateo || 0);
         if (ts > 0) {
-          // Dolibarr timestamps represent CET midnight, add 1h to get correct UTC date
-          const d = new Date((ts + 3600) * 1000);
-          const dateStr = d.toISOString().split('T')[0];
-          dolibarrDateMap.set(intId, dateStr);
-          if (dateStr === todayStr) todayMatchCount++;
+          dolibarrDateMap.set(intId, new Date((ts + 3600) * 1000).toISOString().split('T')[0]);
         }
       }
-      console.log(`[TV] Dolibarr date map size: ${dolibarrDateMap.size}, todayStr: ${todayStr}, todayMatches: ${todayMatchCount}, overrides: ${dateOverrides.size}`);
 
-      // Track which intervention IDs are assigned
+      // Process assignments
       const assignedInterventionIds = new Set<number>();
+      const techMap = new Map<string, TodayIntervention[]>();
+      const weekDayMap = new Map<string, { count: number; techs: Set<string> }>();
 
       for (const row of (assignResult.data || [])) {
-        const name = row.user_name || 'Non assigné';
-        if (!techMap.has(name)) techMap.set(name, { userName: name, days: new Map() });
-        const plan = techMap.get(name)!;
+        const intId = row.intervention_id ? Number(row.intervention_id) : null;
+        if (intId) assignedInterventionIds.add(intId);
 
-        if (row.intervention_id) assignedInterventionIds.add(row.intervention_id);
-
-        // Use Dolibarr dateo as source of truth for date, fall back to assignment date_planned
         let dateKey: string;
-        const dolibarrDate = row.intervention_id ? dolibarrDateMap.get(row.intervention_id) : undefined;
-        
+        const dolibarrDate = intId ? dolibarrDateMap.get(intId) : undefined;
+
         if (dolibarrDate) {
           dateKey = dolibarrDate;
         } else if (!row.date_planned) {
-          dateKey = '__unplanned__';
-          unplanned++;
+          continue; // skip unplanned for TV view
         } else {
           const d = new Date(row.date_planned);
-          const cetDate = new Date(d.getTime() + 3600000);
-          dateKey = cetDate.toISOString().split('T')[0];
-        }
-        
-        if (dateKey !== '__unplanned__' && dateKey !== '__overdue__' && dateKey < todayStr) {
-          overdue++;
-          dateKey = '__overdue__';
+          dateKey = new Date(d.getTime() + 3600000).toISOString().split('T')[0];
         }
 
-        const dolibarrDesc = row.intervention_id ? descriptionMap.get(row.intervention_id) : undefined;
-        const finalDescription = (row as any).description || dolibarrDesc || null;
+        // Only process future days (today + next 6)
+        const dayDiff = Math.floor((new Date(dateKey).getTime() - new Date(todayStr).getTime()) / 86400000);
+        if (dayDiff < 0 || dayDiff > 6) continue;
 
-        if (!plan.days.has(dateKey)) plan.days.set(dateKey, []);
-        const assignment: DayAssignment = { intervention_label: row.intervention_label || 'Intervention', intervention_ref: row.intervention_ref || '', intervention_id: row.intervention_id, client_name: row.client_name, location: row.location, priority: row.priority || 'normal', date_planned: row.date_planned || '', user_name: name, description: finalDescription };
-        plan.days.get(dateKey)!.push(assignment);
-        // Only show interventions planned for TODAY in center column
-        if (dateKey === todayStr) {
-          todayItems.push({ ...assignment, _isAssigned: true } as any);
+        // Track week plan
+        if (!weekDayMap.has(dateKey)) weekDayMap.set(dateKey, { count: 0, techs: new Set() });
+        weekDayMap.get(dateKey)!.count++;
+        weekDayMap.get(dateKey)!.techs.add(row.user_name || '');
+
+        // Only process TODAY for main view
+        if (dateKey !== todayStr) continue;
+
+        const name = row.user_name || 'Non assigné';
+        if (!techMap.has(name)) techMap.set(name, []);
+
+        // Extract time from date_planned if available
+        let timePlanned: string | null = null;
+        if (row.date_planned) {
+          const dp = new Date(row.date_planned);
+          const h = dp.getHours(), m = dp.getMinutes();
+          if (h > 0 || m > 0) timePlanned = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
         }
+
+        const dolibarrInt = intId ? dolibarrDataMap.get(intId) : null;
+        const rawDesc = (row as any).description || dolibarrInt?.description || dolibarrInt?.note_public || '';
+        const cleanDesc = rawDesc.replace(/<[^>]*>/g, '').trim();
+
+        techMap.get(name)!.push({
+          intervention_id: intId,
+          intervention_ref: row.intervention_ref || '',
+          intervention_label: decodeHtmlEntities(row.intervention_label || 'Intervention'),
+          client_name: row.client_name ? decodeHtmlEntities(row.client_name) : null,
+          location: row.location ? decodeHtmlEntities(row.location) : null,
+          priority: row.priority || 'normal',
+          user_name: name,
+          description: cleanDesc || null,
+          isAssigned: true,
+          time_planned: timePlanned,
+        });
       }
 
-      // Add Dolibarr interventions for today OR recent (last 2 days) that are NOT assigned
+      // Unassigned Dolibarr interventions for today
       const yesterdayStr = new Date(cetNow.getTime() - 86400000).toISOString().split('T')[0];
+      const unassigned: TodayIntervention[] = [];
       for (const int of dolibarrInterventions) {
         const intId = Number(int.id);
         if (assignedInterventionIds.has(intId)) continue;
-
+        if (int.fk_statut === '3' || int.fk_statut === 3) continue;
         const dateStr = dolibarrDateMap.get(intId);
         if (!dateStr || (dateStr !== todayStr && dateStr !== yesterdayStr)) continue;
 
-        // Skip completed interventions (status 3 = closed)
-        if (int.fk_statut === '3' || int.fk_statut === 3) continue;
-
-        const cleanDesc = (int.description || int.note_public || int.note_private || '').replace(/<[^>]*>/g, '').trim();
-        const clientName = int.thirdparty_name || int.socName || int.array_options?.options_concierge || null;
-        const location = int.address || int.array_options?.options_adresse_rdv || int.client_address || null;
-
-        todayItems.push({
-          intervention_label: decodeHtmlEntities(int.label || int.ref || 'Intervention'),
-          intervention_ref: int.ref || '',
+        const rawDesc = (int.description || int.note_public || '').replace(/<[^>]*>/g, '').trim();
+        unassigned.push({
           intervention_id: intId,
-          client_name: clientName ? decodeHtmlEntities(clientName) : null,
-          location: location ? decodeHtmlEntities(location) : null,
+          intervention_ref: int.ref || '',
+          intervention_label: decodeHtmlEntities(int.label || int.ref || 'Intervention'),
+          client_name: int.thirdparty_name ? decodeHtmlEntities(int.thirdparty_name) : null,
+          location: int.address ? decodeHtmlEntities(int.address) : null,
           priority: 'normal',
-          date_planned: new Date(Number(int.dateo) * 1000).toISOString(),
           user_name: 'Non assigné',
-          description: cleanDesc || null,
-          _isAssigned: false,
-        } as any);
+          description: rawDesc || null,
+          isAssigned: false,
+          time_planned: null,
+        });
       }
 
-      // Sort: assigned first, then unassigned; within each group: urgent first
-      todayItems.sort((a, b) => {
-        const aAssigned = (a as any)._isAssigned ? 0 : 1;
-        const bAssigned = (b as any)._isAssigned ? 0 : 1;
-        if (aAssigned !== bAssigned) return aAssigned - bAssigned;
-        const aPrio = a.priority === 'critical' ? 0 : a.priority === 'urgent' ? 1 : 2;
-        const bPrio = b.priority === 'critical' ? 0 : b.priority === 'urgent' ? 1 : 2;
-        return aPrio - bPrio;
+      // Build tech summaries (sorted by name, then assign color index)
+      const summaries: TechSummary[] = Array.from(techMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([name, interventions], idx) => ({
+          name,
+          interventions: interventions.sort((a, b) => {
+            const pa = a.priority === 'critical' ? 0 : a.priority === 'urgent' ? 1 : 2;
+            const pb = b.priority === 'critical' ? 0 : b.priority === 'urgent' ? 1 : 2;
+            return pa - pb;
+          }),
+          colorIdx: idx % TECH_PALETTE.length,
+        }));
+
+      // Build week plan
+      const plan = days.map(d => {
+        const dStr = new Date(d.getTime() + 3600000).toISOString().split('T')[0];
+        const entry = weekDayMap.get(dStr);
+        return {
+          date: d,
+          dayLabel: d.toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric' }),
+          count: entry?.count || 0,
+          techs: Array.from(entry?.techs || []).filter(Boolean),
+        };
       });
 
-      console.log(`[TV] Today items: ${todayItems.length} (assigned: ${todayItems.filter((t: any) => t._isAssigned).length}, unassigned: ${todayItems.filter((t: any) => !t._isAssigned).length})`);
+      // Stats
+      const totalToday = summaries.reduce((s, t) => s + t.interventions.length, 0) + unassigned.length;
+      const urgentCount = summaries.reduce((s, t) => s + t.interventions.filter(i => i.priority === 'urgent' || i.priority === 'critical').length, 0);
+      const weeklyHours = Math.round((weekHoursResult.data || []).reduce((s, w) => s + (w.total_minutes || 0), 0) / 60);
 
-      setTechPlans(Array.from(techMap.values()));
-      setAllTodayAssignments(todayItems);
-      setOverdueCount(overdue);
-      setUnplannedCount(unplanned);
-    } catch (err) { console.error('TV week planning error:', err); }
-    finally { setLoading(false); }
+      setTechSummaries(summaries);
+      setUnassignedToday(unassigned);
+      setWeekPlan(plan);
+      setStats({ total: totalToday, urgent: urgentCount, techs: summaries.length, weeklyHours });
+    } catch (err) {
+      console.error('[TV] Data fetch error:', err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   React.useEffect(() => {
-    fetchAssignments();
-    const interval = setInterval(fetchAssignments, 120_000);
+    fetchData();
+    const interval = setInterval(fetchData, 90_000);
     return () => clearInterval(interval);
-  }, [fetchAssignments]);
+  }, [fetchData]);
 
-  return { techPlans, weekDays, allTodayAssignments, overdueCount, unplannedCount, loading, refresh: fetchAssignments };
-}
-
-// ─── Live counters hook ──────────────────────────────────────────────
-function useLiveCounters() {
-  const [counters, setCounters] = React.useState<LiveCounters>({ todayTotal: 0, todayUrgent: 0, activeTechs: 0, weeklyHours: 0 });
-
-  const fetchCounters = React.useCallback(async () => {
-    try {
-      const today = new Date();
-      const startOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate()).toISOString();
-      const endOfToday = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1).toISOString();
-      const endOf7Days = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 7).toISOString();
-
-      // Fetch today's assignments AND all 7-day assignments in parallel
-      const [todayResult, weekAssignResult] = await Promise.all([
-        supabase
-          .from('intervention_assignments')
-          .select('priority, user_name')
-          .eq('tenant_id', TENANT_ID)
-          .gte('date_planned', startOfToday)
-          .lt('date_planned', endOfToday),
-        supabase
-          .from('intervention_assignments')
-          .select('priority, user_name, date_planned')
-          .eq('tenant_id', TENANT_ID)
-          .lt('date_planned', endOf7Days),
-      ]);
-
-      const todayData = todayResult.data;
-      const weekAssignData = weekAssignResult.data;
-
-      const todayTotal = todayData?.length || 0;
-      // Count ALL urgent/critical across 7 days (includes overdue)
-      const todayUrgent = weekAssignData?.filter(d => d.priority === 'urgent' || d.priority === 'critical').length || 0;
-      const activeTechs = new Set(weekAssignData?.map(d => d.user_name)).size;
-
-      // Weekly hours from summary view
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-      const mondayStr = monday.toISOString().split('T')[0];
-
-      const { data: weekData } = await supabase
-        .from('weekly_work_summary')
-        .select('total_minutes')
-        .eq('tenant_id', TENANT_ID)
-        .eq('week_start', mondayStr);
-
-      const weeklyHours = Math.round((weekData || []).reduce((sum, w) => sum + (w.total_minutes || 0), 0) / 60);
-
-      setCounters({ todayTotal, todayUrgent, activeTechs, weeklyHours });
-    } catch (err) { console.error('Counters error:', err); }
-  }, []);
-
-  React.useEffect(() => {
-    fetchCounters();
-    const interval = setInterval(fetchCounters, 60_000); // every 1 min
-    return () => clearInterval(interval);
-  }, [fetchCounters]);
-
-  return counters;
-}
-
-// ─── Leaderboard hook ────────────────────────────────────────────────
-function useLeaderboard() {
-  const [leaders, setLeaders] = React.useState<LeaderboardEntry[]>([]);
-
-  const fetchLeaderboard = React.useCallback(async () => {
-    try {
-      const today = new Date();
-      const monday = new Date(today);
-      monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
-      const mondayStr = monday.toISOString().split('T')[0];
-      const sundayStr = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 7).toISOString().split('T')[0];
-
-      // Get weekly hours per user
-      const { data: hoursData } = await supabase
-        .from('weekly_work_summary')
-        .select('user_id, total_minutes')
-        .eq('tenant_id', TENANT_ID)
-        .eq('week_start', mondayStr);
-
-      // Get weekly interventions per user
-      const { data: assignData } = await supabase
-        .from('intervention_assignments')
-        .select('user_name, user_id')
-        .eq('tenant_id', TENANT_ID)
-        .gte('date_planned', mondayStr)
-        .lt('date_planned', sundayStr);
-
-      // Get user names from assignments
-      const userMap = new Map<string, { name: string; interventions: number; hours: number }>();
-
-      for (const a of (assignData || [])) {
-        const key = a.user_id || a.user_name;
-        if (!userMap.has(key)) userMap.set(key, { name: a.user_name, interventions: 0, hours: 0 });
-        userMap.get(key)!.interventions++;
-      }
-
-      for (const h of (hoursData || [])) {
-        const key = h.user_id;
-        if (userMap.has(key)) {
-          userMap.get(key)!.hours = Math.round((h.total_minutes || 0) / 60 * 10) / 10;
-        }
-      }
-
-      const entries: LeaderboardEntry[] = Array.from(userMap.values())
-        .map(v => ({ name: v.name, interventions: v.interventions, hoursWorked: v.hours }))
-        .sort((a, b) => b.interventions - a.interventions)
-        .slice(0, 5);
-
-      setLeaders(entries);
-    } catch (err) { console.error('Leaderboard error:', err); }
-  }, []);
-
-  React.useEffect(() => {
-    fetchLeaderboard();
-    const interval = setInterval(fetchLeaderboard, 300_000);
-    return () => clearInterval(interval);
-  }, [fetchLeaderboard]);
-
-  return leaders;
+  return { techSummaries, unassignedToday, weekPlan, stats, loading, refresh: fetchData };
 }
 
 // ─── Fullscreen ──────────────────────────────────────────────────────
 function useFullscreen() {
-  const enterFullscreen = React.useCallback(() => {
+  const enter = React.useCallback(() => {
     const el = document.documentElement;
     if (el.requestFullscreen) el.requestFullscreen().catch(() => {});
     else if ((el as any).webkitRequestFullscreen) (el as any).webkitRequestFullscreen();
   }, []);
-  return { enterFullscreen };
+  return enter;
 }
 
-// ─── Tech colors ─────────────────────────────────────────────────────
-const TECH_COLORS = [
-  { bg: 'bg-blue-500/15', border: 'border-blue-500/30', text: 'text-blue-300', dot: 'bg-blue-400' },
-  { bg: 'bg-emerald-500/15', border: 'border-emerald-500/30', text: 'text-emerald-300', dot: 'bg-emerald-400' },
-  { bg: 'bg-purple-500/15', border: 'border-purple-500/30', text: 'text-purple-300', dot: 'bg-purple-400' },
-  { bg: 'bg-amber-500/15', border: 'border-amber-500/30', text: 'text-amber-300', dot: 'bg-amber-400' },
-  { bg: 'bg-cyan-500/15', border: 'border-cyan-500/30', text: 'text-cyan-300', dot: 'bg-cyan-400' },
-  { bg: 'bg-rose-500/15', border: 'border-rose-500/30', text: 'text-rose-300', dot: 'bg-rose-400' },
-  { bg: 'bg-indigo-500/15', border: 'border-indigo-500/30', text: 'text-indigo-300', dot: 'bg-indigo-400' },
-  { bg: 'bg-teal-500/15', border: 'border-teal-500/30', text: 'text-teal-300', dot: 'bg-teal-400' },
-];
-
-const MEDAL_COLORS = ['text-yellow-400', 'text-gray-300', 'text-amber-600'];
-
-function formatDayHeader(date: Date): { dayName: string; dayNum: string } {
-  const dayName = date.toLocaleDateString('fr-CH', { weekday: 'short' }).replace('.', '');
-  const dayNum = date.getDate().toString();
-  return { dayName: dayName.charAt(0).toUpperCase() + dayName.slice(1), dayNum };
-}
-
-// ─── Animated Counter ────────────────────────────────────────────────
-function AnimatedCounter({ value, label, icon, color }: { value: number; label: string; icon: React.ReactNode; color: string }) {
-  const [displayed, setDisplayed] = React.useState(0);
-
-  React.useEffect(() => {
-    if (value === displayed) return;
-    const step = value > displayed ? 1 : -1;
-    const timer = setInterval(() => {
-      setDisplayed(prev => {
-        const next = prev + step;
-        if ((step > 0 && next >= value) || (step < 0 && next <= value)) {
-          clearInterval(timer);
-          return value;
-        }
-        return next;
-      });
-    }, 50);
-    return () => clearInterval(timer);
-  }, [value, displayed]);
-
+// ─── Scrolling Ticker ────────────────────────────────────────────────
+function Ticker({ messages }: { messages: string[] }) {
+  const text = messages.join('     ◆     ');
+  const duration = Math.max(messages.length * 6, 35);
   return (
-    <div className={`rounded-xl border p-4 ${color} flex flex-col items-center gap-2 min-w-0`}>
-      {icon}
-      <div className="text-4xl font-black tabular-nums">{displayed}</div>
-      <div className="text-sm text-white/50 text-center leading-tight">{label}</div>
-    </div>
-  );
-}
-
-// ─── Ticker messages builder ─────────────────────────────────────────
-function useTickerMessages(todayAssignments: DayAssignment[], counters: LiveCounters) {
-  return React.useMemo(() => {
-    const msgs: string[] = [];
-
-    // Urgent interventions
-    const urgents = todayAssignments.filter(a => a.priority === 'urgent' || a.priority === 'critical');
-    if (urgents.length > 0) {
-      msgs.push(`🚨 ${urgents.length} intervention(s) URGENTE(S) aujourd'hui !`);
-      for (const u of urgents.slice(0, 3)) {
-        msgs.push(`⚡ URGENT : ${u.intervention_label} — ${u.client_name || 'Client'} ${u.location ? `(${u.location})` : ''}`);
-      }
-    }
-
-    // Daily recap
-    msgs.push(`📋 ${counters.todayTotal} intervention(s) planifiée(s) aujourd'hui — ${counters.activeTechs} technicien(s) mobilisé(s)`);
-    if (counters.weeklyHours > 0) {
-      msgs.push(`⏱️ ${counters.weeklyHours}h travaillées cette semaine par l'équipe`);
-    }
-
-    // Motivational
-    const now = new Date();
-    const hour = now.getHours();
-    if (hour < 10) msgs.push('☀️ Bonne journée à toute l\'équipe ENES !');
-    else if (hour >= 12 && hour < 14) msgs.push('🍽️ Bon appétit à tous !');
-    else if (hour >= 17) msgs.push('👏 Bravo pour le travail accompli aujourd\'hui !');
-
-    msgs.push('🔧 ENES Électricité — Qualité & Fiabilité depuis le premier jour');
-
-    // Repeat to make it scroll smoothly
-    return [...msgs, ...msgs];
-  }, [todayAssignments, counters]);
-}
-
-// ─── Scrolling Ticker Component ──────────────────────────────────────
-function ScrollingTicker({ messages }: { messages: string[] }) {
-  const text = messages.join('     •     ');
-
-  return (
-    <div className="relative overflow-hidden h-12 bg-gradient-to-r from-blue-900/60 via-indigo-900/40 to-blue-900/60 border-t border-white/10">
-      <div
-        className="absolute whitespace-nowrap h-full flex items-center text-lg font-medium text-blue-200/80"
-        style={{
-          animation: `ticker-scroll ${Math.max(messages.length * 5, 30)}s linear infinite`,
-        }}
-      >
+    <div className="relative overflow-hidden h-11 flex items-center" style={{ background: 'rgba(0,0,0,0.4)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
+      <div className="absolute whitespace-nowrap text-base font-medium"
+        style={{ animation: `ticker ${duration}s linear infinite`, color: 'rgba(148,163,184,0.8)' }}>
         {text}
       </div>
-      <style>{`
-        @keyframes ticker-scroll {
-          0% { transform: translateX(100vw); }
-          100% { transform: translateX(-100%); }
-        }
-      `}</style>
+      <style>{`@keyframes ticker { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }`}</style>
     </div>
   );
 }
 
-// ─── Photo Carousel (recent interventions) ───────────────────────────
-function PhotoCarousel({ assignments }: { assignments: DayAssignment[] }) {
-  const [currentIdx, setCurrentIdx] = React.useState(0);
-  const items = React.useMemo(() => {
-    // Use recent assignments as "cards" (no actual photos in DB yet)
-    return assignments.slice(0, 8).map((a, i) => ({
-      label: a.intervention_label,
-      client: a.client_name || 'Client',
-      location: a.location || '',
-      priority: a.priority,
-      color: TECH_COLORS[i % TECH_COLORS.length],
-    }));
-  }, [assignments]);
+// ─── Priority badge ───────────────────────────────────────────────────
+function PriorityBadge({ priority }: { priority: string }) {
+  if (priority === 'critical') return (
+    <span className="inline-flex items-center gap-1 text-xs font-bold uppercase px-2 py-0.5 rounded-md" style={{ background: 'rgba(239,68,68,0.25)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.4)' }}>
+      <AlertCircle className="h-3 w-3" /> Critique
+    </span>
+  );
+  if (priority === 'urgent') return (
+    <span className="inline-flex items-center gap-1 text-xs font-bold uppercase px-2 py-0.5 rounded-md" style={{ background: 'rgba(245,158,11,0.25)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.4)' }}>
+      <Zap className="h-3 w-3" /> Urgent
+    </span>
+  );
+  return null;
+}
 
-  React.useEffect(() => {
-    if (items.length <= 1) return;
-    const interval = setInterval(() => {
-      setCurrentIdx(prev => (prev + 1) % items.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [items.length]);
-
-  if (items.length === 0) {
-    return (
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 flex flex-col items-center justify-center h-full text-white/30 gap-2">
-        <ImageIcon className="h-8 w-8 opacity-30" />
-        <span className="text-xs">Pas de chantiers récents</span>
-      </div>
-    );
-  }
-
-  const item = items[currentIdx];
+// ─── Intervention Card for tech column ───────────────────────────────
+function InterventionCard({ item, palette }: { item: TodayIntervention; palette: typeof TECH_PALETTE[0] }) {
+  const isUrgent = item.priority === 'urgent' || item.priority === 'critical';
+  const borderColor = isUrgent ? 'rgba(239,68,68,0.5)' : palette.border;
+  const bgColor = isUrgent ? 'rgba(239,68,68,0.08)' : palette.bg;
 
   return (
-    <div className="rounded-xl border border-white/10 bg-white/5 overflow-hidden h-full flex flex-col">
-      <div className="px-3 py-1.5 bg-white/5 flex items-center justify-between border-b border-white/5">
-        <div className="flex items-center gap-1.5">
-          <Wrench className="h-3.5 w-3.5 text-blue-400" />
-          <span className="text-[11px] font-bold text-white/70">Chantiers du jour</span>
-        </div>
-        <div className="flex gap-1">
-          {items.map((_, i) => (
-            <div key={i} className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${i === currentIdx ? 'bg-blue-400 scale-125' : 'bg-white/20'}`} />
-          ))}
-        </div>
-      </div>
-      <div className="flex-1 p-4 flex flex-col justify-center transition-all duration-500" key={currentIdx}>
-        <div className={`rounded-lg p-4 border ${item.priority !== 'normal' ? 'bg-red-500/10 border-red-500/25' : `${item.color.bg} ${item.color.border}`}`}>
-          {item.priority !== 'normal' && (
-            <div className="flex items-center gap-1 mb-2">
-              <AlertTriangle className="h-3.5 w-3.5 text-red-400" />
-              <span className="text-[10px] font-bold text-red-400 uppercase">Urgent</span>
-            </div>
+    <div className="rounded-xl p-3 flex flex-col gap-2" style={{ background: bgColor, border: `1px solid ${borderColor}` }}>
+      {/* Header row */}
+      <div className="flex items-start justify-between gap-2">
+        <div className="flex-1 min-w-0">
+          {item.intervention_ref && (
+            <span className="inline-block text-[10px] font-bold px-1.5 py-0.5 rounded mb-1 mr-1" style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.4)' }}>
+              #{item.intervention_ref}
+            </span>
           )}
-          <div className={`text-lg font-bold mb-1 ${item.priority !== 'normal' ? 'text-red-200' : 'text-white/90'}`}>
-            {item.label}
+          {item.time_planned && (
+            <span className="inline-flex items-center gap-0.5 text-[10px] font-bold px-1.5 py-0.5 rounded mb-1" style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd' }}>
+              <Clock className="h-2.5 w-2.5" /> {item.time_planned}
+            </span>
+          )}
+          <div className="text-sm font-bold leading-tight" style={{ color: isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.92)' }}>
+            {item.intervention_label}
           </div>
-          <div className="text-sm text-white/60 mb-1">{item.client}</div>
-          {item.location && (
-            <div className="text-xs text-white/30 flex items-center gap-1">
-              <MapPin className="h-3 w-3" /> {item.location}
-            </div>
-          )}
         </div>
+        <PriorityBadge priority={item.priority} />
       </div>
-    </div>
-  );
-}
 
-// ─── Road Conditions Widget (Cossonay area) ─────────────────────────
-function RoadConditionsWidget({ weather }: { weather: WeatherData | null }) {
-  const now = new Date();
-  const traffic = getTrafficFactor(now.getHours());
-  const weatherPenalty = getWeatherTrafficPenalty(weather?.description ?? null);
-  const totalFactor = traffic.factor + weatherPenalty;
-
-  const severity = totalFactor >= 1.4 ? 'high' : totalFactor > 1.1 ? 'medium' : 'low';
-  const colors = {
-    high: { bg: 'bg-red-500/10', border: 'border-red-500/30', text: 'text-red-300', dot: 'bg-red-400', icon: 'text-red-400' },
-    medium: { bg: 'bg-amber-500/10', border: 'border-amber-500/30', text: 'text-amber-300', dot: 'bg-amber-400', icon: 'text-amber-400' },
-    low: { bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', text: 'text-emerald-300', dot: 'bg-emerald-400', icon: 'text-emerald-400' },
-  };
-  const c = colors[severity];
-
-  // Routes spécifiques dans un rayon de 5km autour de Cossonay (Rte de Morges 9A)
-  const conditions: { road: string; distance: string; info: string }[] = [];
-  
-  if (weather) {
-    const d = weather.description.toLowerCase();
-    if (d.includes('neige') || d.includes('verglas')) {
-      conditions.push({ road: 'Rte de Morges (RC 177)', distance: '0.1 km', info: '⚠️ Verglas/neige – prudence' });
-      conditions.push({ road: 'Rte de la Gare, Cossonay', distance: '0.5 km', info: '⚠️ Chaussée glissante' });
-      conditions.push({ road: 'Rte de Lausanne (RC 177)', distance: '1.5 km', info: '⚠️ Risque de verglas' });
-      conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '⚠️ Bretelle glissante' });
-      conditions.push({ road: 'A1 Lausanne↔Yverdon', distance: '3.5 km', info: '⚠️ Neige – vitesse réduite' });
-    } else if (d.includes('pluie forte') || d.includes('orage')) {
-      conditions.push({ road: 'Rte de Morges (RC 177)', distance: '0.1 km', info: '🌧️ Forte pluie – visibilité réduite' });
-      conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '🌧️ Aquaplaning possible' });
-      conditions.push({ road: 'A1 Lausanne↔Yverdon', distance: '3.5 km', info: '🌧️ Prudence – pluie forte' });
-    } else if (d.includes('pluie') || d.includes('averse') || d.includes('bruine')) {
-      conditions.push({ road: 'Rte de Morges (RC 177)', distance: '0.1 km', info: '🌧️ Chaussée humide' });
-      conditions.push({ road: 'A1 Lausanne↔Yverdon', distance: '3.5 km', info: '🌧️ Routes mouillées' });
-    } else if (d.includes('brouillard')) {
-      conditions.push({ road: 'Rte de Morges (RC 177)', distance: '0.1 km', info: '🌫️ Brouillard – phares obligatoires' });
-      conditions.push({ road: 'Rte de Penthalaz', distance: '2 km', info: '🌫️ Visibilité < 200m' });
-      conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '🌫️ Brouillard dense possible' });
-    }
-  }
-
-  const hour = now.getHours();
-  if (hour >= 7 && hour <= 9) {
-    conditions.push({ road: 'Rte de la Gare → centre', distance: '0.5 km', info: '🚗 Pointe matin – trafic dense (+40%)' });
-    conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '🚗 File possible à la bretelle' });
-    conditions.push({ road: 'A1 dir. Lausanne', distance: '3.5 km', info: '🚗 Bouchons fréquents' });
-    conditions.push({ road: 'RC 177 → Morges', distance: '1 km', info: '🚗 Trafic soutenu' });
-  } else if (hour >= 16 && hour <= 18) {
-    conditions.push({ road: 'Rte de la Gare → centre', distance: '0.5 km', info: '🚗 Pointe soir – trafic dense (+45%)' });
-    conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '🚗 Ralentissement bretelle' });
-    conditions.push({ road: 'A1 dir. Yverdon', distance: '3.5 km', info: '🚗 Bouchons fréquents' });
-    conditions.push({ road: 'RC 177 → Penthalaz', distance: '2 km', info: '🚗 Trafic soutenu' });
-  } else if (hour >= 11 && hour <= 13) {
-    conditions.push({ road: 'Centre Cossonay', distance: '0.3 km', info: '🚙 Trafic modéré – pause midi' });
-    conditions.push({ road: 'RC 177 → Morges', distance: '1 km', info: '🚙 Fluide à modéré' });
-  }
-
-  if (conditions.length === 0) {
-    conditions.push({ road: 'Rte de Morges (RC 177)', distance: '0.1 km', info: '✅ Fluide' });
-    conditions.push({ road: 'Rte de la Gare', distance: '0.5 km', info: '✅ Fluide' });
-    conditions.push({ road: 'RC 177 → Penthalaz', distance: '2 km', info: '✅ Fluide' });
-    conditions.push({ road: 'Sortie A1 Cossonay (#18)', distance: '3.2 km', info: '✅ Fluide' });
-    conditions.push({ road: 'A1 Lausanne↔Yverdon', distance: '3.5 km', info: '✅ Conditions normales' });
-  }
-
-  return (
-    <div className="flex flex-col gap-1.5">
-      <div className={`rounded-xl border p-3 ${c.bg} ${c.border}`}>
-        <div className="flex items-center gap-2 mb-1">
-          <Car className={`h-5 w-5 ${c.icon}`} />
-          <span className={`text-base font-bold ${c.text}`}>{traffic.label}</span>
-        </div>
-        {weatherPenalty > 0 && (
-          <div className="text-sm text-amber-400 mt-1">
-            +{Math.round(weatherPenalty * 100)}% météo ({weather?.description})
+      {/* Client & location */}
+      <div className="flex flex-col gap-0.5">
+        {item.client_name && (
+          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.55)' }}>
+            <Building2 className="h-3 w-3 flex-shrink-0" style={{ color: palette.light }} />
+            <span className="truncate font-medium">{item.client_name}</span>
+          </div>
+        )}
+        {item.location && (
+          <div className="flex items-center gap-1.5 text-xs" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            <MapPin className="h-3 w-3 flex-shrink-0" />
+            <span className="truncate">{item.location}</span>
           </div>
         )}
       </div>
 
-      <div className="space-y-1.5 max-h-[300px] overflow-auto">
-        {conditions.map((item, idx) => (
-          <div key={idx} className="rounded-lg border bg-white/5 border-white/10 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-bold text-white/70 truncate">{item.road}</span>
-              <span className="text-xs text-white/30 whitespace-nowrap">{item.distance}</span>
-            </div>
-            <div className="text-xs text-white/50 mt-1">{item.info}</div>
-          </div>
-        ))}
-      </div>
-
-      <div className="text-xs text-white/15 flex items-center gap-1 mt-1">
-        <Navigation className="h-3 w-3" /> Rayon 5km • {ENES_ORIGIN.label}
-      </div>
+      {/* Description snippet */}
+      {item.description && (
+        <div className="text-[10px] leading-relaxed line-clamp-2" style={{ color: 'rgba(255,255,255,0.35)' }}>
+          {item.description}
+        </div>
+      )}
     </div>
   );
 }
 
-// ─── Leaderboard Widget ──────────────────────────────────────────────
-function LeaderboardWidget({ leaders }: { leaders: LeaderboardEntry[] }) {
-  if (leaders.length === 0) {
-    return (
-      <div className="text-white/20 text-[10px] text-center py-3">Pas de données cette semaine</div>
-    );
-  }
+// ─── Tech Column ─────────────────────────────────────────────────────
+function TechColumn({ tech }: { tech: TechSummary }) {
+  const palette = TECH_PALETTE[tech.colorIdx];
+  const initials = tech.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+  const urgentCount = tech.interventions.filter(i => i.priority === 'urgent' || i.priority === 'critical').length;
 
   return (
-    <div className="space-y-1">
-      {leaders.map((l, i) => (
-        <div key={l.name} className={`rounded-lg border p-3 flex items-center gap-3 ${i === 0 ? 'bg-yellow-500/10 border-yellow-500/25' : 'bg-white/5 border-white/10'}`}>
-          <span className={`text-lg font-black w-7 text-center ${MEDAL_COLORS[i] || 'text-white/30'}`}>
-            {i < 3 ? ['🥇', '🥈', '🥉'][i] : `${i + 1}`}
-          </span>
-          <div className="flex-1 min-w-0">
-            <div className="text-base font-bold text-white/80 truncate">{l.name}</div>
-            <div className="text-sm text-white/40">
-              {l.interventions} interv. • {l.hoursWorked}h
-            </div>
-          </div>
-          {i === 0 && <Trophy className="h-6 w-6 text-yellow-400 flex-shrink-0" />}
+    <div className="flex flex-col min-h-0 rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid rgba(255,255,255,0.08)` }}>
+      {/* Tech header */}
+      <div className="px-4 py-3 flex items-center gap-3 flex-shrink-0" style={{ background: `linear-gradient(135deg, ${palette.bg}, rgba(0,0,0,0.2))`, borderBottom: `1px solid ${palette.border}` }}>
+        {/* Avatar */}
+        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0" style={{ background: `linear-gradient(135deg, ${palette.accent}, ${palette.accent}88)`, color: '#fff', boxShadow: `0 0 16px ${palette.accent}40` }}>
+          {initials}
         </div>
-      ))}
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-bold truncate" style={{ color: palette.light }}>{tech.name}</div>
+          <div className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+            {tech.interventions.length} intervention{tech.interventions.length !== 1 ? 's' : ''}
+            {urgentCount > 0 && <span style={{ color: '#fca5a5' }}> · {urgentCount} urgent{urgentCount > 1 ? 'es' : 'e'}</span>}
+          </div>
+        </div>
+        {/* Count badge */}
+        <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-base font-black" style={{ background: palette.accent + '30', color: palette.light }}>
+          {tech.interventions.length}
+        </div>
+      </div>
+
+      {/* Interventions list */}
+      <div className="flex-1 overflow-y-auto p-3 space-y-2.5 min-h-0">
+        {tech.interventions.length === 0 ? (
+          <div className="flex flex-col items-center justify-center h-20 gap-2" style={{ color: 'rgba(255,255,255,0.2)' }}>
+            <CheckCircle2 className="h-6 w-6" />
+            <span className="text-xs">Aucune intervention</span>
+          </div>
+        ) : (
+          tech.interventions.map((item, idx) => (
+            <InterventionCard key={`${item.intervention_ref}-${idx}`} item={item} palette={palette} />
+          ))
+        )}
+      </div>
     </div>
   );
 }
 
-// ─── Main Page ───────────────────────────────────────────────────────
+// ─── Week mini-timeline ───────────────────────────────────────────────
+function WeekTimeline({ weekPlan }: { weekPlan: { date: Date; dayLabel: string; count: number; techs: string[] }[] }) {
+  const todayIdx = 0; // weekPlan[0] is always today
+  const maxCount = Math.max(...weekPlan.map(d => d.count), 1);
+
+  return (
+    <div className="flex gap-2 items-end h-full">
+      {weekPlan.map((day, idx) => {
+        const isToday = idx === todayIdx;
+        const heightPct = day.count > 0 ? Math.max(20, (day.count / maxCount) * 100) : 8;
+        return (
+          <div key={idx} className="flex flex-col items-center gap-1 flex-1">
+            {/* Count */}
+            {day.count > 0 && (
+              <span className="text-[10px] font-bold" style={{ color: isToday ? '#93c5fd' : 'rgba(255,255,255,0.4)' }}>
+                {day.count}
+              </span>
+            )}
+            {/* Bar */}
+            <div className="w-full rounded-t-md transition-all duration-500" style={{
+              height: `${heightPct}%`,
+              background: isToday
+                ? 'linear-gradient(to top, #1d4ed8, #3b82f6)'
+                : day.count > 0 ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.05)',
+              boxShadow: isToday ? '0 0 12px rgba(59,130,246,0.5)' : 'none',
+              minHeight: 6,
+            }} />
+            {/* Day label */}
+            <span className="text-[10px] font-medium capitalize" style={{ color: isToday ? '#93c5fd' : 'rgba(255,255,255,0.3)' }}>
+              {day.dayLabel.split(' ')[0]}
+            </span>
+            {isToday && <div className="w-1 h-1 rounded-full" style={{ background: '#3b82f6' }} />}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+// ─── Stat Chip ────────────────────────────────────────────────────────
+function StatChip({ icon, value, label, color }: { icon: React.ReactNode; value: number | string; label: string; color: string }) {
+  return (
+    <div className="flex flex-col items-center gap-1.5 px-5 py-3 rounded-2xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+      <div style={{ color }}>{icon}</div>
+      <div className="text-3xl font-black tabular-nums" style={{ color }}>{value}</div>
+      <div className="text-[11px] font-medium text-center" style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</div>
+    </div>
+  );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────
 export default function TVDisplayPage() {
-  const { enterFullscreen } = useFullscreen();
+  const enterFullscreen = useFullscreen();
   const now = useClock();
   const weather = useWeather();
-  const { techPlans, weekDays, allTodayAssignments, overdueCount, unplannedCount, loading, refresh } = useWeekAssignments();
-  // Travel info removed - replaced by RoadConditionsWidget
-  const counters = useLiveCounters();
-  const leaders = useLeaderboard();
-  const tickerMessages = useTickerMessages(allTodayAssignments, counters);
-
-  // Auto-refresh on Dolibarr webhook events
+  const { techSummaries, unassignedToday, weekPlan, stats, loading, refresh } = useTVData();
   useWebhookRefresh(refresh, { resourceTypes: ['intervention'], showToast: false });
 
   React.useEffect(() => { enterFullscreen(); }, [enterFullscreen]);
 
-  const todayStr = new Date().toISOString().split('T')[0];
+  const traffic = getTrafficLabel(now.getHours());
+
+  const hours = now.getHours().toString().padStart(2, '0');
+  const minutes = now.getMinutes().toString().padStart(2, '0');
+  const seconds = now.getSeconds().toString().padStart(2, '0');
+  const colonVisible = now.getSeconds() % 2 === 0;
+
+  const dateStr = now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const todayFormatted = dateStr.charAt(0).toUpperCase() + dateStr.slice(1);
+
+  // Ticker messages
+  const tickerMessages = React.useMemo(() => {
+    const msgs: string[] = [];
+    const urgentItems = techSummaries.flatMap(t => t.interventions.filter(i => i.priority === 'urgent' || i.priority === 'critical'));
+    if (urgentItems.length > 0) {
+      msgs.push(`🚨 ${urgentItems.length} intervention(s) URGENTE(S) aujourd'hui`);
+      urgentItems.slice(0, 2).forEach(u => msgs.push(`⚡ URGENT : ${u.intervention_label}${u.client_name ? ` — ${u.client_name}` : ''}${u.user_name ? ` → ${u.user_name}` : ''}`));
+    }
+    msgs.push(`📋 ${stats.total} intervention(s) planifiée(s) — ${stats.techs} technicien(s) mobilisé(s) aujourd'hui`);
+    if (stats.weeklyHours > 0) msgs.push(`⏱️ ${stats.weeklyHours}h travaillées cette semaine`);
+    const h = now.getHours();
+    if (h < 10) msgs.push('☀️ Bonne journée à toute l\'équipe ENES Électricité !');
+    else if (h >= 12 && h < 14) msgs.push('🍽️ Bon appétit à tous !');
+    else if (h >= 17) msgs.push('👏 Excellent travail aujourd\'hui, toute l\'équipe !');
+    msgs.push('⚡ ENES Électricité — Excellence & Fiabilité');
+    return [...msgs, ...msgs];
+  }, [techSummaries, stats, now]);
+
+  // Column layout: determine how many tech columns to show
+  const maxCols = Math.min(techSummaries.length, 5);
 
   return (
-    <div className="h-screen bg-gradient-to-br from-[hsl(217,91%,8%)] via-[hsl(217,91%,14%)] to-[hsl(220,80%,18%)] text-white flex flex-col overflow-hidden">
-      {/* ─── Header ─── */}
-      <div className="flex items-center justify-between px-8 py-4 border-b border-white/10 flex-shrink-0">
-        <div className="flex items-center gap-5">
-          <img src={logoEnes} alt="ENES" className="h-14" />
+    <div className="h-screen flex flex-col overflow-hidden select-none" style={{
+      background: 'linear-gradient(160deg, #060d1f 0%, #0a1628 40%, #0d1f3a 100%)',
+      color: '#fff',
+      fontFamily: "'Inter', system-ui, sans-serif",
+    }}>
+
+      {/* ═══ TOP HEADER BAR ═══ */}
+      <div className="flex-shrink-0 flex items-center justify-between px-8 py-4 gap-6" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(0,0,0,0.2)' }}>
+
+        {/* Logo + Date */}
+        <div className="flex items-center gap-5 min-w-0">
+          <img src={logoEnes} alt="ENES" className="h-12 flex-shrink-0" style={{ filter: 'drop-shadow(0 0 12px rgba(59,130,246,0.4))' }} />
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">ENES Électricité</h1>
-            <p className="text-blue-300 text-base capitalize">
-              {now.toLocaleDateString('fr-CH', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
+            <div className="text-2xl font-black tracking-tight" style={{ color: '#f1f5f9' }}>ENES Électricité</div>
+            <div className="text-sm font-medium" style={{ color: 'rgba(148,163,184,0.7)' }}>{todayFormatted}</div>
           </div>
         </div>
 
-        {/* Live counters in header */}
-        <div className="flex items-center gap-5">
-          <div className="grid grid-cols-4 gap-4">
-            <AnimatedCounter value={counters.todayTotal} label="Aujourd'hui" icon={<Wrench className="h-7 w-7 text-blue-400" />} color="bg-blue-500/10 border-blue-500/25" />
-            <AnimatedCounter value={counters.todayUrgent} label="Urgentes" icon={<Zap className="h-7 w-7 text-red-400" />} color="bg-red-500/10 border-red-500/25" />
-            <AnimatedCounter value={counters.activeTechs} label="Techniciens" icon={<Users className="h-7 w-7 text-emerald-400" />} color="bg-emerald-500/10 border-emerald-500/25" />
-            <AnimatedCounter value={counters.weeklyHours} label="Heures/sem" icon={<Clock className="h-7 w-7 text-amber-400" />} color="bg-amber-500/10 border-amber-500/25" />
-          </div>
+        {/* KPI chips */}
+        <div className="flex items-center gap-3">
+          <StatChip icon={<Wrench className="h-5 w-5" />} value={stats.total} label="Aujourd'hui" color="#60a5fa" />
+          {stats.urgent > 0 && <StatChip icon={<Zap className="h-5 w-5" />} value={stats.urgent} label="Urgentes" color="#f87171" />}
+          <StatChip icon={<Users className="h-5 w-5" />} value={stats.techs} label="Techniciens" color="#34d399" />
+          {stats.weeklyHours > 0 && <StatChip icon={<Clock className="h-5 w-5" />} value={`${stats.weeklyHours}h`} label="Cette semaine" color="#fbbf24" />}
+        </div>
 
+        {/* Weather + Clock */}
+        <div className="flex items-center gap-5 flex-shrink-0">
+          {/* Weather */}
           {weather && (
-            <div className="flex items-center gap-3 bg-white/5 rounded-xl px-5 py-3 border border-white/10">
-              <WeatherIcon desc={weather.description} className="h-9 w-9" />
-              <span className="text-3xl font-bold">{weather.temp}°C</span>
-              <div className="text-sm text-white/40 leading-tight">
-                <div>{weather.description}</div>
-                <div><Wind className="h-4 w-4 inline" /> {weather.wind}km/h</div>
+            <div className="flex items-center gap-3 px-4 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+              <WeatherIcon desc={weather.description} size="md" />
+              <div>
+                <div className="text-2xl font-black" style={{ color: '#f1f5f9' }}>{weather.temp}°C</div>
+                <div className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>{weather.description}</div>
+              </div>
+              <div className="text-[11px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.3)' }}>
+                <div className="flex items-center gap-1"><Wind className="h-3 w-3" /> {weather.wind} km/h</div>
+                <div>{weather.humidity}% hum.</div>
               </div>
             </div>
           )}
 
-          <div className="flex-shrink-0">
-            <DigitalClock now={now} />
+          {/* Traffic pill */}
+          <div className="text-sm font-semibold px-3 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.05)', color: traffic.color, border: `1px solid ${traffic.color}30` }}>
+            {traffic.label}
+          </div>
+
+          {/* Digital clock */}
+          <div className="tabular-nums flex items-baseline gap-0.5">
+            <span className="text-6xl font-black" style={{ color: '#93c5fd', textShadow: '0 0 30px rgba(96,165,250,0.5)' }}>{hours}</span>
+            <span className="text-6xl font-black" style={{ color: colonVisible ? '#93c5fd' : 'transparent', transition: 'color 0.1s' }}>:</span>
+            <span className="text-6xl font-black" style={{ color: '#93c5fd', textShadow: '0 0 30px rgba(96,165,250,0.5)' }}>{minutes}</span>
+            <span className="text-2xl font-bold self-end mb-1.5 ml-1" style={{ color: '#60a5fa', opacity: 0.6 }}>{seconds}</span>
           </div>
         </div>
       </div>
 
-      {/* ─── Main Content: 3 columns ─── */}
-      <div className="flex-1 flex min-h-0 p-5 gap-5">
+      {/* ═══ MAIN CONTENT ═══ */}
+      <div className="flex-1 flex min-h-0 gap-0">
 
-        {/* ═══ LEFT: 7-day planning ═══ */}
-        <div className="w-[420px] flex-shrink-0 flex flex-col min-h-0">
-          <div className="flex items-center gap-3 mb-3 flex-shrink-0">
-            <Calendar className="h-6 w-6 text-blue-400" />
-            <h2 className="text-xl font-bold">Planning 7 jours</h2>
+        {/* LEFT: Week mini bar chart */}
+        <div className="flex-shrink-0 w-48 flex flex-col p-4 gap-3" style={{ borderRight: '1px solid rgba(255,255,255,0.06)', background: 'rgba(0,0,0,0.15)' }}>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Calendar className="h-4 w-4" style={{ color: '#60a5fa' }} />
+            <span className="text-xs font-bold uppercase tracking-wider" style={{ color: 'rgba(255,255,255,0.4)' }}>7 prochains jours</span>
+          </div>
+          <div className="flex-1 min-h-0">
+            <WeekTimeline weekPlan={weekPlan} />
           </div>
 
-          <div className="flex-1 overflow-auto min-h-0 space-y-2.5 pr-1">
-            {weekDays.map((day, dayIdx) => {
-              const dayStr = day.toISOString().split('T')[0];
-              const isToday = dayStr === todayStr;
-              const dayName = day.toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' });
-
-              // Collect all assignments for this day across all techs
-              const dayAssignments: (DayAssignment & { techName: string })[] = [];
-              for (const tech of techPlans) {
-                const items = tech.days.get(dayStr);
-                if (items) {
-                  for (const a of items) {
-                    dayAssignments.push({ ...a, techName: tech.userName });
-                  }
-                }
-              }
-
-              return (
-                <div key={dayStr} className={`rounded-xl border p-3 ${
-                  isToday ? 'bg-blue-500/20 border-blue-500/40' : 'bg-white/[0.03] border-white/10'
-                }`}>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className={`text-base font-bold capitalize ${isToday ? 'text-blue-200' : 'text-white/60'}`}>
-                      {isToday ? '📍 ' : ''}{dayName}
-                    </span>
-                    <span className={`text-sm px-2 py-0.5 rounded-full font-bold ${
-                      dayAssignments.length > 0
-                        ? isToday ? 'bg-blue-500/30 text-blue-200' : 'bg-white/10 text-white/50'
-                        : 'text-white/20'
-                    }`}>
-                      {dayAssignments.length}
-                    </span>
-                  </div>
-
-                  {dayAssignments.length === 0 ? (
-                    <div className="text-sm text-white/20 py-1">Aucune intervention</div>
-                  ) : (
-                    <div className="space-y-1.5">
-                      {dayAssignments.slice(0, isToday ? 6 : 4).map((a, idx) => {
-                        const isUrgent = a.priority === 'urgent' || a.priority === 'critical';
-                        const techIdx = techPlans.findIndex(t => t.userName === a.techName);
-                        const color = TECH_COLORS[(techIdx >= 0 ? techIdx : idx) % TECH_COLORS.length];
-                        return (
-                          <div key={`${a.intervention_ref}-${idx}`} className={`rounded-lg px-3 py-2 border ${
-                            isUrgent ? 'bg-red-500/15 border-red-500/30' : 'bg-white/[0.03] border-white/5'
-                          }`}>
-                            <div className="flex items-center gap-2">
-                              {isUrgent && <AlertTriangle className="h-4 w-4 text-red-400 flex-shrink-0" />}
-                              <span className="text-sm font-bold text-white/80 truncate">{a.intervention_label}</span>
-                            </div>
-                            <div className="flex items-center gap-2 mt-1">
-                              <div className={`w-2.5 h-2.5 rounded-full ${color.dot} flex-shrink-0`} />
-                              <span className={`text-xs ${color.text} truncate`}>{a.techName}</span>
-                              {a.client_name && <span className="text-xs text-white/30 truncate ml-auto">{a.client_name}</span>}
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {dayAssignments.length > (isToday ? 6 : 4) && (
-                        <div className="text-xs text-white/25 text-center">+{dayAssignments.length - (isToday ? 6 : 4)} autres</div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              );
-            })}
-
-            {/* Overdue section */}
-            {overdueCount > 0 && (() => {
-              const overdueItems: (DayAssignment & { techName: string })[] = [];
-              for (const tech of techPlans) {
-                const items = tech.days.get('__overdue__');
-                if (items) {
-                  for (const a of items) overdueItems.push({ ...a, techName: tech.userName });
-                }
-              }
-              return (
-                <div className="rounded-xl border p-3 bg-red-500/15 border-red-500/30">
-                  <div className="text-base font-bold text-red-300 mb-2">⚠️ En retard ({overdueItems.length})</div>
-                  <div className="space-y-1.5">
-                    {overdueItems.slice(0, 4).map((a, idx) => (
-                      <div key={`ov-${idx}`} className="rounded-lg px-3 py-2 bg-red-500/10 border border-red-500/20">
-                        <span className="text-sm font-bold text-red-200 truncate block">{a.intervention_label}</span>
-                        <span className="text-xs text-red-300/50">{a.techName}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
-
-            {/* Unplanned section */}
-            {unplannedCount > 0 && (() => {
-              const unplannedItems: (DayAssignment & { techName: string })[] = [];
-              for (const tech of techPlans) {
-                const items = tech.days.get('__unplanned__');
-                if (items) {
-                  for (const a of items) unplannedItems.push({ ...a, techName: tech.userName });
-                }
-              }
-              return (
-                <div className="rounded-xl border p-3 bg-amber-500/15 border-amber-500/30">
-                  <div className="text-base font-bold text-amber-300 mb-2">📋 Non planifié ({unplannedItems.length})</div>
-                  <div className="space-y-1.5">
-                    {unplannedItems.slice(0, 3).map((a, idx) => (
-                      <div key={`up-${idx}`} className="rounded-lg px-3 py-2 bg-amber-500/10 border border-amber-500/20">
-                        <span className="text-sm font-bold text-amber-200 truncate block">{a.intervention_label}</span>
-                        <span className="text-xs text-amber-300/50">{a.techName}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              );
-            })()}
+          {/* Upcoming days list */}
+          <div className="flex-shrink-0 space-y-1.5">
+            {weekPlan.slice(1, 4).filter(d => d.count > 0).map((day, idx) => (
+              <div key={idx} className="flex items-center justify-between text-[11px] px-2 py-1 rounded-lg" style={{ background: 'rgba(255,255,255,0.04)' }}>
+                <span className="capitalize font-medium" style={{ color: 'rgba(255,255,255,0.5)' }}>{day.dayLabel}</span>
+                <span className="font-bold" style={{ color: 'rgba(255,255,255,0.6)' }}>{day.count}</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* ═══ CENTER: Today's interventions (detailed) ═══ */}
-        <div className="flex-1 flex flex-col min-h-0 min-w-0">
-          <div className="flex items-center gap-4 mb-3 flex-shrink-0">
-            <Zap className="h-8 w-8 text-blue-400" />
-            <h2 className="text-2xl font-bold">Interventions du jour</h2>
-            <span className="text-lg text-white/40 ml-auto">{allTodayAssignments.length} intervention{allTodayAssignments.length !== 1 ? 's' : ''}</span>
+        {/* CENTER: Tech columns */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 p-4 gap-3">
+          {/* Section title */}
+          <div className="flex-shrink-0 flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <Zap className="h-5 w-5" style={{ color: '#60a5fa' }} />
+              <span className="text-base font-bold" style={{ color: 'rgba(255,255,255,0.7)' }}>Interventions du jour</span>
+            </div>
+            <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+            <span className="text-sm" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              {stats.total} intervention{stats.total !== 1 ? 's' : ''} · {stats.techs} technicien{stats.techs !== 1 ? 's' : ''}
+            </span>
           </div>
 
           {loading ? (
-            <div className="flex-1 flex items-center justify-center text-white/30 text-lg">Chargement…</div>
-          ) : allTodayAssignments.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center text-white/30 gap-3">
-              <Calendar className="h-16 w-16 opacity-30" />
-              <p className="text-lg">Aucune intervention aujourd'hui</p>
+            <div className="flex-1 flex items-center justify-center" style={{ color: 'rgba(255,255,255,0.3)' }}>
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full" style={{ animation: 'spin 1s linear infinite' }} />
+                <span className="text-sm">Chargement des données…</span>
+              </div>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+          ) : techSummaries.length === 0 && unassignedToday.length === 0 ? (
+            <div className="flex-1 flex flex-col items-center justify-center gap-4" style={{ color: 'rgba(255,255,255,0.2)' }}>
+              <Calendar className="h-20 w-20" />
+              <p className="text-xl">Aucune intervention planifiée aujourd'hui</p>
             </div>
           ) : (
-            <div className="flex-1 overflow-auto min-h-0 space-y-3 pr-1">
-              {allTodayAssignments.map((a, idx) => {
-                const techIdx = techPlans.findIndex(t => t.userName === a.user_name);
-                const color = TECH_COLORS[(techIdx >= 0 ? techIdx : idx) % TECH_COLORS.length];
-                const isUrgent = a.priority === 'urgent' || a.priority === 'critical';
+            <div className="flex-1 min-h-0 flex gap-3 overflow-hidden">
+              {/* Tech columns */}
+              {techSummaries.map((tech) => (
+                <div key={tech.name} className="flex-1 min-w-0 flex flex-col min-h-0" style={{ minWidth: 0, maxWidth: maxCols <= 3 ? '33%' : maxCols <= 4 ? '25%' : '20%' }}>
+                  <TechColumn tech={tech} />
+                </div>
+              ))}
 
-                return (
-                  <div key={`${a.intervention_ref}-${a.user_name}-${idx}`}
-                    className={`rounded-2xl border px-6 py-4 flex items-start gap-5 ${
-                      isUrgent ? 'bg-red-500/15 border-red-500/30' : 'bg-white/[0.04] border-white/10'
-                    }`}
-                  >
-                    {/* Priority icon */}
-                    <div className="flex-shrink-0 mt-1">
-                      {isUrgent ? (
-                        <AlertTriangle className="h-8 w-8 text-red-400" />
-                      ) : (
-                        <Wrench className="h-8 w-8 text-white/30" />
-                      )}
+              {/* Unassigned column */}
+              {unassignedToday.length > 0 && (
+                <div className="flex-1 min-w-0 flex flex-col min-h-0" style={{ minWidth: 0, maxWidth: '20%' }}>
+                  <div className="flex flex-col min-h-0 rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                    {/* Header */}
+                    <div className="px-4 py-3 flex items-center gap-3 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
+                      <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
+                        <Circle className="h-5 w-5" style={{ color: 'rgba(255,255,255,0.3)' }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>Non assigné</div>
+                        <div className="text-[11px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{unassignedToday.length} en attente</div>
+                      </div>
                     </div>
-
-                    {/* Main info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-3">
-                        {a.intervention_ref && (
-                          <span className="inline-flex items-center bg-yellow-500/20 border border-yellow-400/40 text-yellow-200 text-base font-bold px-3 py-1 rounded-lg whitespace-nowrap">
-                            #{a.intervention_ref}
-                          </span>
-                        )}
-                        <span className={`font-bold text-xl ${isUrgent ? 'text-red-200' : 'text-white/90'}`}>
-                          {a.intervention_label}
-                        </span>
-                      </div>
-                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 mt-2">
-                        {a.client_name && (
-                          <span className="text-lg text-white/60 flex items-center gap-2">
-                            <User className="h-5 w-5 text-white/30" /> {a.client_name}
-                          </span>
-                        )}
-                        {a.location && (
-                          <span className="text-lg text-white/50 flex items-center gap-2">
-                            <MapPin className="h-5 w-5 text-white/30" /> {a.location}
-                          </span>
-                        )}
-                      </div>
-                      {a.description && (
-                        <div className="mt-3 bg-blue-500/15 border border-blue-400/30 rounded-xl px-4 py-3">
-                          <div className="text-sm text-blue-300/60 font-semibold uppercase tracking-wider mb-1">📋 Description</div>
-                          <div className="text-base text-blue-100/90 leading-relaxed line-clamp-3">
-                            {decodeHtmlEntities(a.description)}
-                          </div>
+                    {/* List */}
+                    <div className="flex-1 overflow-y-auto p-3 space-y-2">
+                      {unassignedToday.map((item, idx) => (
+                        <div key={idx} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
+                          {item.intervention_ref && (
+                            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded mb-1 inline-block" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.35)' }}>
+                              #{item.intervention_ref}
+                            </span>
+                          )}
+                          <div className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.65)' }}>{item.intervention_label}</div>
+                          {item.client_name && (
+                            <div className="text-[11px] mt-1 flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.35)' }}>
+                              <Building2 className="h-3 w-3" /> {item.client_name}
+                            </div>
+                          )}
+                          {item.location && (
+                            <div className="text-[11px] flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.25)' }}>
+                              <MapPin className="h-3 w-3" /> {item.location}
+                            </div>
+                          )}
                         </div>
-                      )}
+                      ))}
                     </div>
-
-                    {/* Technician badge */}
-                    {(a as any)._isAssigned !== false ? (
-                      <div className={`flex-shrink-0 rounded-xl px-4 py-2.5 border ${color.bg} ${color.border} flex items-center gap-3`}>
-                        <div className={`w-3.5 h-3.5 rounded-full ${color.dot}`} />
-                        <span className={`text-lg font-bold ${color.text} whitespace-nowrap`}>{a.user_name}</span>
-                      </div>
-                    ) : (
-                      <div className="flex-shrink-0 rounded-xl px-4 py-2.5 border bg-white/5 border-white/15 flex items-center gap-3">
-                        <div className="w-3.5 h-3.5 rounded-full bg-white/20" />
-                        <span className="text-lg font-bold text-white/40 whitespace-nowrap">Non assigné</span>
-                      </div>
-                    )}
-
-                    {/* Priority badge */}
-                    {isUrgent && (
-                      <span className="flex-shrink-0 text-base font-bold uppercase bg-red-500/25 text-red-300 px-4 py-1.5 rounded-full border border-red-500/40">
-                        {a.priority === 'critical' ? 'Critique' : 'Urgent'}
-                      </span>
-                    )}
                   </div>
-                );
-              })}
+                </div>
+              )}
             </div>
           )}
         </div>
-
-        {/* Right sidebar: Travel + Leaderboard + Carousel */}
-        <div className="w-[400px] flex-shrink-0 flex flex-col min-h-0 gap-4">
-          {/* Travel */}
-          <div className="flex-shrink-0">
-            <div className="flex items-center gap-2 mb-2">
-              <Car className="h-5 w-5 text-amber-400" />
-              <span className="text-base font-bold">Conditions routières</span>
-            </div>
-            <RoadConditionsWidget weather={weather} />
-          </div>
-
-          {/* Leaderboard */}
-          <div className="flex-shrink-0">
-            <div className="flex items-center gap-2 mb-2">
-              <Trophy className="h-5 w-5 text-yellow-400" />
-              <span className="text-base font-bold">Classement semaine</span>
-            </div>
-            <LeaderboardWidget leaders={leaders} />
-          </div>
-
-          {/* Photo carousel */}
-          <div className="flex-1 min-h-0">
-            <PhotoCarousel assignments={allTodayAssignments} />
-          </div>
-        </div>
       </div>
 
-      {/* ─── Scrolling Ticker ─── */}
-      <ScrollingTicker messages={tickerMessages} />
+      {/* ═══ BOTTOM TICKER ═══ */}
+      <Ticker messages={tickerMessages} />
     </div>
   );
 }
