@@ -27,9 +27,10 @@ interface TodayIntervention {
   description: string | null;
   isAssigned: boolean;
   time_planned: string | null;
-  date_planned_full: string | null;  // full date for display
-  duration_hours: number | null;     // estimated duration in hours
-  bon_gerance?: string | null;       // N° bon de gérance
+  date_planned_full: string | null;
+  duration_hours: number | null;
+  bon_gerance?: string | null;
+  operational_status: string | null;  // statut opérationnel
 }
 
 interface TechSummary {
@@ -301,6 +302,7 @@ function useTVData() {
           date_planned_full: datePlannedFull,
           duration_hours: durationHours,
           bon_gerance: bonGerance,
+          operational_status: intId ? (opStatusMap.get(intId) || null) : null,
         });
       }
 
@@ -328,6 +330,7 @@ function useTVData() {
           date_planned_full: null,
           duration_hours: null,
           bon_gerance: (int.array_options?.options_bongerance) || null,
+          operational_status: opStatusMap.get(intId) || null,
         });
       }
 
@@ -431,13 +434,50 @@ function PriorityBadge({ priority }: { priority: string }) {
   return null;
 }
 
+// ─── Operational Status Badge ────────────────────────────────────────
+function OpStatusBadge({ status }: { status: string | null }) {
+  if (!status || status === 'a_faire') return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(100,116,139,0.2)', color: '#94a3b8', border: '1px solid rgba(100,116,139,0.3)' }}>
+      <Circle className="h-2.5 w-2.5" /> À faire
+    </span>
+  );
+  if (status === 'en_cours') return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.35)' }}>
+      <Zap className="h-2.5 w-2.5" /> En cours
+    </span>
+  );
+  if (status === 'a_terminer') return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.2)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.35)' }}>
+      <AlertCircle className="h-2.5 w-2.5" /> À terminer
+    </span>
+  );
+  if (status === 'pas_termine') return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.2)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.35)' }}>
+      <AlertCircle className="h-2.5 w-2.5" /> Pas terminé
+    </span>
+  );
+  if (status === 'a_revenir') return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(168,85,247,0.2)', color: '#d8b4fe', border: '1px solid rgba(168,85,247,0.35)' }}>
+      <AlertCircle className="h-2.5 w-2.5" /> À revenir
+    </span>
+  );
+  if (status === 'termine') return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(16,185,129,0.2)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.35)' }}>
+      <CheckCircle2 className="h-2.5 w-2.5" /> Terminé
+    </span>
+  );
+  return null;
+}
+
 // ─── Intervention Card ────────────────────────────────────────────────
 function InterventionCard({ item, palette }: { item: TodayIntervention; palette: typeof TECH_PALETTE[0] }) {
   const isUrgent = item.priority === 'urgent' || item.priority === 'critical';
+  const isDone = item.operational_status === 'termine';
   return (
     <div className="rounded-xl p-3 flex flex-col gap-2" style={{
-      background: isUrgent ? 'rgba(239,68,68,0.08)' : palette.bg,
-      border: `1px solid ${isUrgent ? 'rgba(239,68,68,0.5)' : palette.border}`,
+      background: isDone ? 'rgba(16,185,129,0.05)' : isUrgent ? 'rgba(239,68,68,0.08)' : palette.bg,
+      border: `1px solid ${isDone ? 'rgba(16,185,129,0.25)' : isUrgent ? 'rgba(239,68,68,0.5)' : palette.border}`,
+      opacity: isDone ? 0.75 : 1,
     }}>
       {/* Top row: ref + badge priorité */}
       <div className="flex items-center justify-between gap-2">
@@ -452,13 +492,14 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
               #{item.intervention_ref}
             </span>
           )}
+          <OpStatusBadge status={item.operational_status} />
         </div>
         <PriorityBadge priority={item.priority} />
       </div>
 
       {/* Label intervention */}
-      <div className="text-sm font-bold leading-snug" style={{ color: isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.92)' }}>
-        {item.intervention_label}
+      <div className="text-sm font-bold leading-snug" style={{ color: isDone ? '#6ee7b7' : isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.92)' }}>
+        {isDone && '✓ '}{item.intervention_label}
       </div>
 
       {/* Client */}
@@ -477,7 +518,7 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
         </div>
       )}
 
-      {/* Bottom row: date/heure + durée + technicien */}
+      {/* Bottom row: heure + durée + technicien */}
       <div className="flex items-center gap-2 flex-wrap pt-0.5" style={{ borderTop: '1px solid rgba(255,255,255,0.06)' }}>
         {item.time_planned && (
           <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd' }}>
@@ -485,7 +526,7 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
           </span>
         )}
         {item.duration_hours && (
-          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(16,185,129,0.15)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.2)' }}>
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.15)', color: '#fcd34d' }}>
             <Timer className="h-2.5 w-2.5" /> ~{item.duration_hours}h
           </span>
         )}
@@ -814,12 +855,11 @@ export default function TVDisplayPage() {
                   </div>
                   <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
                     {unassignedToday.map((item, idx) => (
-                      <div key={idx} className="rounded-xl p-3" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-                        {item.intervention_ref && <span className="text-[10px] font-bold px-1.5 rounded mb-1 inline-block" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.35)' }}>#{item.intervention_ref}</span>}
-                        <div className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.65)' }}>{item.intervention_label}</div>
-                        {item.client_name && <div className="text-[11px] mt-1 flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.35)' }}><Building2 className="h-3 w-3" />{item.client_name}</div>}
-                        {item.location && <div className="text-[11px] flex items-center gap-1" style={{ color: 'rgba(255,255,255,0.25)' }}><MapPin className="h-3 w-3" />{item.location}</div>}
-                      </div>
+                      <InterventionCard
+                        key={`unassigned-${item.intervention_ref}-${idx}`}
+                        item={item}
+                        palette={{ accent: '#64748b', light: '#94a3b8', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.2)' }}
+                      />
                     ))}
                   </div>
                 </div>
