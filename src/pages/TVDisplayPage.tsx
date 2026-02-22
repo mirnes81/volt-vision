@@ -65,34 +65,34 @@ interface PendingIntervention {
   colorIdx: number;
 }
 
-// ─── NEW THEME: Warm amber/charcoal – high contrast for TV ───────────
+// ─── THEME: Blue/dark – original TV theme ───────────────────────────
 const THEME = {
-  bg: 'linear-gradient(160deg, #1a1410 0%, #1e1812 45%, #231c14 100%)',
-  headerBg: 'rgba(0,0,0,0.4)',
-  headerBorder: 'rgba(217,169,78,0.15)',
+  bg: 'linear-gradient(160deg, #060d1f 0%, #0a1628 45%, #0d1f3a 100%)',
+  headerBg: 'rgba(0,0,0,0.25)',
+  headerBorder: 'rgba(255,255,255,0.07)',
   cardBg: 'rgba(255,255,255,0.03)',
-  cardBorder: 'rgba(217,169,78,0.12)',
-  sectionTitle: '#d9a94e',
-  textPrimary: '#f5edd6',
-  textSecondary: 'rgba(245,237,214,0.6)',
-  textMuted: 'rgba(245,237,214,0.35)',
-  clockColor: '#d9a94e',
-  clockGlow: 'rgba(217,169,78,0.5)',
-  accent: '#d9a94e',
-  accentLight: '#f0d78a',
-  divider: 'rgba(217,169,78,0.1)',
+  cardBorder: 'rgba(255,255,255,0.08)',
+  sectionTitle: '#60a5fa',
+  textPrimary: '#f1f5f9',
+  textSecondary: 'rgba(255,255,255,0.6)',
+  textMuted: 'rgba(255,255,255,0.35)',
+  clockColor: '#93c5fd',
+  clockGlow: 'rgba(96,165,250,0.5)',
+  accent: '#60a5fa',
+  accentLight: '#93c5fd',
+  divider: 'rgba(255,255,255,0.06)',
 };
 
-// Tech colors: warm palette that pops on dark amber background
+// Tech color palette
 const TECH_PALETTE = [
-  { accent: '#e8a832', light: '#fcd34d', bg: 'rgba(232,168,50,0.10)', border: 'rgba(232,168,50,0.25)' },
-  { accent: '#34d399', light: '#6ee7b7', bg: 'rgba(52,211,153,0.10)', border: 'rgba(52,211,153,0.25)' },
-  { accent: '#f472b6', light: '#f9a8d4', bg: 'rgba(244,114,182,0.10)', border: 'rgba(244,114,182,0.25)' },
-  { accent: '#60a5fa', light: '#93c5fd', bg: 'rgba(96,165,250,0.10)', border: 'rgba(96,165,250,0.25)' },
-  { accent: '#a78bfa', light: '#c4b5fd', bg: 'rgba(167,139,250,0.10)', border: 'rgba(167,139,250,0.25)' },
-  { accent: '#fb923c', light: '#fdba74', bg: 'rgba(251,146,60,0.10)', border: 'rgba(251,146,60,0.25)' },
-  { accent: '#2dd4bf', light: '#5eead4', bg: 'rgba(45,212,191,0.10)', border: 'rgba(45,212,191,0.25)' },
-  { accent: '#f87171', light: '#fca5a5', bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.25)' },
+  { accent: '#3b82f6', light: '#93c5fd', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.3)' },
+  { accent: '#10b981', light: '#6ee7b7', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)' },
+  { accent: '#8b5cf6', light: '#c4b5fd', bg: 'rgba(139,92,246,0.12)', border: 'rgba(139,92,246,0.3)' },
+  { accent: '#f59e0b', light: '#fcd34d', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)' },
+  { accent: '#06b6d4', light: '#67e8f9', bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.3)' },
+  { accent: '#f43f5e', light: '#fda4af', bg: 'rgba(244,63,94,0.12)', border: 'rgba(244,63,94,0.3)' },
+  { accent: '#14b8a6', light: '#5eead4', bg: 'rgba(20,184,166,0.12)', border: 'rgba(20,184,166,0.3)' },
+  { accent: '#f97316', light: '#fdba74', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.3)' },
 ];
 
 // ─── Clock hook ──────────────────────────────────────────────────────
@@ -565,7 +565,7 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
 
         {/* Heure — toujours bien visible */}
         {item.time_planned && (
-          <span className="inline-flex items-center gap-1 text-[12px] font-black px-2 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(217,169,78,0.35)', color: '#fde68a' }}>
+          <span className="inline-flex items-center gap-1 text-[12px] font-black px-2 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(59,130,246,0.5)', color: '#fff' }}>
             <Clock className="h-3 w-3" />
             {item.time_planned}
           </span>
@@ -696,7 +696,7 @@ function TechColumn({ tech }: { tech: TechSummary }) {
 function WeekStatsWidget({ stats }: { stats: TechWeekStat[] }) {
   return (
     <div className="flex flex-col min-h-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${THEME.cardBorder}` }}>
-      <div className="px-3 py-2 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: `1px solid ${THEME.divider}`, background: 'rgba(217,169,78,0.06)' }}>
+      <div className="px-3 py-2 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: `1px solid ${THEME.divider}`, background: 'rgba(59,130,246,0.08)' }}>
         <BarChart3 className="h-3.5 w-3.5" style={{ color: THEME.accent }} />
         <span className="text-xs font-bold" style={{ color: THEME.textSecondary }}>Semaine en cours</span>
       </div>
@@ -829,7 +829,7 @@ export default function TVDisplayPage() {
       <div className="flex-shrink-0 flex items-center justify-between px-5 py-2 gap-3" style={{ borderBottom: `1px solid ${THEME.headerBorder}`, background: THEME.headerBg }}>
         {/* Logo + Date */}
         <div className="flex items-center gap-3">
-          <img src={logoEnes} alt="ENES" className="h-9 flex-shrink-0" style={{ filter: 'drop-shadow(0 0 8px rgba(217,169,78,0.3))' }} />
+          <img src={logoEnes} alt="ENES" className="h-9 flex-shrink-0" style={{ filter: 'drop-shadow(0 0 8px rgba(59,130,246,0.3))' }} />
           <div>
             <div className="text-lg font-black" style={{ color: THEME.textPrimary }}>ENES Électricité</div>
             <div className="text-[11px] capitalize" style={{ color: THEME.textMuted }}>{dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}</div>
