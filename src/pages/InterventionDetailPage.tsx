@@ -86,6 +86,7 @@ export default function InterventionDetailPage() {
   const [showMoreMenu, setShowMoreMenu] = React.useState(false);
   const [estimatedHours, setEstimatedHours] = React.useState<string>('');
   const [isSavingHours, setIsSavingHours] = React.useState(false);
+  const [cloudPhotoCount, setCloudPhotoCount] = React.useState(0);
   
   // Use global assignments context
   const { getAssignmentsForIntervention, refresh: refreshAssignments } = useAssignments();
@@ -113,6 +114,15 @@ export default function InterventionDetailPage() {
         if (data?.estimated_hours != null) {
           setEstimatedHours(String(data.estimated_hours));
         }
+      });
+    
+    // Load cloud photo count from storage
+    supabase.storage
+      .from('intervention-photos')
+      .list(id, { limit: 100 })
+      .then(({ data: files }) => {
+        const realFiles = files?.filter(f => f.name !== '.emptyFolderPlaceholder') || [];
+        setCloudPhotoCount(realFiles.length);
       });
   }, [id]);
 
@@ -472,7 +482,7 @@ export default function InterventionDetailPage() {
         <button onClick={() => setActiveTab('photos')}
           className="bg-card rounded-xl p-3 text-center border border-border/50 active:scale-95 transition-transform">
           <Camera className="w-5 h-5 mx-auto mb-1 text-primary" />
-          <p className="text-lg font-bold">{intervention.photos.length}</p>
+          <p className="text-lg font-bold">{Math.max(intervention.photos.length, cloudPhotoCount)}</p>
           <p className="text-xs text-muted-foreground">Photos</p>
         </button>
         <button onClick={() => setActiveTab('signature')}
@@ -760,8 +770,8 @@ export default function InterventionDetailPage() {
                 )}>
                   {tab.id === 'tasks' && intervention.tasks.length > 0
                     ? `${tab.label} (${intervention.tasks.length})`
-                    : tab.id === 'photos' && intervention.photos.length > 0
-                    ? `${tab.label} (${intervention.photos.length})`
+                    : tab.id === 'photos' && Math.max(intervention.photos.length, cloudPhotoCount) > 0
+                    ? `${tab.label} (${Math.max(intervention.photos.length, cloudPhotoCount)})`
                     : tab.label}
                 </span>
               </button>
