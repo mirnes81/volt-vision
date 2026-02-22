@@ -29,6 +29,43 @@ const statusConfig: Record<string, { label: string; color: string; icon: React.E
   facture: { label: 'Facturé', color: 'bg-muted text-muted-foreground', icon: CheckCircle2 },
 };
 
+// Per-technician color palette (same as CalendarPage)
+const TECH_BORDER_COLORS = [
+  'border-l-blue-500',
+  'border-l-emerald-500',
+  'border-l-violet-500',
+  'border-l-amber-500',
+  'border-l-cyan-500',
+  'border-l-rose-500',
+  'border-l-teal-500',
+  'border-l-orange-500',
+  'border-l-indigo-500',
+  'border-l-pink-500',
+];
+
+const TECH_TEXT_COLORS = [
+  'text-blue-600',
+  'text-emerald-600',
+  'text-violet-600',
+  'text-amber-600',
+  'text-cyan-600',
+  'text-rose-600',
+  'text-teal-600',
+  'text-orange-600',
+  'text-indigo-600',
+  'text-pink-600',
+];
+
+// Simple hash to get a consistent color index for a name
+function getColorIndexForName(name: string): number {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) % TECH_BORDER_COLORS.length;
+}
+
 const statusOptions: { value: InterventionStatus; label: string }[] = [
   { value: 'a_planifier', label: 'À planifier' },
   { value: 'en_cours', label: 'En cours' },
@@ -159,9 +196,19 @@ export function InterventionCard({ intervention, supabaseAssignments = [], onSta
   };
 
 
+  // Determine assigned tech color
+  const primaryAssignment = supabaseAssignments.find(a => a.is_primary) || supabaseAssignments[0];
+  const assignedTechName = primaryAssignment?.user_name || assigneeName;
+  const techColorIdx = assignedTechName ? getColorIndexForName(assignedTechName) : -1;
+  const borderColor = techColorIdx >= 0 ? TECH_BORDER_COLORS[techColorIdx] : '';
+  const techTextColor = techColorIdx >= 0 ? TECH_TEXT_COLORS[techColorIdx] : '';
+
   return (
     <Link to={`/intervention/${intervention.id}`}>
-      <article className="bg-card rounded-lg p-2.5 shadow-sm border border-border/50 transition-all hover:border-primary/30">
+      <article className={cn(
+        "bg-card rounded-lg p-2.5 shadow-sm border border-border/50 transition-all hover:border-primary/30",
+        borderColor && `border-l-4 ${borderColor}`
+      )}>
         {/* Header - Compact */}
         <div className="flex items-start justify-between gap-2 mb-1.5">
           <div className="min-w-0 flex-1">
@@ -306,26 +353,29 @@ export function InterventionCard({ intervention, supabaseAssignments = [], onSta
           <div className="flex items-center gap-1 text-[10px] min-w-0 flex-1">
             {supabaseAssignments.length > 0 ? (
               <>
-                <Users className="w-3 h-3 shrink-0 text-primary" />
+                <Users className={cn("w-3 h-3 shrink-0", techTextColor || "text-primary")} />
                 <span className="truncate text-muted-foreground">
-                  {supabaseAssignments.slice(0, 2).map((a, idx) => (
-                    <span 
-                      key={a.id} 
-                      className={cn(
-                        "font-medium",
-                        a.is_primary && "text-primary"
-                      )}
-                    >
-                      {a.user_name.split(' ')[0]}{idx < Math.min(supabaseAssignments.length - 1, 1) ? ', ' : ''}
-                    </span>
-                  ))}
+                  {supabaseAssignments.slice(0, 2).map((a, idx) => {
+                    const cIdx = getColorIndexForName(a.user_name);
+                    return (
+                      <span 
+                        key={a.id} 
+                        className={cn(
+                          "font-medium",
+                          TECH_TEXT_COLORS[cIdx]
+                        )}
+                      >
+                        {a.user_name.split(' ')[0]}{idx < Math.min(supabaseAssignments.length - 1, 1) ? ', ' : ''}
+                      </span>
+                    );
+                  })}
                   {supabaseAssignments.length > 2 && ` +${supabaseAssignments.length - 2}`}
                 </span>
               </>
             ) : assigneeName ? (
               <>
-                <User className="w-3 h-3 shrink-0" />
-                <span className="truncate font-medium">{assigneeName.split(' ')[0]}</span>
+                <User className={cn("w-3 h-3 shrink-0", techTextColor || "text-muted-foreground")} />
+                <span className={cn("truncate font-medium", techTextColor)}>{assigneeName.split(' ')[0]}</span>
               </>
             ) : (
               <>
