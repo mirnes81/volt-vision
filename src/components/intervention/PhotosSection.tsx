@@ -44,6 +44,9 @@ export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
   }, [intervention.id]);
 
   async function loadCloudPhotos() {
+    const photos: CloudPhoto[] = [];
+    
+    // 1. Try loading from intervention_photos table first
     try {
       const { data, error } = await (supabase
         .from('intervention_photos' as any)
@@ -51,20 +54,68 @@ export function PhotosSection({ intervention, onUpdate }: PhotosSectionProps) {
         .eq('intervention_id', intervention.id)
         .order('created_at', { ascending: false }) as any);
       
-      if (error) throw error;
-      
-      if (data && Array.isArray(data)) {
-        setCloudPhotos(data.map((p: any) => ({
-          id: p.id,
-          type: p.photo_type as PhotoType,
-          filePath: p.public_url,
-          datePhoto: p.created_at,
-          isCloud: true,
-        })));
+      if (!error && data && Array.isArray(data) && data.length > 0) {
+        for (const p of data) {
+          photos.push({
+            id: p.id,
+            type: p.photo_type as PhotoType,
+            filePath: p.public_url,
+            datePhoto: p.created_at,
+            isCloud: true,
+          });
+        }
       }
     } catch (err) {
-      console.warn('[PhotosSection] Could not load cloud photos:', err);
+      console.warn('[PhotosSection] DB query failed:', err);
     }
+    
+    // 2. Fallback: scan storage bucket directly for this intervention
+    if (photos.length === 0) {
+      try {
+        const { data: files, error } = await supabase.storage
+          .from('intervention-photos')
+          .list(String(intervention.id), { limit: 100, sortBy: { column: 'created_at', order: 'desc' } });
+        
+        if (!error && files && files.length > 0) {
+          for (const file of files) {
+            if (file.name === '.emptyFolderPlaceholder') continue;
+            const { data: urlData } = supabase.storage
+              .from('intervention-photos')
+              .getPublicUrl(`${intervention.id}/${file.name}`);
+            
+            // Detect type from filename (format: type_timestamp_random)
+            const detectedType = (file.name.split('_')[0] || 'pendant') as PhotoType;
+            
+            photos.push({
+              id: file.id || file.name,
+              type: detectedType,
+              filePath: urlData.publicUrl,
+              datePhoto: file.created_at || new Date().toISOString(),
+              isCloud: true,
+            });
+            
+            // Also try to re-create the DB record for future loads
+            const worker = localStorage.getItem('mv3_worker');
+            const workerId = worker ? JSON.parse(worker)?.id : 'unknown';
+            await supabase
+              .from('intervention_photos' as any)
+              .upsert({
+                intervention_id: intervention.id,
+                tenant_id: '00000000-0000-0000-0000-000000000001',
+                uploaded_by: String(workerId),
+                photo_type: detectedType,
+                storage_path: `${intervention.id}/${file.name}`,
+                public_url: urlData.publicUrl,
+                original_filename: file.name,
+              }, { onConflict: 'storage_path' as any } as any);
+          }
+        }
+      } catch (err) {
+        console.warn('[PhotosSection] Storage list fallback failed:', err);
+      }
+    }
+    
+    setCloudPhotos(photos);
   }
 
 
