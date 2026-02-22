@@ -488,6 +488,25 @@ function useFullscreen() {
   return enter;
 }
 
+// ─── Auto-scale hook for TV resolution ───────────────────────────────
+function useTVScale() {
+  const [scale, setScale] = React.useState(1);
+  React.useEffect(() => {
+    const update = () => {
+      // Base design is for ~1440px width. Scale up for larger screens.
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      // Use the smaller dimension ratio to avoid overflow
+      const s = Math.max(1, Math.min(w / 1440, h / 810));
+      setScale(s);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, []);
+  return scale;
+}
+
 // ─── Ticker ──────────────────────────────────────────────────────────
 function Ticker({ messages }: { messages: string[] }) {
   const text = messages.join('     ◆     ');
@@ -803,6 +822,7 @@ export default function TVDisplayPage() {
   const enterFullscreen = useFullscreen();
   const now = useClock();
   const weather = useWeather();
+  const tvScale = useTVScale();
   const { techSummaries, unassignedToday, techWeekStats, pendingInterventions, stats, loading, refresh } = useTVData();
   useWebhookRefresh(refresh, { resourceTypes: ['intervention'], showToast: false });
 
@@ -832,10 +852,14 @@ export default function TVDisplayPage() {
   }, [techSummaries, stats, now]);
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden select-none" style={{
+    <div className="flex flex-col overflow-hidden select-none" style={{
       background: THEME.bg,
       color: THEME.textPrimary,
       fontFamily: "'Inter', system-ui, sans-serif",
+      width: `${100 / tvScale}vw`,
+      height: `${100 / tvScale}vh`,
+      transform: `scale(${tvScale})`,
+      transformOrigin: 'top left',
     }}>
 
       {/* ═══ HEADER ═══ */}
