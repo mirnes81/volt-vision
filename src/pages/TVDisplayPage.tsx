@@ -300,11 +300,24 @@ function useTVData() {
           }
         }
 
-        // Full planned date/time string
+        // Full planned date/time string - from assignment OR Dolibarr
         let datePlannedFull: string | null = null;
         if (row.date_planned) {
           const dp = new Date(row.date_planned);
           datePlannedFull = dp.toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+        } else if (intId && dolibarrDataMap.has(intId)) {
+          const dInt = dolibarrDataMap.get(intId);
+          const ef3 = dInt?.array_options || {};
+          const ts3 = Number(ef3.options_interventiondateheur || 0) || Number(dInt?.dateo || 0);
+          if (ts3 > 0) {
+            const d3 = new Date((ts3 + 3600) * 1000);
+            datePlannedFull = d3.toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' });
+            // Also fill time if still missing
+            if (!timePlanned) {
+              const h3 = d3.getHours(), m3 = d3.getMinutes();
+              if (h3 > 0 || m3 > 0) timePlanned = `${h3.toString().padStart(2, '0')}:${m3.toString().padStart(2, '0')}`;
+            }
+          }
         }
 
         const bonGerance = dolibarrInt?.array_options?.options_bongerance || null;
