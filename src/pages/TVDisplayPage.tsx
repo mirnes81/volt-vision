@@ -46,16 +46,14 @@ interface TechSummary {
   colorIdx: number;
 }
 
-// Weekly stats per technician
 interface TechWeekStat {
   name: string;
   colorIdx: number;
-  totalWeek: number;       // total assigned this week
-  doneWeek: number;        // completed (operational status = terminé)
-  todayCount: number;      // today specifically
+  totalWeek: number;
+  doneWeek: number;
+  todayCount: number;
 }
 
-// Pending interventions (not finished, from all assignments)
 interface PendingIntervention {
   intervention_ref: string;
   intervention_label: string;
@@ -67,16 +65,34 @@ interface PendingIntervention {
   colorIdx: number;
 }
 
-// ─── Tech color palette ───────────────────────────────────────────────
+// ─── NEW THEME: Warm amber/charcoal – high contrast for TV ───────────
+const THEME = {
+  bg: 'linear-gradient(160deg, #1a1410 0%, #1e1812 45%, #231c14 100%)',
+  headerBg: 'rgba(0,0,0,0.4)',
+  headerBorder: 'rgba(217,169,78,0.15)',
+  cardBg: 'rgba(255,255,255,0.03)',
+  cardBorder: 'rgba(217,169,78,0.12)',
+  sectionTitle: '#d9a94e',
+  textPrimary: '#f5edd6',
+  textSecondary: 'rgba(245,237,214,0.6)',
+  textMuted: 'rgba(245,237,214,0.35)',
+  clockColor: '#d9a94e',
+  clockGlow: 'rgba(217,169,78,0.5)',
+  accent: '#d9a94e',
+  accentLight: '#f0d78a',
+  divider: 'rgba(217,169,78,0.1)',
+};
+
+// Tech colors: warm palette that pops on dark amber background
 const TECH_PALETTE = [
-  { accent: '#3b82f6', light: '#93c5fd', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.3)' },
-  { accent: '#10b981', light: '#6ee7b7', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)' },
-  { accent: '#8b5cf6', light: '#c4b5fd', bg: 'rgba(139,92,246,0.12)', border: 'rgba(139,92,246,0.3)' },
-  { accent: '#f59e0b', light: '#fcd34d', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)' },
-  { accent: '#06b6d4', light: '#67e8f9', bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.3)' },
-  { accent: '#f43f5e', light: '#fda4af', bg: 'rgba(244,63,94,0.12)', border: 'rgba(244,63,94,0.3)' },
-  { accent: '#14b8a6', light: '#5eead4', bg: 'rgba(20,184,166,0.12)', border: 'rgba(20,184,166,0.3)' },
-  { accent: '#f97316', light: '#fdba74', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.3)' },
+  { accent: '#e8a832', light: '#fcd34d', bg: 'rgba(232,168,50,0.10)', border: 'rgba(232,168,50,0.25)' },
+  { accent: '#34d399', light: '#6ee7b7', bg: 'rgba(52,211,153,0.10)', border: 'rgba(52,211,153,0.25)' },
+  { accent: '#f472b6', light: '#f9a8d4', bg: 'rgba(244,114,182,0.10)', border: 'rgba(244,114,182,0.25)' },
+  { accent: '#60a5fa', light: '#93c5fd', bg: 'rgba(96,165,250,0.10)', border: 'rgba(96,165,250,0.25)' },
+  { accent: '#a78bfa', light: '#c4b5fd', bg: 'rgba(167,139,250,0.10)', border: 'rgba(167,139,250,0.25)' },
+  { accent: '#fb923c', light: '#fdba74', bg: 'rgba(251,146,60,0.10)', border: 'rgba(251,146,60,0.25)' },
+  { accent: '#2dd4bf', light: '#5eead4', bg: 'rgba(45,212,191,0.10)', border: 'rgba(45,212,191,0.25)' },
+  { accent: '#f87171', light: '#fca5a5', bg: 'rgba(248,113,113,0.10)', border: 'rgba(248,113,113,0.25)' },
 ];
 
 // ─── Clock hook ──────────────────────────────────────────────────────
@@ -104,10 +120,10 @@ function wmoCodeToText(code: number): string {
 
 function WeatherIcon({ desc }: { desc: string }) {
   const d = desc.toLowerCase();
-  if (d.includes('neige')) return <CloudSnow className="h-7 w-7 text-blue-200" />;
-  if (d.includes('pluie') || d.includes('averse') || d.includes('bruine')) return <CloudRain className="h-7 w-7 text-blue-300" />;
-  if (d.includes('nuag') || d.includes('couvert') || d.includes('brouillard')) return <Cloud className="h-7 w-7 text-gray-300" />;
-  return <Sun className="h-7 w-7 text-yellow-400" />;
+  if (d.includes('neige')) return <CloudSnow className="h-6 w-6" style={{ color: '#bfdbfe' }} />;
+  if (d.includes('pluie') || d.includes('averse') || d.includes('bruine')) return <CloudRain className="h-6 w-6" style={{ color: '#93c5fd' }} />;
+  if (d.includes('nuag') || d.includes('couvert') || d.includes('brouillard')) return <Cloud className="h-6 w-6" style={{ color: '#cbd5e1' }} />;
+  return <Sun className="h-6 w-6" style={{ color: '#fbbf24' }} />;
 }
 
 function useWeather() {
@@ -144,7 +160,6 @@ function useTVData() {
       const cetNow = new Date(today.getTime() + 3600000);
       const todayStr = cetNow.toISOString().split('T')[0];
 
-      // Week boundaries (Monday to Sunday)
       const monday = new Date(today);
       monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
       const mondayStr = new Date(monday.getTime() + 3600000).toISOString().split('T')[0];
@@ -162,19 +177,16 @@ function useTVData() {
         supabase.from('weekly_work_summary').select('total_minutes, user_id').eq('tenant_id', TENANT_ID),
       ]);
 
-      // Build date overrides map
       const dateOverrides = new Map<number, string>();
       for (const row of (dateOverridesResult?.data || [])) {
         dateOverrides.set(row.intervention_id, row.override_date);
       }
 
-      // Operational status map (intervention_id -> status)
       const opStatusMap = new Map<number, string>();
       for (const row of (operStatusResult?.data || [])) {
         opStatusMap.set(row.intervention_id, row.operational_status);
       }
 
-      // Build Dolibarr date map
       const dolibarrInterventions: any[] = Array.isArray(dolibarrResult?.data) ? dolibarrResult.data : [];
       const dolibarrDateMap = new Map<number, string>();
       const dolibarrDataMap = new Map<number, any>();
@@ -199,12 +211,10 @@ function useTVData() {
         }
       }
 
-      // Tech name -> color index (stable, sorted alphabetically)
       const allTechNames = Array.from(new Set((assignResult.data || []).map(r => r.user_name || '').filter(Boolean))).sort();
       const techColorMap = new Map<string, number>();
       allTechNames.forEach((name, idx) => techColorMap.set(name, idx % TECH_PALETTE.length));
 
-      // Process all assignments
       const assignedInterventionIds = new Set<number>();
       const techTodayMap = new Map<string, TodayIntervention[]>();
       const techWeekMap = new Map<string, { total: number; done: number; todayCount: number }>();
@@ -226,7 +236,6 @@ function useTVData() {
           dateKey = new Date(new Date(row.date_planned).getTime() + 3600000).toISOString().split('T')[0];
         }
 
-        // Weekly count: only current week
         if (dateKey && dateKey >= mondayStr && dateKey < sundayStr) {
           techWeekMap.get(name)!.total++;
           const opStatus = intId ? opStatusMap.get(intId) : null;
@@ -234,9 +243,7 @@ function useTVData() {
           if (dateKey === todayStr) techWeekMap.get(name)!.todayCount++;
         }
 
-        // Skip past dates for today column
         if (!dateKey || dateKey !== todayStr) {
-          // Add to pending if it's in the future or today and not done
           if (dateKey && dateKey >= todayStr) {
             const opStatus = intId ? opStatusMap.get(intId) : null;
             if (opStatus !== 'termine') {
@@ -260,16 +267,14 @@ function useTVData() {
           continue;
         }
 
-        // Today's assignments per tech
         if (!techTodayMap.has(name)) techTodayMap.set(name, []);
 
         const dolibarrInt = intId ? dolibarrDataMap.get(intId) : null;
 
-        // Extract time: try date_planned UTC hours first, then Dolibarr timestamp
+        // Extract time
         let timePlanned: string | null = null;
         if (row.date_planned) {
           const dp = new Date(row.date_planned);
-          // Use UTC hours (Dolibarr stores 07:00 local as 07:00 UTC)
           const h = dp.getUTCHours(), m = dp.getUTCMinutes();
           if (h > 0 || m > 0) timePlanned = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
         }
@@ -283,12 +288,13 @@ function useTVData() {
             if (h2 > 0 || m2 > 0) timePlanned = `${h2.toString().padStart(2, '0')}:${m2.toString().padStart(2, '0')}`;
           }
         }
-        const rawDesc = (row as any).description || dolibarrInt?.description || dolibarrInt?.note_public || '';
-        const cleanDesc = rawDesc.replace(/<[^>]*>/g, '').trim();
-        const rawBriefing = dolibarrInt?.note_private || '';
-        const cleanBriefing = rawBriefing.replace(/<[^>]*>/g, '').trim();
 
-        // Duration from Dolibarr (durationHours or computed from dateo/datee)
+        // FIX: Use decodeHtmlEntities for description & briefing (fixes special chars)
+        const rawDesc = (row as any).description || dolibarrInt?.description || dolibarrInt?.note_public || '';
+        const cleanDesc = decodeHtmlEntities(rawDesc);
+        const rawBriefing = dolibarrInt?.note_private || '';
+        const cleanBriefing = decodeHtmlEntities(rawBriefing);
+
         let durationHours: number | null = null;
         if (dolibarrInt) {
           const ef = dolibarrInt.array_options || {};
@@ -300,7 +306,7 @@ function useTVData() {
           }
         }
 
-        // Full planned date/time string - from assignment OR Dolibarr
+        // Full planned date/time - from assignment OR Dolibarr
         let datePlannedFull: string | null = null;
         if (row.date_planned) {
           const dp = new Date(row.date_planned);
@@ -312,7 +318,6 @@ function useTVData() {
           if (ts3 > 0) {
             const d3 = new Date((ts3 + 3600) * 1000);
             datePlannedFull = d3.toLocaleDateString('fr-CH', { weekday: 'short', day: 'numeric', month: 'short' });
-            // Also fill time if still missing
             if (!timePlanned) {
               const h3 = d3.getHours(), m3 = d3.getMinutes();
               if (h3 > 0 || m3 > 0) timePlanned = `${h3.toString().padStart(2, '0')}:${m3.toString().padStart(2, '0')}`;
@@ -322,27 +327,22 @@ function useTVData() {
 
         const bonGerance = dolibarrInt?.array_options?.options_bongerance || null;
 
-        // Use Dolibarr label if the assignment label is generic
         const dolibarrLabel = dolibarrInt ? decodeHtmlEntities(dolibarrInt.label || dolibarrInt.ref || '') : '';
         const finalLabel = (row.intervention_label && row.intervention_label !== 'Intervention')
           ? decodeHtmlEntities(row.intervention_label)
           : (dolibarrLabel || decodeHtmlEntities(row.intervention_label || 'Intervention'));
 
-        // Always prefer Dolibarr address (more precise than assignment location)
         const dolibarrAddress = dolibarrInt
-          ? [dolibarrInt.address, dolibarrInt.zip, dolibarrInt.town].filter(Boolean).join(', ')
+          ? [dolibarrInt.address, dolibarrInt.zip, dolibarrInt.town].filter(Boolean).map(s => decodeHtmlEntities(s)).join(', ')
           : '';
         const finalLocation = dolibarrAddress || (row.location ? decodeHtmlEntities(row.location) : null);
 
-        // Intervention type from Dolibarr extrafields
         const ef = dolibarrInt?.array_options || {};
         const intType = ef.options_typetravaux || dolibarrInt?.type_label || null;
-
-        // Extra building/contact info from Dolibarr extrafields
         const noImmeuble = ef.options_noimm || null;
-        const proprietaire = ef.options_propimm || null;
-        const concierge = ef.options_concierge || null;
-        const appartement = ef.options_appartement || null;
+        const proprietaire = ef.options_propimm ? decodeHtmlEntities(ef.options_propimm) : null;
+        const concierge = ef.options_concierge ? decodeHtmlEntities(ef.options_concierge) : null;
+        const appartement = ef.options_appartement ? decodeHtmlEntities(ef.options_appartement) : null;
 
         techTodayMap.get(name)!.push({
           intervention_id: intId,
@@ -360,11 +360,11 @@ function useTVData() {
           duration_hours: durationHours,
           bon_gerance: bonGerance,
           operational_status: intId ? (opStatusMap.get(intId) || null) : null,
-          intervention_type: intType,
-          no_immeuble: noImmeuble,
-          proprietaire: proprietaire,
-          concierge: concierge,
-          appartement: appartement,
+          intervention_type: intType ? decodeHtmlEntities(intType) : null,
+          no_immeuble: noImmeuble ? decodeHtmlEntities(noImmeuble) : null,
+          proprietaire,
+          concierge,
+          appartement,
         });
       }
 
@@ -377,9 +377,8 @@ function useTVData() {
         if (int.fk_statut === '3' || int.fk_statut === 3) continue;
         const dateStr = dolibarrDateMap.get(intId);
         if (!dateStr || (dateStr !== todayStr && dateStr !== yesterdayStr)) continue;
-        const rawDesc = (int.description || int.note_public || '').replace(/<[^>]*>/g, '').trim();
-        const rawBriefing2 = (int.note_private || '').replace(/<[^>]*>/g, '').trim();
-        // Compute date & time from dolibarr data for unassigned
+        const rawDesc2 = decodeHtmlEntities(int.description || int.note_public || '');
+        const rawBriefing2 = decodeHtmlEntities(int.note_private || '');
         const uef = int.array_options || {};
         const customTs = Number(uef.options_interventiondateheur || 0);
         const rawTs = customTs > 0 ? customTs : Number(int.dateo || 0);
@@ -391,7 +390,6 @@ function useTVData() {
           const h = d.getHours(), m = d.getMinutes();
           if (h > 0 || m > 0) unassignedTime = `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`;
         }
-        // Duration from dolibarr
         let unassignedDuration: number | null = null;
         if (uef.options_dureeestimee) {
           unassignedDuration = parseFloat(uef.options_dureeestimee) || null;
@@ -399,7 +397,7 @@ function useTVData() {
           const diffMs = (Number(int.datee) - Number(int.dateo)) * 1000;
           if (diffMs > 0) unassignedDuration = Math.round((diffMs / 3600000) * 10) / 10;
         }
-        const unassignedAddress = [int.address, int.zip, int.town].filter(Boolean).join(', ');
+        const unassignedAddress = [int.address, int.zip, int.town].filter(Boolean).map(s => decodeHtmlEntities(String(s))).join(', ');
         unassigned.push({
           intervention_id: intId,
           intervention_ref: int.ref || '',
@@ -408,7 +406,7 @@ function useTVData() {
           location: unassignedAddress || (int.address ? decodeHtmlEntities(int.address) : null),
           priority: 'normal',
           user_name: 'Non assigné',
-          description: rawDesc || null,
+          description: rawDesc2 || null,
           briefing: rawBriefing2 || null,
           isAssigned: false,
           time_planned: unassignedTime,
@@ -416,15 +414,14 @@ function useTVData() {
           duration_hours: unassignedDuration,
           bon_gerance: uef.options_bongerance || null,
           operational_status: opStatusMap.get(intId) || null,
-          intervention_type: uef.options_typetravaux || int.type_label || null,
-          no_immeuble: uef.options_noimm || null,
-          proprietaire: uef.options_propimm || null,
-          concierge: uef.options_concierge || null,
-          appartement: uef.options_appartement || null,
+          intervention_type: uef.options_typetravaux ? decodeHtmlEntities(uef.options_typetravaux) : (int.type_label ? decodeHtmlEntities(int.type_label) : null),
+          no_immeuble: uef.options_noimm ? decodeHtmlEntities(uef.options_noimm) : null,
+          proprietaire: uef.options_propimm ? decodeHtmlEntities(uef.options_propimm) : null,
+          concierge: uef.options_concierge ? decodeHtmlEntities(uef.options_concierge) : null,
+          appartement: uef.options_appartement ? decodeHtmlEntities(uef.options_appartement) : null,
         });
       }
 
-      // Build tech summaries for today
       const summaries: TechSummary[] = allTechNames
         .filter(name => techTodayMap.has(name))
         .map(name => ({
@@ -437,22 +434,14 @@ function useTVData() {
           colorIdx: techColorMap.get(name) ?? 0,
         }));
 
-      // Build weekly stats (all techs that have any assignment this week)
       const weekStats: TechWeekStat[] = allTechNames
         .map(name => {
           const w = techWeekMap.get(name) || { total: 0, done: 0, todayCount: 0 };
-          return {
-            name,
-            colorIdx: techColorMap.get(name) ?? 0,
-            totalWeek: w.total,
-            doneWeek: w.done,
-            todayCount: w.todayCount,
-          };
+          return { name, colorIdx: techColorMap.get(name) ?? 0, totalWeek: w.total, doneWeek: w.done, todayCount: w.todayCount };
         })
         .filter(t => t.totalWeek > 0)
         .sort((a, b) => b.totalWeek - a.totalWeek);
 
-      // Sort pending: urgent first, then by date
       const sortedPending = pendingList.sort((a, b) => {
         const pa = a.priority === 'critical' ? 0 : a.priority === 'urgent' ? 1 : 2;
         const pb = b.priority === 'critical' ? 0 : b.priority === 'urgent' ? 1 : 2;
@@ -494,14 +483,14 @@ function useFullscreen() {
   return enter;
 }
 
-// ─── Scrolling Ticker ────────────────────────────────────────────────
+// ─── Ticker ──────────────────────────────────────────────────────────
 function Ticker({ messages }: { messages: string[] }) {
   const text = messages.join('     ◆     ');
   const duration = Math.max(messages.length * 6, 35);
   return (
-    <div className="relative overflow-hidden h-10 flex items-center flex-shrink-0" style={{ background: 'rgba(0,0,0,0.5)', borderTop: '1px solid rgba(255,255,255,0.06)' }}>
-      <div className="absolute whitespace-nowrap text-sm font-medium"
-        style={{ animation: `ticker ${duration}s linear infinite`, color: 'rgba(148,163,184,0.7)' }}>
+    <div className="relative overflow-hidden h-9 flex items-center flex-shrink-0" style={{ background: 'rgba(0,0,0,0.6)', borderTop: `1px solid ${THEME.divider}` }}>
+      <div className="absolute whitespace-nowrap text-xs font-semibold"
+        style={{ animation: `ticker ${duration}s linear infinite`, color: THEME.textMuted }}>
         {text}
       </div>
       <style>{`@keyframes ticker { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }`}</style>
@@ -509,196 +498,152 @@ function Ticker({ messages }: { messages: string[] }) {
   );
 }
 
-// ─── Priority badge ───────────────────────────────────────────────────
+// ─── Status badge (compact) ──────────────────────────────────────────
+function StatusDot({ status }: { status: string | null }) {
+  const configs: Record<string, { color: string; label: string }> = {
+    'a_faire':      { color: '#94a3b8', label: 'À faire' },
+    'en_cours':     { color: '#60a5fa', label: 'En cours' },
+    'a_terminer':   { color: '#fbbf24', label: 'À terminer' },
+    'pas_termine':  { color: '#f87171', label: 'Pas terminé' },
+    'a_revenir':    { color: '#c084fc', label: 'À revenir' },
+    'termine':      { color: '#34d399', label: 'Terminé' },
+  };
+  const cfg = configs[status || 'a_faire'] || configs['a_faire'];
+  return (
+    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded whitespace-nowrap" style={{ background: cfg.color + '20', color: cfg.color, border: `1px solid ${cfg.color}40` }}>
+      <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: cfg.color }} />
+      {cfg.label}
+    </span>
+  );
+}
+
+// ─── Priority badge ──────────────────────────────────────────────────
 function PriorityBadge({ priority }: { priority: string }) {
   if (priority === 'critical') return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.25)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.4)' }}>
-      <AlertCircle className="h-2.5 w-2.5" /> Critique
+    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.3)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.5)' }}>
+      <AlertCircle className="h-2.5 w-2.5" /> CRITIQUE
     </span>
   );
   if (priority === 'urgent') return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.25)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.4)' }}>
-      <Zap className="h-2.5 w-2.5" /> Urgent
+    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.3)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.5)' }}>
+      <Zap className="h-2.5 w-2.5" /> URGENT
     </span>
   );
   return null;
 }
 
-// ─── Operational Status Badge ────────────────────────────────────────
-function OpStatusBadge({ status }: { status: string | null }) {
-  if (!status || status === 'a_faire') return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(100,116,139,0.2)', color: '#94a3b8', border: '1px solid rgba(100,116,139,0.3)' }}>
-      <Circle className="h-2.5 w-2.5" /> À faire
-    </span>
-  );
-  if (status === 'en_cours') return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd', border: '1px solid rgba(59,130,246,0.35)' }}>
-      <Zap className="h-2.5 w-2.5" /> En cours
-    </span>
-  );
-  if (status === 'a_terminer') return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.2)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.35)' }}>
-      <AlertCircle className="h-2.5 w-2.5" /> À terminer
-    </span>
-  );
-  if (status === 'pas_termine') return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.2)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.35)' }}>
-      <AlertCircle className="h-2.5 w-2.5" /> Pas terminé
-    </span>
-  );
-  if (status === 'a_revenir') return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(168,85,247,0.2)', color: '#d8b4fe', border: '1px solid rgba(168,85,247,0.35)' }}>
-      <AlertCircle className="h-2.5 w-2.5" /> À revenir
-    </span>
-  );
-  if (status === 'termine') return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(16,185,129,0.2)', color: '#6ee7b7', border: '1px solid rgba(16,185,129,0.35)' }}>
-      <CheckCircle2 className="h-2.5 w-2.5" /> Terminé
-    </span>
-  );
-  return null;
-}
-
-// ─── Intervention Card ────────────────────────────────────────────────
+// ─── COMPACT Intervention Card ───────────────────────────────────────
 function InterventionCard({ item, palette }: { item: TodayIntervention; palette: typeof TECH_PALETTE[0] }) {
   const isUrgent = item.priority === 'urgent' || item.priority === 'critical';
   const isDone = item.operational_status === 'termine';
 
   return (
-    <div className="rounded-xl overflow-hidden flex flex-col text-sm" style={{
-      background: isDone ? 'rgba(16,185,129,0.05)' : isUrgent ? 'rgba(239,68,68,0.07)' : 'rgba(255,255,255,0.03)',
-      border: `1px solid ${isDone ? 'rgba(16,185,129,0.35)' : isUrgent ? 'rgba(239,68,68,0.5)' : palette.border}`,
-      opacity: isDone ? 0.85 : 1,
+    <div className="rounded-lg overflow-hidden" style={{
+      background: isDone ? 'rgba(52,211,153,0.04)' : isUrgent ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.025)',
+      border: `1px solid ${isDone ? 'rgba(52,211,153,0.3)' : isUrgent ? 'rgba(239,68,68,0.4)' : palette.border}`,
+      opacity: isDone ? 0.8 : 1,
     }}>
-
-      {/* ── Header: Technicien + Date/Heure + Statut ── */}
-      <div className="px-3 py-2" style={{
-        background: isDone ? 'rgba(16,185,129,0.15)' : isUrgent ? 'rgba(239,68,68,0.18)' : palette.accent + '22',
-        borderBottom: `1px solid ${isDone ? 'rgba(16,185,129,0.2)' : palette.border}`,
+      {/* Row 1: Ref + Client + Heure + Statut — tout sur une ligne */}
+      <div className="flex items-center gap-2 px-2.5 py-1.5" style={{
+        background: isDone ? 'rgba(52,211,153,0.08)' : palette.accent + '15',
+        borderBottom: `1px solid ${isDone ? 'rgba(52,211,153,0.15)' : palette.border}`,
       }}>
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black flex-shrink-0"
-              style={{ background: palette.accent + '55', color: '#fff' }}>
-              {item.user_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2)}
-            </div>
-            <span className="text-xs font-black truncate" style={{ color: palette.light }}>{item.user_name}</span>
-          </div>
-          <PriorityBadge priority={item.priority} />
-        </div>
-        {/* Date / Heure / Durée + Statut - toujours visible */}
-        <div className="flex items-center justify-between mt-1.5 gap-2">
-          <div className="flex items-center gap-1.5">
-            {item.date_planned_full && (
-              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }}>
-                📅 {item.date_planned_full}
-              </span>
-            )}
-            {item.time_planned && (
-              <span className="inline-flex items-center gap-1 text-[12px] font-black px-2 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.5)', color: '#fff' }}>
-                <Clock className="h-3 w-3" />{item.time_planned}
-              </span>
-            )}
-            {item.duration_hours && (
-              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(250,204,21,0.15)', color: '#fcd34d' }}>~{item.duration_hours}h</span>
-            )}
-          </div>
-          <OpStatusBadge status={item.operational_status} />
-        </div>
+        {/* Ref */}
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: palette.accent + '25', color: palette.light }}>
+          {item.intervention_ref}
+        </span>
+
+        {/* Client */}
+        {item.client_name && (
+          <span className="text-[12px] font-black truncate" style={{ color: THEME.textPrimary }}>
+            {item.client_name}
+          </span>
+        )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Heure — toujours bien visible */}
+        {item.time_planned && (
+          <span className="inline-flex items-center gap-1 text-[12px] font-black px-2 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(217,169,78,0.35)', color: '#fde68a' }}>
+            <Clock className="h-3 w-3" />
+            {item.time_planned}
+          </span>
+        )}
+
+        {/* Date */}
+        {item.date_planned_full && (
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(255,255,255,0.08)', color: THEME.textSecondary }}>
+            {item.date_planned_full}
+          </span>
+        )}
+
+        {/* Durée */}
+        {item.duration_hours && (
+          <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+            ~{item.duration_hours}h
+          </span>
+        )}
+
+        {/* Statut */}
+        <StatusDot status={item.operational_status} />
+
+        {/* Priority */}
+        <PriorityBadge priority={item.priority} />
       </div>
 
-      {/* ── Corps ── */}
-      <div className="p-2.5 flex flex-col gap-1.5">
-
-        {/* Ligne 1: Ref + Bon + Type */}
-        <div className="flex items-center gap-1.5 flex-wrap">
-          <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.15)', color: '#93c5fd', border: '1px solid rgba(96,165,250,0.25)' }}>
-            {item.intervention_ref}
-          </span>
+      {/* Row 2: Label + Adresse + Infos bâtiment + Description — compact */}
+      <div className="px-2.5 py-1.5 flex flex-col gap-1">
+        {/* Label + bon + type */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {item.intervention_label && item.intervention_label !== 'Intervention' && (
+            <span className="text-[11px] font-semibold" style={{ color: isDone ? '#6ee7b7' : THEME.textSecondary }}>
+              {isDone && '✓ '}{item.intervention_label}
+            </span>
+          )}
           {item.bon_gerance && (
-            <span className="text-[10px] font-black px-1.5 py-0.5 rounded" style={{ background: 'rgba(250,204,21,0.2)', color: '#fde047', border: '1px solid rgba(250,204,21,0.35)' }}>
+            <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: 'rgba(251,191,36,0.2)', color: '#fde047' }}>
               BON #{item.bon_gerance}
             </span>
           )}
           {item.intervention_type && (
-            <span className="text-[9px] font-bold px-1.5 py-0.5 rounded uppercase" style={{ background: 'rgba(139,92,246,0.2)', color: '#c4b5fd', border: '1px solid rgba(139,92,246,0.3)' }}>
+            <span className="text-[9px] font-bold px-1 py-0.5 rounded uppercase" style={{ background: 'rgba(167,139,250,0.15)', color: '#c4b5fd' }}>
               {item.intervention_type}
             </span>
           )}
         </div>
 
-        {/* Client */}
-        {item.client_name && (
-          <div className="font-black text-sm leading-tight" style={{ color: '#fff' }}>
-            {item.client_name}
-          </div>
-        )}
+        {/* Adresse + infos bâtiment inline */}
+        <div className="flex items-center gap-3 flex-wrap">
+          {item.location && (
+            <span className="inline-flex items-center gap-1 text-[11px] font-semibold" style={{ color: THEME.textSecondary }}>
+              <MapPin className="h-3 w-3 flex-shrink-0" style={{ color: '#fb923c' }} />
+              <span className="truncate" style={{ maxWidth: '350px' }}>{item.location}</span>
+            </span>
+          )}
+          {item.no_immeuble && (
+            <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: THEME.textMuted }}>
+              <Hash className="h-2.5 w-2.5" style={{ color: palette.light }} /> Imm.{item.no_immeuble}
+            </span>
+          )}
+          {item.proprietaire && (
+            <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: THEME.textMuted }}>
+              <Building2 className="h-2.5 w-2.5" style={{ color: '#fbbf24' }} /> {item.proprietaire}
+            </span>
+          )}
+          {item.concierge && (
+            <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: THEME.textMuted }}>
+              <Phone className="h-2.5 w-2.5" style={{ color: '#34d399' }} /> {item.concierge}
+            </span>
+          )}
+        </div>
 
-        {/* Label */}
-        {item.intervention_label && item.intervention_label !== 'Intervention' && (
-          <div className="text-[11px] leading-snug italic" style={{ color: isDone ? '#6ee7b7' : 'rgba(255,255,255,0.55)' }}>
-            {isDone && '✓ '}{item.intervention_label}
-          </div>
-        )}
-
-        {/* Séparateur */}
-        {(item.location || item.no_immeuble || item.proprietaire || item.concierge) && (
-          <div className="h-px my-0.5" style={{ background: `${palette.border}` }} />
-        )}
-
-        {/* Bloc Bâtiment */}
-        {(item.no_immeuble || item.proprietaire || item.concierge || item.appartement) && (
-          <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
-            {item.no_immeuble && (
-              <div className="flex items-center gap-1">
-                <Hash className="h-2.5 w-2.5 flex-shrink-0" style={{ color: palette.light }} />
-                <span className="text-[10px] font-bold" style={{ color: 'rgba(255,255,255,0.75)' }}>Imm. {item.no_immeuble}</span>
-              </div>
-            )}
-            {item.appartement && (
-              <div className="flex items-center gap-1">
-                <Home className="h-2.5 w-2.5 flex-shrink-0" style={{ color: palette.light }} />
-                <span className="text-[10px] font-bold" style={{ color: 'rgba(255,255,255,0.75)' }}>App. {item.appartement}</span>
-              </div>
-            )}
-            {item.proprietaire && (
-              <div className="flex items-center gap-1 col-span-2">
-                <Building2 className="h-2.5 w-2.5 flex-shrink-0" style={{ color: '#fbbf24' }} />
-                <span className="text-[10px] leading-tight truncate" style={{ color: 'rgba(255,255,255,0.65)' }}>{item.proprietaire}</span>
-              </div>
-            )}
-            {item.concierge && (
-              <div className="flex items-center gap-1 col-span-2">
-                <Phone className="h-2.5 w-2.5 flex-shrink-0" style={{ color: '#34d399' }} />
-                <span className="text-[10px] leading-tight truncate" style={{ color: 'rgba(255,255,255,0.65)' }}>{item.concierge}</span>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Adresse chantier */}
-        {item.location && (
-          <div className="flex items-start gap-1.5" style={{ color: 'rgba(255,255,255,0.8)' }}>
-            <MapPin className="h-3 w-3 flex-shrink-0 mt-0.5" style={{ color: '#f87171' }} />
-            <span className="text-[11px] font-semibold leading-tight line-clamp-2">{item.location}</span>
-          </div>
-        )}
-
-        {/* Description / Briefing - bien visible */}
+        {/* Description/Briefing — compact, 1-2 lines max */}
         {(item.description || item.briefing) && (
-          <div className="rounded-lg px-2.5 py-2 mt-0.5" style={{ background: 'rgba(255,255,255,0.06)', borderLeft: `3px solid ${palette.accent}` }}>
-            <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: palette.light }}>
-              Description / Briefing
-            </div>
-            {item.description && (
-              <div className="text-[11px] leading-snug" style={{ color: 'rgba(255,255,255,0.7)' }}>
-                {item.description.slice(0, 200)}{item.description.length > 200 ? '…' : ''}
-              </div>
-            )}
+          <div className="text-[10px] leading-snug rounded px-2 py-1" style={{ background: 'rgba(255,255,255,0.04)', borderLeft: `2px solid ${palette.accent}55`, color: THEME.textMuted }}>
+            {item.description && <span>{item.description.slice(0, 150)}{item.description.length > 150 ? '…' : ''}</span>}
             {item.briefing && item.briefing !== item.description && (
-              <div className="text-[11px] leading-snug mt-1 pt-1" style={{ color: 'rgba(255,255,255,0.55)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
-                📋 {item.briefing.slice(0, 200)}{item.briefing.length > 200 ? '…' : ''}
-              </div>
+              <span> — {item.briefing.slice(0, 100)}{item.briefing.length > 100 ? '…' : ''}</span>
             )}
           </div>
         )}
@@ -707,38 +652,35 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
   );
 }
 
-
 // ─── Tech Column ─────────────────────────────────────────────────────
 function TechColumn({ tech }: { tech: TechSummary }) {
   const palette = TECH_PALETTE[tech.colorIdx];
   const initials = tech.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-  const urgentCount = tech.interventions.filter(i => i.priority === 'urgent' || i.priority === 'critical').length;
 
   return (
-    <div className="flex flex-col min-h-0 rounded-2xl overflow-hidden flex-1" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', minWidth: 0 }}>
+    <div className="flex flex-col min-h-0 rounded-xl overflow-hidden flex-1" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${THEME.cardBorder}`, minWidth: 0 }}>
       {/* Header */}
-      <div className="px-4 py-3 flex items-center gap-3 flex-shrink-0" style={{ background: `linear-gradient(135deg, ${palette.bg}, rgba(0,0,0,0.2))`, borderBottom: `1px solid ${palette.border}` }}>
-        <div className="w-10 h-10 rounded-xl flex items-center justify-center text-sm font-black flex-shrink-0"
-          style={{ background: `linear-gradient(135deg, ${palette.accent}, ${palette.accent}88)`, color: '#fff', boxShadow: `0 0 14px ${palette.accent}40` }}>
+      <div className="px-3 py-2 flex items-center gap-2.5 flex-shrink-0" style={{ background: palette.bg, borderBottom: `1px solid ${palette.border}` }}>
+        <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-black flex-shrink-0"
+          style={{ background: palette.accent + '40', color: '#fff', boxShadow: `0 0 10px ${palette.accent}30` }}>
           {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-sm font-bold truncate" style={{ color: palette.light }}>{tech.name}</div>
-          <div className="text-[11px]" style={{ color: 'rgba(255,255,255,0.4)' }}>
+          <div className="text-[13px] font-bold truncate" style={{ color: palette.light }}>{tech.name}</div>
+          <div className="text-[10px]" style={{ color: THEME.textMuted }}>
             {tech.interventions.length} intervention{tech.interventions.length !== 1 ? 's' : ''}
-            {urgentCount > 0 && <span style={{ color: '#fca5a5' }}> · {urgentCount} urgent{urgentCount > 1 ? 'es' : 'e'}</span>}
           </div>
         </div>
-        <div className="flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center text-base font-black" style={{ background: palette.accent + '30', color: palette.light }}>
+        <div className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-sm font-black" style={{ background: palette.accent + '25', color: palette.light }}>
           {tech.interventions.length}
         </div>
       </div>
       {/* List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+      <div className="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0">
         {tech.interventions.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-16 gap-2" style={{ color: 'rgba(255,255,255,0.2)' }}>
-            <CheckCircle2 className="h-5 w-5" />
-            <span className="text-xs">Aucune intervention</span>
+          <div className="flex items-center justify-center h-12 gap-2" style={{ color: THEME.textMuted }}>
+            <CheckCircle2 className="h-4 w-4" />
+            <span className="text-xs">RAS</span>
           </div>
         ) : (
           tech.interventions.map((item, idx) => (
@@ -753,60 +695,30 @@ function TechColumn({ tech }: { tech: TechSummary }) {
 // ─── Widget: Semaine par technicien ──────────────────────────────────
 function WeekStatsWidget({ stats }: { stats: TechWeekStat[] }) {
   return (
-    <div className="flex flex-col min-h-0 rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-      {/* Header */}
-      <div className="px-4 py-3 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(59,130,246,0.08)' }}>
-        <BarChart3 className="h-4 w-4" style={{ color: '#60a5fa' }} />
-        <span className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.75)' }}>Interventions — semaine en cours</span>
+    <div className="flex flex-col min-h-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${THEME.cardBorder}` }}>
+      <div className="px-3 py-2 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: `1px solid ${THEME.divider}`, background: 'rgba(217,169,78,0.06)' }}>
+        <BarChart3 className="h-3.5 w-3.5" style={{ color: THEME.accent }} />
+        <span className="text-xs font-bold" style={{ color: THEME.textSecondary }}>Semaine en cours</span>
       </div>
-      {/* Rows */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+      <div className="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0">
         {stats.length === 0 ? (
-          <div className="text-xs text-center py-4" style={{ color: 'rgba(255,255,255,0.25)' }}>Aucune donnée cette semaine</div>
+          <div className="text-xs text-center py-4" style={{ color: THEME.textMuted }}>Aucune donnée</div>
         ) : stats.map((tech) => {
           const palette = TECH_PALETTE[tech.colorIdx];
-          const initials = tech.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
-          const remaining = tech.totalWeek - tech.doneWeek;
           const pct = tech.totalWeek > 0 ? Math.round((tech.doneWeek / tech.totalWeek) * 100) : 0;
           return (
-            <div key={tech.name} className="rounded-xl p-3" style={{ background: palette.bg, border: `1px solid ${palette.border}` }}>
-              {/* Name + avatar */}
-              <div className="flex items-center gap-2.5 mb-2">
-                <div className="w-7 h-7 rounded-lg flex items-center justify-center text-[10px] font-black flex-shrink-0"
-                  style={{ background: palette.accent + '40', color: palette.light }}>
-                  {initials}
+            <div key={tech.name} className="rounded-lg p-2" style={{ background: palette.bg, border: `1px solid ${palette.border}` }}>
+              <div className="flex items-center justify-between mb-1">
+                <span className="text-[11px] font-bold truncate" style={{ color: palette.light }}>{tech.name}</span>
+                <div className="flex items-center gap-2 text-[10px] flex-shrink-0">
+                  <span style={{ color: '#34d399' }}>{tech.doneWeek}✓</span>
+                  <span style={{ color: THEME.textMuted }}>{tech.totalWeek - tech.doneWeek} rest.</span>
+                  {tech.todayCount > 0 && <span className="font-bold" style={{ color: THEME.accent }}>{tech.todayCount} auj.</span>}
                 </div>
-                <span className="text-sm font-bold truncate" style={{ color: palette.light }}>{tech.name}</span>
-                {tech.todayCount > 0 && (
-                  <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(59,130,246,0.2)', color: '#93c5fd' }}>
-                    {tech.todayCount} auj.
-                  </span>
-                )}
               </div>
-              {/* Stats row */}
-              <div className="flex items-center gap-3 mb-2">
-                <div className="flex items-center gap-1">
-                  <span className="text-xl font-black tabular-nums" style={{ color: '#f1f5f9' }}>{tech.totalWeek}</span>
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>total</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <CheckCircle2 className="h-3.5 w-3.5" style={{ color: '#34d399' }} />
-                  <span className="text-sm font-bold" style={{ color: '#34d399' }}>{tech.doneWeek}</span>
-                  <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>terminé{tech.doneWeek > 1 ? 'es' : 'e'}</span>
-                </div>
-                {remaining > 0 && (
-                  <div className="flex items-center gap-1">
-                    <Circle className="h-3.5 w-3.5" style={{ color: '#fbbf24' }} />
-                    <span className="text-sm font-bold" style={{ color: '#fbbf24' }}>{remaining}</span>
-                    <span className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>rest.</span>
-                  </div>
-                )}
+              <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                <div className="h-full rounded-full" style={{ width: `${pct}%`, background: palette.accent, transition: 'width 0.5s' }} />
               </div>
-              {/* Progress bar */}
-              <div className="h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.08)' }}>
-                <div className="h-full rounded-full transition-all duration-500" style={{ width: `${pct}%`, background: `linear-gradient(90deg, ${palette.accent}, ${palette.light})` }} />
-              </div>
-              <div className="text-[9px] mt-1" style={{ color: 'rgba(255,255,255,0.3)' }}>{pct}% réalisé</div>
             </div>
           );
         })}
@@ -818,62 +730,41 @@ function WeekStatsWidget({ stats }: { stats: TechWeekStat[] }) {
 // ─── Widget: Interventions restantes ─────────────────────────────────
 function PendingWidget({ pending }: { pending: PendingIntervention[] }) {
   return (
-    <div className="flex flex-col min-h-0 rounded-2xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)' }}>
-      {/* Header */}
-      <div className="px-4 py-3 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(245,158,11,0.07)' }}>
-        <ListChecks className="h-4 w-4" style={{ color: '#fbbf24' }} />
-        <span className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.75)' }}>À réaliser</span>
+    <div className="flex flex-col min-h-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${THEME.cardBorder}` }}>
+      <div className="px-3 py-2 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: `1px solid ${THEME.divider}`, background: 'rgba(251,146,60,0.06)' }}>
+        <ListChecks className="h-3.5 w-3.5" style={{ color: '#fb923c' }} />
+        <span className="text-xs font-bold" style={{ color: THEME.textSecondary }}>À réaliser</span>
         {pending.length > 0 && (
-          <span className="ml-auto text-xs font-bold px-2 py-0.5 rounded-full" style={{ background: 'rgba(245,158,11,0.2)', color: '#fbbf24' }}>
+          <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(251,146,60,0.2)', color: '#fb923c' }}>
             {pending.length}
           </span>
         )}
       </div>
-      {/* List */}
-      <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+      <div className="flex-1 overflow-y-auto p-2 space-y-1 min-h-0">
         {pending.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-6 gap-2" style={{ color: 'rgba(255,255,255,0.2)' }}>
-            <CheckCircle2 className="h-8 w-8" style={{ color: '#34d399', opacity: 0.6 }} />
-            <span className="text-xs">Toutes les interventions sont terminées 🎉</span>
+          <div className="flex flex-col items-center py-4 gap-1" style={{ color: THEME.textMuted }}>
+            <CheckCircle2 className="h-6 w-6" style={{ color: '#34d399', opacity: 0.5 }} />
+            <span className="text-[10px]">Tout est terminé 🎉</span>
           </div>
         ) : pending.map((item, idx) => {
           const palette = TECH_PALETTE[item.colorIdx];
           const isUrgent = item.priority === 'urgent' || item.priority === 'critical';
-          const isToday = item.date_label === 'Aujourd\'hui';
           return (
-            <div key={idx} className="rounded-xl p-2.5" style={{
-              background: isUrgent ? 'rgba(239,68,68,0.08)' : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${isUrgent ? 'rgba(239,68,68,0.35)' : 'rgba(255,255,255,0.07)'}`,
+            <div key={idx} className="rounded-lg px-2 py-1.5" style={{
+              background: isUrgent ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.02)',
+              border: `1px solid ${isUrgent ? 'rgba(239,68,68,0.3)' : THEME.cardBorder}`,
             }}>
-              <div className="flex items-start justify-between gap-2 mb-1">
-                <div className="flex-1 min-w-0">
-                  {item.intervention_ref && (
-                    <span className="text-[9px] font-bold px-1 py-0.5 rounded mr-1" style={{ background: 'rgba(255,255,255,0.07)', color: 'rgba(255,255,255,0.35)' }}>
-                      #{item.intervention_ref}
-                    </span>
-                  )}
-                  <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{
-                    background: isToday ? 'rgba(59,130,246,0.2)' : 'rgba(255,255,255,0.05)',
-                    color: isToday ? '#93c5fd' : 'rgba(255,255,255,0.3)',
-                  }}>
-                    {item.date_label}
-                  </span>
-                </div>
-                {isUrgent && <PriorityBadge priority={item.priority} />}
-              </div>
-              <div className="text-xs font-bold leading-snug" style={{ color: isUrgent ? '#fca5a5' : 'rgba(255,255,255,0.8)' }}>
-                {item.intervention_label}
-              </div>
-              <div className="flex items-center gap-2 mt-1 flex-wrap">
-                {item.client_name && (
-                  <span className="text-[10px] flex items-center gap-1 truncate" style={{ color: 'rgba(255,255,255,0.45)' }}>
-                    <Building2 className="h-2.5 w-2.5 flex-shrink-0" style={{ color: palette.light }} />
-                    {item.client_name}
-                  </span>
-                )}
-                <span className="text-[10px] font-semibold ml-auto" style={{ color: palette.light }}>
-                  {item.user_name}
+              <div className="flex items-center justify-between gap-1.5">
+                <span className="text-[10px] font-bold truncate" style={{ color: isUrgent ? '#fca5a5' : THEME.textPrimary }}>
+                  {item.intervention_label}
                 </span>
+                <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(255,255,255,0.05)', color: THEME.textMuted }}>
+                  {item.date_label}
+                </span>
+              </div>
+              <div className="flex items-center gap-2 mt-0.5">
+                {item.client_name && <span className="text-[9px] truncate" style={{ color: THEME.textMuted }}>{item.client_name}</span>}
+                <span className="text-[9px] font-bold ml-auto flex-shrink-0" style={{ color: palette.light }}>{item.user_name}</span>
               </div>
             </div>
           );
@@ -886,10 +777,10 @@ function PendingWidget({ pending }: { pending: PendingIntervention[] }) {
 // ─── Stat Chip ────────────────────────────────────────────────────────
 function StatChip({ icon, value, label, color }: { icon: React.ReactNode; value: number | string; label: string; color: string }) {
   return (
-    <div className="flex flex-col items-center gap-1 px-4 py-2.5 rounded-xl" style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}>
+    <div className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${THEME.cardBorder}` }}>
       <div style={{ color }}>{icon}</div>
-      <div className="text-2xl font-black tabular-nums" style={{ color }}>{value}</div>
-      <div className="text-[10px] font-medium text-center leading-tight" style={{ color: 'rgba(255,255,255,0.4)' }}>{label}</div>
+      <div className="text-xl font-black tabular-nums" style={{ color }}>{value}</div>
+      <div className="text-[9px] font-medium text-center leading-tight" style={{ color: THEME.textMuted }}>{label}</div>
     </div>
   );
 }
@@ -914,119 +805,113 @@ export default function TVDisplayPage() {
     const msgs: string[] = [];
     const urgentItems = techSummaries.flatMap(t => t.interventions.filter(i => i.priority === 'urgent' || i.priority === 'critical'));
     if (urgentItems.length > 0) {
-      msgs.push(`🚨 ${urgentItems.length} intervention(s) URGENTE(S) aujourd'hui`);
+      msgs.push(`🚨 ${urgentItems.length} intervention(s) URGENTE(S)`);
       urgentItems.slice(0, 2).forEach(u => msgs.push(`⚡ URGENT : ${u.intervention_label}${u.client_name ? ` — ${u.client_name}` : ''}${u.user_name ? ` → ${u.user_name}` : ''}`));
     }
-    msgs.push(`📋 ${stats.total} intervention(s) planifiée(s) aujourd'hui — ${stats.techs} technicien(s) mobilisé(s)`);
-    if (stats.weeklyHours > 0) msgs.push(`⏱️ ${stats.weeklyHours}h travaillées cette semaine par l'équipe`);
+    msgs.push(`📋 ${stats.total} intervention(s) aujourd'hui — ${stats.techs} technicien(s)`);
+    if (stats.weeklyHours > 0) msgs.push(`⏱️ ${stats.weeklyHours}h cette semaine`);
     const h = now.getHours();
-    if (h < 10) msgs.push('☀️ Bonne journée à toute l\'équipe ENES Électricité !');
-    else if (h >= 12 && h < 14) msgs.push('🍽️ Bon appétit à tous !');
-    else if (h >= 17) msgs.push('👏 Excellent travail aujourd\'hui, toute l\'équipe !');
+    if (h < 10) msgs.push('☀️ Bonne journée à toute l\'équipe ENES !');
+    else if (h >= 12 && h < 14) msgs.push('🍽️ Bon appétit !');
+    else if (h >= 17) msgs.push('👏 Excellent travail aujourd\'hui !');
     msgs.push('⚡ ENES Électricité — Excellence & Fiabilité');
     return [...msgs, ...msgs];
   }, [techSummaries, stats, now]);
 
   return (
     <div className="h-screen flex flex-col overflow-hidden select-none" style={{
-      background: 'linear-gradient(160deg, #060d1f 0%, #0a1628 45%, #0d1f3a 100%)',
-      color: '#fff',
+      background: THEME.bg,
+      color: THEME.textPrimary,
       fontFamily: "'Inter', system-ui, sans-serif",
     }}>
 
       {/* ═══ HEADER ═══ */}
-      <div className="flex-shrink-0 flex items-center justify-between px-6 py-3 gap-4" style={{ borderBottom: '1px solid rgba(255,255,255,0.07)', background: 'rgba(0,0,0,0.25)' }}>
+      <div className="flex-shrink-0 flex items-center justify-between px-5 py-2 gap-3" style={{ borderBottom: `1px solid ${THEME.headerBorder}`, background: THEME.headerBg }}>
         {/* Logo + Date */}
-        <div className="flex items-center gap-4">
-          <img src={logoEnes} alt="ENES" className="h-11 flex-shrink-0" style={{ filter: 'drop-shadow(0 0 10px rgba(59,130,246,0.4))' }} />
+        <div className="flex items-center gap-3">
+          <img src={logoEnes} alt="ENES" className="h-9 flex-shrink-0" style={{ filter: 'drop-shadow(0 0 8px rgba(217,169,78,0.3))' }} />
           <div>
-            <div className="text-xl font-black" style={{ color: '#f1f5f9' }}>ENES Électricité</div>
-            <div className="text-xs capitalize" style={{ color: 'rgba(148,163,184,0.6)' }}>{dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}</div>
+            <div className="text-lg font-black" style={{ color: THEME.textPrimary }}>ENES Électricité</div>
+            <div className="text-[11px] capitalize" style={{ color: THEME.textMuted }}>{dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}</div>
           </div>
         </div>
 
         {/* KPI chips */}
-        <div className="flex items-center gap-2.5">
-          <StatChip icon={<Wrench className="h-4 w-4" />} value={stats.total} label="Aujourd'hui" color="#60a5fa" />
-          {stats.urgent > 0 && <StatChip icon={<Zap className="h-4 w-4" />} value={stats.urgent} label="Urgentes" color="#f87171" />}
-          <StatChip icon={<Users className="h-4 w-4" />} value={stats.techs} label="Techniciens" color="#34d399" />
-          {stats.weeklyHours > 0 && <StatChip icon={<Clock className="h-4 w-4" />} value={`${stats.weeklyHours}h`} label="Cette semaine" color="#fbbf24" />}
-          <StatChip icon={<TrendingUp className="h-4 w-4" />} value={pendingInterventions.length} label="À réaliser" color="#a78bfa" />
+        <div className="flex items-center gap-2">
+          <StatChip icon={<Wrench className="h-3.5 w-3.5" />} value={stats.total} label="Aujourd'hui" color={THEME.accent} />
+          {stats.urgent > 0 && <StatChip icon={<Zap className="h-3.5 w-3.5" />} value={stats.urgent} label="Urgentes" color="#f87171" />}
+          <StatChip icon={<Users className="h-3.5 w-3.5" />} value={stats.techs} label="Techniciens" color="#34d399" />
+          {stats.weeklyHours > 0 && <StatChip icon={<Clock className="h-3.5 w-3.5" />} value={`${stats.weeklyHours}h`} label="Semaine" color="#fbbf24" />}
+          <StatChip icon={<TrendingUp className="h-3.5 w-3.5" />} value={pendingInterventions.length} label="Restantes" color="#c084fc" />
         </div>
 
         {/* Weather + Clock */}
-        <div className="flex items-center gap-4 flex-shrink-0">
+        <div className="flex items-center gap-3 flex-shrink-0">
           {weather && (
-            <div className="flex items-center gap-2.5 px-3 py-2 rounded-xl" style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${THEME.cardBorder}` }}>
               <WeatherIcon desc={weather.description} />
               <div>
-                <div className="text-xl font-black" style={{ color: '#f1f5f9' }}>{weather.temp}°C</div>
-                <div className="text-[10px]" style={{ color: 'rgba(255,255,255,0.4)' }}>{weather.description}</div>
-              </div>
-              <div className="text-[10px] leading-relaxed" style={{ color: 'rgba(255,255,255,0.3)' }}>
-                <div className="flex items-center gap-1"><Wind className="h-2.5 w-2.5" /> {weather.wind} km/h</div>
-                <div>{weather.humidity}% hum.</div>
+                <div className="text-lg font-black" style={{ color: THEME.textPrimary }}>{weather.temp}°C</div>
+                <div className="text-[9px]" style={{ color: THEME.textMuted }}>{weather.description}</div>
               </div>
             </div>
           )}
           {/* Clock */}
           <div className="tabular-nums flex items-baseline gap-0.5">
-            <span className="text-5xl font-black" style={{ color: '#93c5fd', textShadow: '0 0 25px rgba(96,165,250,0.5)' }}>{hours}</span>
-            <span className="text-5xl font-black" style={{ color: colonVisible ? '#93c5fd' : 'transparent', transition: 'color 0.1s' }}>:</span>
-            <span className="text-5xl font-black" style={{ color: '#93c5fd', textShadow: '0 0 25px rgba(96,165,250,0.5)' }}>{minutes}</span>
-            <span className="text-xl font-bold self-end mb-1 ml-1" style={{ color: '#60a5fa', opacity: 0.6 }}>{seconds}</span>
+            <span className="text-4xl font-black" style={{ color: THEME.clockColor, textShadow: `0 0 20px ${THEME.clockGlow}` }}>{hours}</span>
+            <span className="text-4xl font-black" style={{ color: colonVisible ? THEME.clockColor : 'transparent', transition: 'color 0.1s' }}>:</span>
+            <span className="text-4xl font-black" style={{ color: THEME.clockColor, textShadow: `0 0 20px ${THEME.clockGlow}` }}>{minutes}</span>
+            <span className="text-base font-bold self-end mb-0.5 ml-0.5" style={{ color: THEME.accent, opacity: 0.5 }}>{seconds}</span>
           </div>
         </div>
       </div>
 
-      {/* ═══ MAIN: 2 colonnes ═══ */}
+      {/* ═══ MAIN ═══ */}
       <div className="flex-1 flex min-h-0 gap-0">
 
-        {/* ── GAUCHE (large): Colonnes techniciens ── */}
-        <div className="flex-1 flex flex-col min-h-0 min-w-0 p-4 gap-3" style={{ borderRight: '1px solid rgba(255,255,255,0.06)' }}>
-          {/* Subtitle */}
-          <div className="flex-shrink-0 flex items-center gap-3">
-            <Zap className="h-4 w-4 flex-shrink-0" style={{ color: '#60a5fa' }} />
-            <span className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.55)' }}>Interventions du jour</span>
-            <div className="h-px flex-1" style={{ background: 'rgba(255,255,255,0.06)' }} />
+        {/* ── GAUCHE: Techniciens ── */}
+        <div className="flex-1 flex flex-col min-h-0 min-w-0 p-3 gap-2" style={{ borderRight: `1px solid ${THEME.divider}` }}>
+          <div className="flex-shrink-0 flex items-center gap-2">
+            <Zap className="h-3.5 w-3.5 flex-shrink-0" style={{ color: THEME.accent }} />
+            <span className="text-xs font-bold" style={{ color: THEME.textSecondary }}>Interventions du jour</span>
+            <div className="h-px flex-1" style={{ background: THEME.divider }} />
           </div>
 
           {loading ? (
-            <div className="flex-1 flex items-center justify-center" style={{ color: 'rgba(255,255,255,0.3)' }}>
-              <div className="flex flex-col items-center gap-3">
-                <div className="w-8 h-8 border-2 border-blue-400 border-t-transparent rounded-full" style={{ animation: 'spin 1s linear infinite' }} />
-                <span className="text-sm">Chargement…</span>
+            <div className="flex-1 flex items-center justify-center" style={{ color: THEME.textMuted }}>
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-7 h-7 border-2 rounded-full" style={{ borderColor: THEME.accent, borderTopColor: 'transparent', animation: 'spin 1s linear infinite' }} />
+                <span className="text-xs">Chargement…</span>
               </div>
               <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           ) : techSummaries.length === 0 && unassignedToday.length === 0 ? (
-            <div className="flex-1 flex flex-col items-center justify-center gap-3" style={{ color: 'rgba(255,255,255,0.2)' }}>
-              <CheckCircle2 className="h-16 w-16" style={{ color: '#34d399', opacity: 0.4 }} />
-              <p className="text-lg">Aucune intervention planifiée aujourd'hui</p>
+            <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ color: THEME.textMuted }}>
+              <CheckCircle2 className="h-14 w-14" style={{ color: '#34d399', opacity: 0.3 }} />
+              <p className="text-base">Aucune intervention aujourd'hui</p>
             </div>
           ) : (
-            <div className="flex-1 min-h-0 flex gap-3 overflow-hidden">
+            <div className="flex-1 min-h-0 flex gap-2 overflow-hidden">
               {techSummaries.map((tech) => (
                 <TechColumn key={tech.name} tech={tech} />
               ))}
-              {/* Unassigned column */}
               {unassignedToday.length > 0 && (
-                <div className="flex flex-col min-h-0 rounded-2xl overflow-hidden flex-1" style={{ background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.07)', minWidth: 0 }}>
-                  <div className="px-4 py-3 flex items-center gap-3 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-                    <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.12)' }}>
-                      <Circle className="h-5 w-5" style={{ color: 'rgba(255,255,255,0.3)' }} />
+                <div className="flex flex-col min-h-0 rounded-xl overflow-hidden flex-1" style={{ background: 'rgba(255,255,255,0.015)', border: `1px solid ${THEME.cardBorder}`, minWidth: 0 }}>
+                  <div className="px-3 py-2 flex items-center gap-2.5 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${THEME.divider}` }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                      <Circle className="h-4 w-4" style={{ color: THEME.textMuted }} />
                     </div>
                     <div>
-                      <div className="text-sm font-bold" style={{ color: 'rgba(255,255,255,0.5)' }}>Non assigné</div>
-                      <div className="text-[11px]" style={{ color: 'rgba(255,255,255,0.3)' }}>{unassignedToday.length} en attente</div>
+                      <div className="text-[13px] font-bold" style={{ color: THEME.textSecondary }}>Non assigné</div>
+                      <div className="text-[10px]" style={{ color: THEME.textMuted }}>{unassignedToday.length} en attente</div>
                     </div>
                   </div>
-                  <div className="flex-1 overflow-y-auto p-3 space-y-2 min-h-0">
+                  <div className="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0">
                     {unassignedToday.map((item, idx) => (
                       <InterventionCard
                         key={`unassigned-${item.intervention_ref}-${idx}`}
                         item={item}
-                        palette={{ accent: '#64748b', light: '#94a3b8', bg: 'rgba(100,116,139,0.08)', border: 'rgba(100,116,139,0.2)' }}
+                        palette={{ accent: '#94a3b8', light: '#cbd5e1', bg: 'rgba(148,163,184,0.06)', border: 'rgba(148,163,184,0.15)' }}
                       />
                     ))}
                   </div>
@@ -1036,16 +921,13 @@ export default function TVDisplayPage() {
           )}
         </div>
 
-        {/* ── DROITE (widgets): 320px ── */}
-        <div className="w-80 flex-shrink-0 flex flex-col p-4 gap-4 min-h-0" style={{ background: 'rgba(0,0,0,0.15)' }}>
-          {/* Widget 1: Semaine par technicien */}
-          <div className="flex-1 min-h-0 flex flex-col" style={{ minHeight: 0, flex: '1 1 50%' }}>
+        {/* ── DROITE: Widgets ── */}
+        <div className="w-72 flex-shrink-0 flex flex-col p-3 gap-3 min-h-0" style={{ background: 'rgba(0,0,0,0.15)' }}>
+          <div className="flex-1 min-h-0 flex flex-col" style={{ flex: '1 1 50%' }}>
             <WeekStatsWidget stats={techWeekStats} />
           </div>
-          {/* Divider */}
-          <div className="flex-shrink-0 h-px" style={{ background: 'rgba(255,255,255,0.06)' }} />
-          {/* Widget 2: À réaliser */}
-          <div className="flex-1 min-h-0 flex flex-col" style={{ minHeight: 0, flex: '1 1 50%' }}>
+          <div className="flex-shrink-0 h-px" style={{ background: THEME.divider }} />
+          <div className="flex-1 min-h-0 flex flex-col" style={{ flex: '1 1 50%' }}>
             <PendingWidget pending={pendingInterventions} />
           </div>
         </div>
@@ -1053,6 +935,8 @@ export default function TVDisplayPage() {
 
       {/* ═══ TICKER ═══ */}
       <Ticker messages={tickerMessages} />
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
