@@ -26,6 +26,7 @@ interface TodayIntervention {
   priority: string;
   user_name: string;
   description: string | null;
+  briefing: string | null;
   isAssigned: boolean;
   time_planned: string | null;
   date_planned_full: string | null;
@@ -284,6 +285,8 @@ function useTVData() {
         }
         const rawDesc = (row as any).description || dolibarrInt?.description || dolibarrInt?.note_public || '';
         const cleanDesc = rawDesc.replace(/<[^>]*>/g, '').trim();
+        const rawBriefing = dolibarrInt?.note_private || '';
+        const cleanBriefing = rawBriefing.replace(/<[^>]*>/g, '').trim();
 
         // Duration from Dolibarr (durationHours or computed from dateo/datee)
         let durationHours: number | null = null;
@@ -337,6 +340,7 @@ function useTVData() {
           priority: row.priority || 'normal',
           user_name: name,
           description: cleanDesc || null,
+          briefing: cleanBriefing || null,
           isAssigned: true,
           time_planned: timePlanned,
           date_planned_full: datePlannedFull,
@@ -361,6 +365,7 @@ function useTVData() {
         const dateStr = dolibarrDateMap.get(intId);
         if (!dateStr || (dateStr !== todayStr && dateStr !== yesterdayStr)) continue;
         const rawDesc = (int.description || int.note_public || '').replace(/<[^>]*>/g, '').trim();
+        const rawBriefing2 = (int.note_private || '').replace(/<[^>]*>/g, '').trim();
         // Compute date & time from dolibarr data for unassigned
         const uef = int.array_options || {};
         const customTs = Number(uef.options_interventiondateheur || 0);
@@ -391,6 +396,7 @@ function useTVData() {
           priority: 'normal',
           user_name: 'Non assigné',
           description: rawDesc || null,
+          briefing: rawBriefing2 || null,
           isAssigned: false,
           time_planned: unassignedTime,
           date_planned_full: unassignedDateFull,
@@ -552,39 +558,46 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
       opacity: isDone ? 0.85 : 1,
     }}>
 
-      {/* ── Header: Technicien + Heure ── */}
-      <div className="flex items-center justify-between px-3 py-2 gap-2" style={{
+      {/* ── Header: Technicien + Date/Heure + Statut ── */}
+      <div className="px-3 py-2" style={{
         background: isDone ? 'rgba(16,185,129,0.15)' : isUrgent ? 'rgba(239,68,68,0.18)' : palette.accent + '22',
         borderBottom: `1px solid ${isDone ? 'rgba(16,185,129,0.2)' : palette.border}`,
       }}>
-        <div className="flex items-center gap-2 min-w-0">
-          <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black flex-shrink-0"
-            style={{ background: palette.accent + '55', color: '#fff' }}>
-            {item.user_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2)}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="w-6 h-6 rounded-md flex items-center justify-center text-[10px] font-black flex-shrink-0"
+              style={{ background: palette.accent + '55', color: '#fff' }}>
+              {item.user_name.split(' ').map((w: string) => w[0]).join('').toUpperCase().slice(0,2)}
+            </div>
+            <span className="text-xs font-black truncate" style={{ color: palette.light }}>{item.user_name}</span>
           </div>
-          <span className="text-xs font-black truncate" style={{ color: palette.light }}>{item.user_name}</span>
+          <PriorityBadge priority={item.priority} />
         </div>
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          {item.date_planned_full && (
-            <span className="text-[10px] font-semibold" style={{ color: 'rgba(255,255,255,0.5)' }}>
-              {item.date_planned_full}
-            </span>
-          )}
-          {item.time_planned && (
-            <span className="inline-flex items-center gap-1 text-[11px] font-black px-2 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.4)', color: '#fff' }}>
-              <Clock className="h-2.5 w-2.5" />{item.time_planned}
-            </span>
-          )}
-          {item.duration_hours && (
-            <span className="text-[10px] font-bold" style={{ color: '#fcd34d' }}>~{item.duration_hours}h</span>
-          )}
+        {/* Date / Heure / Durée + Statut - toujours visible */}
+        <div className="flex items-center justify-between mt-1.5 gap-2">
+          <div className="flex items-center gap-1.5">
+            {item.date_planned_full && (
+              <span className="inline-flex items-center gap-1 text-[11px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.8)' }}>
+                📅 {item.date_planned_full}
+              </span>
+            )}
+            {item.time_planned && (
+              <span className="inline-flex items-center gap-1 text-[12px] font-black px-2 py-0.5 rounded" style={{ background: 'rgba(59,130,246,0.5)', color: '#fff' }}>
+                <Clock className="h-3 w-3" />{item.time_planned}
+              </span>
+            )}
+            {item.duration_hours && (
+              <span className="text-[10px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(250,204,21,0.15)', color: '#fcd34d' }}>~{item.duration_hours}h</span>
+            )}
+          </div>
+          <OpStatusBadge status={item.operational_status} />
         </div>
       </div>
 
       {/* ── Corps ── */}
       <div className="p-2.5 flex flex-col gap-1.5">
 
-        {/* Ligne 1: Ref + Bon + Type + Statut */}
+        {/* Ligne 1: Ref + Bon + Type */}
         <div className="flex items-center gap-1.5 flex-wrap">
           <span className="text-[9px] font-bold px-1.5 py-0.5 rounded" style={{ background: 'rgba(96,165,250,0.15)', color: '#93c5fd', border: '1px solid rgba(96,165,250,0.25)' }}>
             {item.intervention_ref}
@@ -599,20 +612,16 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
               {item.intervention_type}
             </span>
           )}
-          <div className="ml-auto flex gap-1">
-            <OpStatusBadge status={item.operational_status} />
-            <PriorityBadge priority={item.priority} />
-          </div>
         </div>
 
-        {/* Ligne 2: Client (principal, en gras) */}
+        {/* Client */}
         {item.client_name && (
           <div className="font-black text-sm leading-tight" style={{ color: '#fff' }}>
             {item.client_name}
           </div>
         )}
 
-        {/* Ligne 3: Label / description courte */}
+        {/* Label */}
         {item.intervention_label && item.intervention_label !== 'Intervention' && (
           <div className="text-[11px] leading-snug italic" style={{ color: isDone ? '#6ee7b7' : 'rgba(255,255,255,0.55)' }}>
             {isDone && '✓ '}{item.intervention_label}
@@ -624,7 +633,7 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
           <div className="h-px my-0.5" style={{ background: `${palette.border}` }} />
         )}
 
-        {/* Bloc Bâtiment: N° Imm + Appt + Propriétaire + Concierge */}
+        {/* Bloc Bâtiment */}
         {(item.no_immeuble || item.proprietaire || item.concierge || item.appartement) && (
           <div className="grid grid-cols-2 gap-x-2 gap-y-0.5">
             {item.no_immeuble && (
@@ -662,10 +671,22 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
           </div>
         )}
 
-        {/* Description */}
-        {item.description && (
-          <div className="rounded-lg px-2 py-1.5 text-[10px] leading-snug italic" style={{ background: 'rgba(255,255,255,0.05)', color: 'rgba(255,255,255,0.5)', borderLeft: `2px solid ${palette.accent}50` }}>
-            {item.description.slice(0, 120)}{item.description.length > 120 ? '…' : ''}
+        {/* Description / Briefing - bien visible */}
+        {(item.description || item.briefing) && (
+          <div className="rounded-lg px-2.5 py-2 mt-0.5" style={{ background: 'rgba(255,255,255,0.06)', borderLeft: `3px solid ${palette.accent}` }}>
+            <div className="text-[9px] font-bold uppercase tracking-wider mb-1" style={{ color: palette.light }}>
+              Description / Briefing
+            </div>
+            {item.description && (
+              <div className="text-[11px] leading-snug" style={{ color: 'rgba(255,255,255,0.7)' }}>
+                {item.description.slice(0, 200)}{item.description.length > 200 ? '…' : ''}
+              </div>
+            )}
+            {item.briefing && item.briefing !== item.description && (
+              <div className="text-[11px] leading-snug mt-1 pt-1" style={{ color: 'rgba(255,255,255,0.55)', borderTop: '1px solid rgba(255,255,255,0.08)' }}>
+                📋 {item.briefing.slice(0, 200)}{item.briefing.length > 200 ? '…' : ''}
+              </div>
+            )}
           </div>
         )}
       </div>
