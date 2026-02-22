@@ -190,7 +190,7 @@ export default function CalendarPage() {
     if (supabaseOverride) return supabaseOverride;
     const localOverride = getDateOverride(int.id);
     if (localOverride) return localOverride;
-    return int.dateStart || null;
+    return int.datePlanned || int.dateStart || null;
   };
 
   // Filter interventions by date using effective date (local override or dateStart)
