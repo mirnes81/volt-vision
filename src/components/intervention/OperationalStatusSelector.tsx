@@ -139,6 +139,7 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
   const [isLoading, setIsLoading] = React.useState(true);
   const [isOpen, setIsOpen] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [hasCloudPhotos, setHasCloudPhotos] = React.useState(false);
   
   const isAdmin = isUserAdmin();
   const canEdit = isAdmin && !readOnly;
@@ -149,6 +150,20 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
       setCurrentStatus(status || 'a_faire');
       setIsLoading(false);
     });
+    
+    // Check for cloud photos in storage bucket
+    async function checkCloudPhotos() {
+      try {
+        const { data: files } = await supabase.storage
+          .from('intervention-photos')
+          .list(String(intervention.id), { limit: 1 });
+        const realFiles = files?.filter(f => f.name !== '.emptyFolderPlaceholder') || [];
+        setHasCloudPhotos(realFiles.length > 0);
+      } catch {
+        setHasCloudPhotos(false);
+      }
+    }
+    checkCloudPhotos();
   }, [intervention.id]);
 
   const handleSelect = async (newStatus: OperationalStatus) => {
@@ -157,7 +172,7 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
 
     // If trying to set "terminé", validate prerequisites
     if (newStatus === 'termine') {
-      const hasPhotos = intervention.photos.length > 0;
+      const hasPhotos = intervention.photos.length > 0 || hasCloudPhotos;
       const hasSignature = !!intervention.signaturePath;
       
       if (!hasPhotos || !hasSignature) {
@@ -176,7 +191,7 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
     setIsSaving(true);
     const success = await saveOperationalStatus(intervention.id, newStatus, {
       has_signature: !!intervention.signaturePath,
-      has_closing_photos: intervention.photos.length > 0,
+      has_closing_photos: intervention.photos.length > 0 || hasCloudPhotos,
     });
 
     if (success) {
@@ -261,7 +276,7 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
                 const isSelected = s === status;
                 const isTermineOption = s === 'termine';
                 const canSelectTermine = isTermineOption
-                  ? (intervention.photos.length > 0 && !!intervention.signaturePath)
+                  ? ((intervention.photos.length > 0 || hasCloudPhotos) && !!intervention.signaturePath)
                   : true;
                 
                 return (
@@ -295,7 +310,7 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
                         <div className="flex items-center gap-1 mt-1.5">
                           <AlertTriangle className="w-3 h-3 text-warning" />
                           <span className="text-[10px] text-warning font-medium">
-                            {!intervention.signaturePath && !intervention.photos.length 
+                            {!intervention.signaturePath && !(intervention.photos.length > 0 || hasCloudPhotos) 
                               ? 'Signature + photos requises'
                               : !intervention.signaturePath ? 'Signature requise'
                               : 'Au moins 1 photo requise'}
