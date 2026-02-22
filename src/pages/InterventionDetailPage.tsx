@@ -5,8 +5,9 @@ import {
   MapPin, User, AlertTriangle, Clock, Package, CheckSquare, Camera, 
   PenTool, Sparkles, FileCheck, Navigation, Mic, History, Boxes,
   Phone, Mail, FileText, Calendar, ExternalLink, ChevronDown, ChevronUp, 
-  Bell, BellRing, Zap, Hash, Key, Lock, Home, Building2
+  Bell, BellRing, Zap, Hash, Key, Lock, Home, Building2, Timer
 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/layout/Header';
 import { HoursSection } from '@/components/intervention/HoursSection';
 import { CreateEmergencyDialog } from '@/components/emergency/CreateEmergencyDialog';
@@ -28,6 +29,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { getIntervention } from '@/lib/api';
 import { Intervention } from '@/types/intervention';
+import { Input } from '@/components/ui/input';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { cn } from '@/lib/utils';
 import { toast } from '@/components/ui/sonner';
@@ -82,6 +84,8 @@ export default function InterventionDetailPage() {
   const [showFullDescription, setShowFullDescription] = React.useState(false);
   const [hasReminder, setHasReminder] = React.useState(false);
   const [showMoreMenu, setShowMoreMenu] = React.useState(false);
+  const [estimatedHours, setEstimatedHours] = React.useState<string>('');
+  const [isSavingHours, setIsSavingHours] = React.useState(false);
   
   // Use global assignments context
   const { getAssignmentsForIntervention, refresh: refreshAssignments } = useAssignments();
@@ -94,6 +98,45 @@ export default function InterventionDetailPage() {
   React.useEffect(() => {
     if (id) setHasReminder(hasReminderScheduled(parseInt(id)));
   }, [id, intervention]);
+
+  // Load estimated hours from Supabase
+  React.useEffect(() => {
+    if (!id) return;
+    const TENANT_ID = '00000000-0000-0000-0000-000000000001';
+    supabase
+      .from('intervention_operational_status')
+      .select('estimated_hours')
+      .eq('intervention_id', parseInt(id))
+      .eq('tenant_id', TENANT_ID)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (data?.estimated_hours != null) {
+          setEstimatedHours(String(data.estimated_hours));
+        }
+      });
+  }, [id]);
+
+  const handleSaveEstimatedHours = async () => {
+    if (!id) return;
+    const TENANT_ID = '00000000-0000-0000-0000-000000000001';
+    const hours = estimatedHours ? parseFloat(estimatedHours) : null;
+    setIsSavingHours(true);
+    try {
+      const { error } = await supabase
+        .from('intervention_operational_status')
+        .upsert({
+          intervention_id: parseInt(id),
+          tenant_id: TENANT_ID,
+          estimated_hours: hours,
+        }, { onConflict: 'intervention_id,tenant_id' });
+      if (error) throw error;
+      toast.success(hours ? `${hours}h prévues enregistrées` : 'Heures prévues supprimées');
+    } catch {
+      toast.error('Erreur lors de la sauvegarde');
+    } finally {
+      setIsSavingHours(false);
+    }
+  };
 
   const loadIntervention = async (interventionId: number) => {
     setIsLoading(true);
@@ -559,6 +602,40 @@ export default function InterventionDetailPage() {
               >
                 {hasReminder ? <BellRing className="w-4 h-4" /> : <Bell className="w-4 h-4" />}
               </Button>
+            </div>
+          )}
+
+          {/* Estimated hours row (admin only) */}
+          {isAdmin && (
+            <div className="px-3 py-2 border-t border-border/40 flex items-center gap-2">
+              <Timer className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-xs text-muted-foreground font-medium">Heures prévues</span>
+              <Input
+                type="number"
+                step="0.5"
+                min="0"
+                max="100"
+                placeholder="—"
+                value={estimatedHours}
+                onChange={(e) => setEstimatedHours(e.target.value)}
+                onBlur={handleSaveEstimatedHours}
+                onKeyDown={(e) => e.key === 'Enter' && handleSaveEstimatedHours()}
+                className="w-16 h-7 text-xs text-center font-bold px-1"
+                disabled={isSavingHours}
+              />
+              <span className="text-xs text-muted-foreground">h</span>
+              {isSavingHours && (
+                <div className="w-3 h-3 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              )}
+            </div>
+          )}
+
+          {/* Estimated hours display (non-admin) */}
+          {!isAdmin && estimatedHours && (
+            <div className="px-3 py-2 border-t border-border/40 flex items-center gap-2">
+              <Timer className="w-4 h-4 text-primary shrink-0" />
+              <span className="text-xs text-muted-foreground font-medium">Heures prévues</span>
+              <span className="text-sm font-bold text-primary">{estimatedHours}h</span>
             </div>
           )}
 

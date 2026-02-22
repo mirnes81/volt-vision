@@ -33,6 +33,7 @@ interface TodayIntervention {
   duration_hours: number | null;
   bon_gerance?: string | null;
   operational_status: string | null;
+  estimated_hours: number | null;
   intervention_type: string | null;
   no_immeuble: string | null;
   proprietaire: string | null;
@@ -173,7 +174,7 @@ function useTVData() {
           .order('user_name'),
         supabase.functions.invoke('dolibarr-api', { body: { action: 'get-interventions', params: {} } }).catch(() => ({ data: null })),
         supabase.from('intervention_date_overrides').select('intervention_id, override_date').eq('tenant_id', TENANT_ID),
-        supabase.from('intervention_operational_status').select('intervention_id, operational_status').eq('tenant_id', TENANT_ID),
+        supabase.from('intervention_operational_status').select('intervention_id, operational_status, estimated_hours').eq('tenant_id', TENANT_ID),
         supabase.from('weekly_work_summary').select('total_minutes, user_id').eq('tenant_id', TENANT_ID),
       ]);
 
@@ -183,8 +184,10 @@ function useTVData() {
       }
 
       const opStatusMap = new Map<number, string>();
+      const estimatedHoursMap = new Map<number, number>();
       for (const row of (operStatusResult?.data || [])) {
         opStatusMap.set(row.intervention_id, row.operational_status);
+        if (row.estimated_hours != null) estimatedHoursMap.set(row.intervention_id, Number(row.estimated_hours));
       }
 
       const dolibarrInterventions: any[] = Array.isArray(dolibarrResult?.data) ? dolibarrResult.data : [];
@@ -360,6 +363,7 @@ function useTVData() {
           duration_hours: durationHours,
           bon_gerance: bonGerance,
           operational_status: intId ? (opStatusMap.get(intId) || null) : null,
+          estimated_hours: intId ? (estimatedHoursMap.get(intId) ?? null) : null,
           intervention_type: intType ? decodeHtmlEntities(intType) : null,
           no_immeuble: noImmeuble ? decodeHtmlEntities(noImmeuble) : null,
           proprietaire,
@@ -414,6 +418,7 @@ function useTVData() {
           duration_hours: unassignedDuration,
           bon_gerance: uef.options_bongerance || null,
           operational_status: opStatusMap.get(intId) || null,
+          estimated_hours: estimatedHoursMap.get(intId) ?? null,
           intervention_type: uef.options_typetravaux ? decodeHtmlEntities(uef.options_typetravaux) : (int.type_label ? decodeHtmlEntities(int.type_label) : null),
           no_immeuble: uef.options_noimm ? decodeHtmlEntities(uef.options_noimm) : null,
           proprietaire: uef.options_propimm ? decodeHtmlEntities(uef.options_propimm) : null,
@@ -578,8 +583,16 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
           </span>
         )}
 
-        {/* Durée */}
-        {item.duration_hours && (
+        {/* Heures prévues (admin) */}
+        {item.estimated_hours != null && (
+          <span className="inline-flex items-center gap-0.5 text-[10px] font-black px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(37,99,235,0.1)', color: '#2563eb', border: '1px solid rgba(37,99,235,0.25)' }}>
+            <Timer className="h-2.5 w-2.5" />
+            {item.estimated_hours}h
+          </span>
+        )}
+
+        {/* Durée Dolibarr */}
+        {item.duration_hours && !item.estimated_hours && (
           <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(217,119,6,0.1)', color: '#d97706' }}>
             ~{item.duration_hours}h
           </span>
