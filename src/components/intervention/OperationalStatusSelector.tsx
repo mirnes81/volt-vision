@@ -67,7 +67,7 @@ export const OPERATIONAL_STATUS_CONFIG: Record<OperationalStatus, OperationalSta
     color: 'text-success', 
     bgColor: 'bg-success/10',
     icon: CheckCircle2,
-    description: 'Intervention entièrement terminée (signature + photos requises)'
+    description: 'Intervention entièrement terminée (photos requises)'
   },
 };
 
@@ -173,15 +173,10 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
     // If trying to set "terminé", validate prerequisites
     if (newStatus === 'termine') {
       const hasPhotos = intervention.photos.length > 0 || hasCloudPhotos;
-      const hasSignature = !!intervention.signaturePath;
       
-      if (!hasPhotos || !hasSignature) {
-        const missing = [];
-        if (!hasSignature) missing.push('signature du client/technicien');
-        if (!hasPhotos) missing.push('au moins une photo');
-        
+      if (!hasPhotos) {
         toast.error('Clôture impossible', {
-          description: `Requis avant de terminer: ${missing.join(' et ')}`,
+          description: 'Requis avant de terminer: au moins une photo',
           duration: 5000,
         });
         return;
@@ -276,7 +271,7 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
                 const isSelected = s === status;
                 const isTermineOption = s === 'termine';
                 const canSelectTermine = isTermineOption
-                  ? ((intervention.photos.length > 0 || hasCloudPhotos) && !!intervention.signaturePath)
+                  ? (intervention.photos.length > 0 || hasCloudPhotos)
                   : true;
                 
                 return (
@@ -310,10 +305,7 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
                         <div className="flex items-center gap-1 mt-1.5">
                           <AlertTriangle className="w-3 h-3 text-warning" />
                           <span className="text-[10px] text-warning font-medium">
-                            {!intervention.signaturePath && !(intervention.photos.length > 0 || hasCloudPhotos) 
-                              ? 'Signature + photos requises'
-                              : !intervention.signaturePath ? 'Signature requise'
-                              : 'Au moins 1 photo requise'}
+                            Au moins 1 photo requise
                           </span>
                         </div>
                       )}
@@ -328,8 +320,7 @@ export function OperationalStatusSelector({ intervention, onStatusChange, readOn
             {/* Info footer */}
             <div className="px-4 py-3 border-t border-border/50 bg-muted/30 flex items-center gap-2">
               <Camera className="w-3.5 h-3.5 text-muted-foreground" />
-              <PenTool className="w-3.5 h-3.5 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">Photos + signature obligatoires pour clôturer</p>
+              <p className="text-xs text-muted-foreground">Photos obligatoires pour clôturer</p>
             </div>
             {/* Safe area bottom */}
             <div className="pb-safe h-4" />
