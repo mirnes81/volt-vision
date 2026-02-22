@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, User, AlertTriangle, Plus } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, MapPin, User, AlertTriangle, Plus, Timer } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { Link } from 'react-router-dom';
 import { Header } from '@/components/layout/Header';
@@ -65,6 +65,7 @@ export default function CalendarPage() {
 
   // Load date overrides from Supabase (shared across devices, takes priority over localStorage)
   const [supabaseOverrides, setSupabaseOverrides] = React.useState<Record<number, string>>({});
+  const [estimatedHoursMap, setEstimatedHoursMap] = React.useState<Record<number, number>>({});
 
   React.useEffect(() => {
     const loadOverrides = async () => {
@@ -77,7 +78,6 @@ export default function CalendarPage() {
           const map: Record<number, string> = {};
           data.forEach((o: any) => {
             map[o.intervention_id] = o.override_date;
-            // Sync localStorage with Supabase values to keep them consistent
             localStorage.setItem(`intervention_date_override_${o.intervention_id}`, o.override_date);
           });
           setSupabaseOverrides(map);
@@ -87,6 +87,30 @@ export default function CalendarPage() {
       }
     };
     loadOverrides();
+  }, []);
+
+  // Load estimated hours from intervention_operational_status
+  React.useEffect(() => {
+    const loadEstimatedHours = async () => {
+      try {
+        const { data } = await supabase
+          .from('intervention_operational_status')
+          .select('intervention_id, estimated_hours')
+          .not('estimated_hours', 'is', null);
+        if (data) {
+          const map: Record<number, number> = {};
+          data.forEach((row: any) => {
+            if (row.estimated_hours != null) {
+              map[row.intervention_id] = Number(row.estimated_hours);
+            }
+          });
+          setEstimatedHoursMap(map);
+        }
+      } catch (err) {
+        console.warn('[CalendarPage] Could not load estimated hours:', err);
+      }
+    };
+    loadEstimatedHours();
   }, []);
 
   // Auto-refresh on Dolibarr webhook events
@@ -489,7 +513,7 @@ export default function CalendarPage() {
                         }}
                       >
                         <div className="flex items-start gap-2">
-                          <div className="flex-1 min-w-0">
+                        <div className="flex-1 min-w-0">
                             <p className="font-semibold text-sm truncate">{int.label}</p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                               <Clock className="w-3 h-3 shrink-0" />
@@ -501,6 +525,12 @@ export default function CalendarPage() {
                               <div className="flex items-center gap-1 mt-0.5">
                                 <User className="w-3 h-3 shrink-0" style={{ color: colors.accent }} />
                                 <span className="text-xs font-bold truncate" style={{ color: colors.accent }}>{techName}</span>
+                              </div>
+                            )}
+                            {estimatedHoursMap[int.id] != null && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <Timer className="w-3 h-3 shrink-0 text-blue-500" />
+                                <span className="text-xs font-semibold text-blue-600">{estimatedHoursMap[int.id]}h prévues</span>
                               </div>
                             )}
                           </div>
@@ -605,6 +635,9 @@ export default function CalendarPage() {
                         >
                           <p className="font-medium truncate">{int.label}</p>
                           <p className="truncate" style={{ color: colors.accent }}>{getTechName(int) || getInterventionTime(int)}</p>
+                          {estimatedHoursMap[int.id] != null && (
+                            <p className="text-blue-600 font-semibold">{estimatedHoursMap[int.id]}h</p>
+                          )}
                         </Link>
                       );
                     })}
@@ -731,6 +764,9 @@ export default function CalendarPage() {
                               <span className="font-medium">{getInterventionTime(int)} </span>
                             )}
                             {int.label}
+                            {estimatedHoursMap[int.id] != null && (
+                              <span className="font-bold text-blue-600 ml-1">{estimatedHoursMap[int.id]}h</span>
+                            )}
                           </div>
                         );
                       })}
@@ -797,6 +833,12 @@ export default function CalendarPage() {
                             <div className="flex items-center gap-1 mt-0.5">
                               <User className="w-3 h-3" style={{ color: colors.accent }} />
                               <span className="text-xs font-bold" style={{ color: colors.accent }}>{getTechName(intervention)}</span>
+                            </div>
+                          )}
+                          {estimatedHoursMap[intervention.id] != null && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <Timer className="w-3 h-3 text-blue-500" />
+                              <span className="text-xs font-semibold text-blue-600">{estimatedHoursMap[intervention.id]}h prévues</span>
                             </div>
                           )}
                           
@@ -887,6 +929,12 @@ export default function CalendarPage() {
                             <div className="flex items-center gap-1.5 text-xs mt-1">
                               <User className="w-3 h-3" style={{ color: colors.accent }} />
                               <span className="font-bold" style={{ color: colors.accent }}>{getTechName(int)}</span>
+                            </div>
+                          )}
+                          {estimatedHoursMap[int.id] != null && (
+                            <div className="flex items-center gap-1.5 text-xs mt-1">
+                              <Timer className="w-3 h-3 text-blue-500" />
+                              <span className="font-semibold text-blue-600">{estimatedHoursMap[int.id]}h prévues</span>
                             </div>
                           )}
                           <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
@@ -988,6 +1036,9 @@ export default function CalendarPage() {
                                   <span className="text-xs font-bold truncate max-w-[100px]" style={{ color: colors.accent }}>{getTechName(int)}</span>
                                 )}
                                 <span className="text-xs text-muted-foreground truncate max-w-[120px]">{int.clientName}</span>
+                                {estimatedHoursMap[int.id] != null && (
+                                  <span className="text-xs font-bold text-blue-600 shrink-0">{estimatedHoursMap[int.id]}h</span>
+                                )}
                               </div>
                             </Link>
                           );
