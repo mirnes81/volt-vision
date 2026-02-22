@@ -25,14 +25,20 @@ const MONTHS_IT = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
 
 type ViewMode = 'day' | 'week' | 'month' | 'thirty';
 
-const typeColors: Record<string, { bg: string; border: string; text: string }> = {
-  installation: { bg: 'bg-primary/10', border: 'border-l-primary', text: 'text-primary' },
-  depannage: { bg: 'bg-destructive/10', border: 'border-l-destructive', text: 'text-destructive' },
-  renovation: { bg: 'bg-warning/10', border: 'border-l-warning', text: 'text-warning' },
-  tableau: { bg: 'bg-success/10', border: 'border-l-success', text: 'text-success' },
-  cuisine: { bg: 'bg-purple-500/10', border: 'border-l-purple-500', text: 'text-purple-600' },
-  oibt: { bg: 'bg-cyan-500/10', border: 'border-l-cyan-500', text: 'text-cyan-600' },
-};
+// ─── Per-technician color palette ────────────────────────────────────
+const TECH_COLORS = [
+  { bg: 'bg-blue-500/15', border: 'border-l-blue-500', text: 'text-blue-600', dot: 'bg-blue-500', accent: '#3b82f6' },
+  { bg: 'bg-emerald-500/15', border: 'border-l-emerald-500', text: 'text-emerald-600', dot: 'bg-emerald-500', accent: '#10b981' },
+  { bg: 'bg-violet-500/15', border: 'border-l-violet-500', text: 'text-violet-600', dot: 'bg-violet-500', accent: '#8b5cf6' },
+  { bg: 'bg-amber-500/15', border: 'border-l-amber-500', text: 'text-amber-600', dot: 'bg-amber-500', accent: '#f59e0b' },
+  { bg: 'bg-cyan-500/15', border: 'border-l-cyan-500', text: 'text-cyan-600', dot: 'bg-cyan-500', accent: '#06b6d4' },
+  { bg: 'bg-rose-500/15', border: 'border-l-rose-500', text: 'text-rose-600', dot: 'bg-rose-500', accent: '#f43f5e' },
+  { bg: 'bg-teal-500/15', border: 'border-l-teal-500', text: 'text-teal-600', dot: 'bg-teal-500', accent: '#14b8a6' },
+  { bg: 'bg-orange-500/15', border: 'border-l-orange-500', text: 'text-orange-600', dot: 'bg-orange-500', accent: '#f97316' },
+  { bg: 'bg-indigo-500/15', border: 'border-l-indigo-500', text: 'text-indigo-600', dot: 'bg-indigo-500', accent: '#6366f1' },
+  { bg: 'bg-pink-500/15', border: 'border-l-pink-500', text: 'text-pink-600', dot: 'bg-pink-500', accent: '#ec4899' },
+];
+const UNASSIGNED_COLOR = { bg: 'bg-muted/50', border: 'border-l-muted-foreground', text: 'text-muted-foreground', dot: 'bg-muted-foreground', accent: '#94a3b8' };
 
 const statusLabels: Record<string, string> = {
   a_planifier: 'À planifier',
@@ -107,6 +113,52 @@ export default function CalendarPage() {
       (int.assignedTo?.id && String(int.assignedTo.id) === workerId)
     );
   }, [allInterventions, assignments, isAdmin, workerId]);
+
+  // Build stable technician -> color map from assignments
+  const techColorMap = React.useMemo(() => {
+    const techNames = new Set<string>();
+    for (const a of assignments) {
+      if (a.user_name) techNames.add(a.user_name);
+    }
+    // Also add from Dolibarr assignedTo
+    for (const int of interventions) {
+      if (int.assignedTo?.name) {
+        const fullName = [int.assignedTo.firstName, int.assignedTo.name].filter(Boolean).join(' ');
+        if (fullName) techNames.add(fullName);
+      }
+    }
+    const sorted = Array.from(techNames).sort();
+    const map = new Map<string, number>();
+    sorted.forEach((name, idx) => map.set(name, idx % TECH_COLORS.length));
+    return map;
+  }, [assignments, interventions]);
+
+  // Get color for an intervention based on assigned technician
+  const getInterventionColor = React.useCallback((int: Intervention) => {
+    // Check Supabase assignments first
+    const assignment = assignments.find(a => a.intervention_id === int.id);
+    if (assignment?.user_name) {
+      const idx = techColorMap.get(assignment.user_name);
+      if (idx !== undefined) return TECH_COLORS[idx];
+    }
+    // Fallback to Dolibarr assignedTo
+    if (int.assignedTo?.name) {
+      const fullName = [int.assignedTo.firstName, int.assignedTo.name].filter(Boolean).join(' ');
+      const idx = techColorMap.get(fullName);
+      if (idx !== undefined) return TECH_COLORS[idx];
+    }
+    return UNASSIGNED_COLOR;
+  }, [assignments, techColorMap]);
+
+  // Get tech name for an intervention
+  const getTechName = React.useCallback((int: Intervention): string | null => {
+    const assignment = assignments.find(a => a.intervention_id === int.id);
+    if (assignment?.user_name) return assignment.user_name;
+    if (int.assignedTo?.name) {
+      return [int.assignedTo.firstName, int.assignedTo.name].filter(Boolean).join(' ');
+    }
+    return null;
+  }, [assignments]);
 
   const days = language === 'de' ? DAYS_DE : language === 'it' ? DAYS_IT : DAYS_FR;
   const months = language === 'de' ? MONTHS_DE : language === 'it' ? MONTHS_IT : MONTHS_FR;
@@ -348,7 +400,21 @@ export default function CalendarPage() {
           </button>
         </div>
 
-        {/* Desktop Day View with Timeline */}
+        {/* Tech color legend */}
+        {techColorMap.size > 0 && (
+          <div className="flex items-center gap-3 flex-wrap">
+            {Array.from(techColorMap.entries()).map(([name, idx]) => {
+              const color = TECH_COLORS[idx];
+              return (
+                <div key={name} className="flex items-center gap-1.5">
+                  <div className={cn("w-3 h-3 rounded-full", color.dot)} />
+                  <span className="text-xs font-medium">{name}</span>
+                </div>
+              );
+            })}
+          </div>
+        )}
+
         {viewMode === 'day' && (
           <div className="hidden lg:block bg-card rounded-2xl shadow-card border border-border/50 overflow-hidden">
             <div className="grid grid-cols-[80px_1fr] min-h-[600px]">
@@ -370,40 +436,82 @@ export default function CalendarPage() {
                   <div key={hour} className="h-[50px] border-b border-border/30" />
                 ))}
                 
-                {/* Interventions */}
-                {selectedInterventions.map((int) => {
-                  const position = getInterventionPosition(int);
-                  if (position === null) return null;
-                  const colors = typeColors[int.type] || typeColors.installation;
+                {/* Interventions - with overlap handling */}
+                {(() => {
+                  // Sort by position, then compute columns for overlapping items
+                  const items = selectedInterventions
+                    .map(int => ({ int, position: getInterventionPosition(int) }))
+                    .filter((x): x is { int: Intervention; position: number } => x.position !== null)
+                    .sort((a, b) => a.position - b.position);
                   
-                  return (
-                    <Link
-                      key={int.id}
-                      to={`/intervention/${int.id}`}
-                      className={cn(
-                        "absolute left-2 right-2 min-h-[48px] rounded-lg border-l-4 p-2 transition-all hover:shadow-lg hover:scale-[1.02]",
-                        colors.bg,
-                        colors.border
-                      )}
-                      style={{ top: `${position}%` }}
-                    >
-                      <div className="flex items-start gap-2">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-semibold text-sm truncate">{int.label}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
-                            <Clock className="w-3 h-3" />
-                            <span>{getInterventionTime(int) || 'Toute la journée'}</span>
-                            <span>•</span>
-                            <span>{int.clientName}</span>
-                          </div>
-                        </div>
-                        {int.priority === 'urgent' && (
-                          <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                  // Assign columns: if items overlap (within 8% = ~1h), place side by side
+                  const columns: { int: Intervention; position: number; col: number; totalCols: number }[] = [];
+                  const groups: typeof columns[] = [];
+                  let currentGroup: typeof columns = [];
+                  
+                  for (const item of items) {
+                    if (currentGroup.length === 0 || item.position - currentGroup[currentGroup.length - 1].position < 8) {
+                      currentGroup.push({ ...item, col: currentGroup.length, totalCols: 1 });
+                    } else {
+                      groups.push(currentGroup);
+                      currentGroup = [{ ...item, col: 0, totalCols: 1 }];
+                    }
+                  }
+                  if (currentGroup.length > 0) groups.push(currentGroup);
+                  
+                  // Set totalCols for each group
+                  for (const group of groups) {
+                    for (const item of group) {
+                      item.totalCols = group.length;
+                    }
+                    columns.push(...group);
+                  }
+                  
+                  return columns.map(({ int, position, col, totalCols }) => {
+                    const colors = getInterventionColor(int);
+                    const techName = getTechName(int);
+                    const widthPct = 100 / totalCols;
+                    const leftPct = col * widthPct;
+                    
+                    return (
+                      <Link
+                        key={int.id}
+                        to={`/intervention/${int.id}`}
+                        className={cn(
+                          "absolute min-h-[52px] rounded-lg border-l-4 p-2 transition-all hover:shadow-lg hover:z-20",
+                          colors.bg,
+                          colors.border
                         )}
-                      </div>
-                    </Link>
-                  );
-                })}
+                        style={{
+                          top: `${position}%`,
+                          left: `calc(${leftPct}% + 4px)`,
+                          width: `calc(${widthPct}% - 8px)`,
+                        }}
+                      >
+                        <div className="flex items-start gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{int.label}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
+                              <Clock className="w-3 h-3 shrink-0" />
+                              <span>{getInterventionTime(int) || 'Toute la journée'}</span>
+                              <span>•</span>
+                              <span className="truncate">{int.clientName}</span>
+                            </div>
+                            {techName && (
+                              <div className="flex items-center gap-1 mt-0.5">
+                                <User className="w-3 h-3 shrink-0" style={{ color: colors.accent }} />
+                                <span className="text-xs font-bold truncate" style={{ color: colors.accent }}>{techName}</span>
+                              </div>
+                            )}
+                          </div>
+                          {int.priority === 'urgent' && (
+                            <AlertTriangle className="w-4 h-4 text-destructive shrink-0" />
+                          )}
+                        </div>
+                      </Link>
+                    );
+                  });
+                })()}
                 
                 {/* Current time indicator */}
                 {isToday(currentDate) && (
@@ -482,10 +590,10 @@ export default function CalendarPage() {
                     {getInterventionsForDate(date).map((int) => {
                       const position = getInterventionPosition(int);
                       if (position === null) return null;
-                      const colors = typeColors[int.type] || typeColors.installation;
+                       const colors = getInterventionColor(int);
                       
                       return (
-                        <Link
+                         <Link
                           key={int.id}
                           to={`/intervention/${int.id}`}
                           className={cn(
@@ -496,7 +604,7 @@ export default function CalendarPage() {
                           style={{ top: `${position}%` }}
                         >
                           <p className="font-medium truncate">{int.label}</p>
-                          <p className="text-muted-foreground truncate">{getInterventionTime(int)}</p>
+                          <p className="truncate" style={{ color: colors.accent }}>{getTechName(int) || getInterventionTime(int)}</p>
                         </Link>
                       );
                     })}
@@ -538,11 +646,11 @@ export default function CalendarPage() {
                       </span>
                       <div className="mt-1 space-y-0.5">
                         {dayInterventions.slice(0, 2).map((int, j) => {
-                          const colors = typeColors[int.type] || typeColors.installation;
+                           const colors = getInterventionColor(int);
                           return (
                             <div
                               key={j}
-                              className={cn("h-1.5 rounded-full", colors.bg.replace('/10', ''))}
+                              className={cn("h-1.5 rounded-full", colors.dot)}
                             />
                           );
                         })}
@@ -596,11 +704,11 @@ export default function CalendarPage() {
                     {/* Mobile: dots */}
                     <div className="lg:hidden flex gap-0.5 mt-0.5 justify-center">
                       {dayInterventions.slice(0, 3).map((int, j) => {
-                        const colors = typeColors[int.type] || typeColors.installation;
+                         const colors = getInterventionColor(int);
                         return (
                           <div
                             key={j}
-                            className={cn("w-1.5 h-1.5 rounded-full", colors.bg.replace('/10', ''))}
+                            className={cn("w-1.5 h-1.5 rounded-full", colors.dot)}
                           />
                         );
                       })}
@@ -609,7 +717,7 @@ export default function CalendarPage() {
                     {/* Desktop: mini cards */}
                     <div className="hidden lg:block mt-1 space-y-0.5">
                       {dayInterventions.slice(0, 2).map((int) => {
-                        const colors = typeColors[int.type] || typeColors.installation;
+                         const colors = getInterventionColor(int);
                         return (
                           <div
                             key={int.id}
@@ -658,7 +766,7 @@ export default function CalendarPage() {
             ) : (
               <div className="space-y-2">
                 {selectedInterventions.map((intervention) => {
-                  const colors = typeColors[intervention.type] || typeColors.installation;
+                  const colors = getInterventionColor(intervention);
                   const time = getInterventionTime(intervention);
                   
                   return (
@@ -685,6 +793,12 @@ export default function CalendarPage() {
                           </div>
                           <p className="font-semibold truncate">{intervention.label}</p>
                           <p className="text-sm text-muted-foreground truncate">{intervention.clientName}</p>
+                          {getTechName(intervention) && (
+                            <div className="flex items-center gap-1 mt-0.5">
+                              <User className="w-3 h-3" style={{ color: colors.accent }} />
+                              <span className="text-xs font-bold" style={{ color: colors.accent }}>{getTechName(intervention)}</span>
+                            </div>
+                          )}
                           
                           <div className="flex items-center gap-4 mt-2 text-xs text-muted-foreground">
                             {time && (
@@ -745,7 +859,7 @@ export default function CalendarPage() {
             ) : (
               <div className="space-y-3">
                 {selectedInterventions.map((int) => {
-                  const colors = typeColors[int.type] || typeColors.installation;
+                   const colors = getInterventionColor(int);
                   const time = getInterventionTime(int);
                   
                   return (
@@ -769,8 +883,13 @@ export default function CalendarPage() {
                             )}
                           </div>
                           <p className="font-semibold truncate mt-0.5">{int.label}</p>
-                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                            <User className="w-3 h-3" />
+                          {getTechName(int) && (
+                            <div className="flex items-center gap-1.5 text-xs mt-1">
+                              <User className="w-3 h-3" style={{ color: colors.accent }} />
+                              <span className="font-bold" style={{ color: colors.accent }}>{getTechName(int)}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2 text-xs text-muted-foreground mt-0.5">
                             <span>{int.clientName}</span>
                           </div>
                           {int.extraAdresse && (
@@ -845,7 +964,7 @@ export default function CalendarPage() {
                       <div className="space-y-2 ml-2">
                         {dayInterventions.map((int) => {
                           const time = getInterventionTime(int);
-                          const colors = typeColors[int.type] || typeColors.installation;
+                          const colors = getInterventionColor(int);
                           
                           return (
                             <Link
@@ -865,6 +984,9 @@ export default function CalendarPage() {
                                   <AlertTriangle className="w-3 h-3 text-destructive" />
                                 )}
                                 <span className="font-medium text-sm truncate flex-1">{int.label}</span>
+                                {getTechName(int) && (
+                                  <span className="text-xs font-bold truncate max-w-[100px]" style={{ color: colors.accent }}>{getTechName(int)}</span>
+                                )}
                                 <span className="text-xs text-muted-foreground truncate max-w-[120px]">{int.clientName}</span>
                               </div>
                             </Link>
