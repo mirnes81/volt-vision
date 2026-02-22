@@ -1,0 +1,2 @@
+ALTER TABLE public.intervention_operational_status
+ADD COLUMN estimated_hours numeric DEFAULT NULL;

@@ -446,6 +446,7 @@ export type Database = {
           completed_at: string | null
           completed_by: string | null
           created_at: string
+          estimated_hours: number | null
           has_closing_photos: boolean
           has_signature: boolean
           id: string
@@ -459,6 +460,7 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
+          estimated_hours?: number | null
           has_closing_photos?: boolean
           has_signature?: boolean
           id?: string
@@ -472,6 +474,7 @@ export type Database = {
           completed_at?: string | null
           completed_by?: string | null
           created_at?: string
+          estimated_hours?: number | null
           has_closing_photos?: boolean
           has_signature?: boolean
           id?: string
