@@ -28,6 +28,25 @@ const typeColors: Record<string, string> = {
   oibt: 'bg-cyan-500',
 };
 
+// Per-technician color palette (same as CalendarPage)
+const TECH_BORDER_COLORS = [
+  'bg-blue-500', 'bg-emerald-500', 'bg-violet-500', 'bg-amber-500', 'bg-cyan-500',
+  'bg-rose-500', 'bg-teal-500', 'bg-orange-500', 'bg-indigo-500', 'bg-pink-500',
+];
+const TECH_TEXT_COLORS = [
+  'text-blue-600', 'text-emerald-600', 'text-violet-600', 'text-amber-600', 'text-cyan-600',
+  'text-rose-600', 'text-teal-600', 'text-orange-600', 'text-indigo-600', 'text-pink-600',
+];
+
+function getColorIndexForName(name: string): number {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = ((hash << 5) - hash) + name.charCodeAt(i);
+    hash |= 0;
+  }
+  return Math.abs(hash) % TECH_BORDER_COLORS.length;
+}
+
 const dayNames: Record<number, string> = {
   0: 'Dim',
   1: 'Lun',
@@ -85,6 +104,15 @@ export function InterventionCardCompact({ intervention, supabaseAssignments = []
   const location = intervention.extraAdresse || intervention.location;
   const urgent = isUrgent(intervention);
   
+  // Determine assigned tech name and color
+  const primaryAssignment = supabaseAssignments.find(a => a.is_primary) || supabaseAssignments[0];
+  const assigneeName = intervention.assignedTo
+    ? `${intervention.assignedTo.firstName || ''} ${intervention.assignedTo.name || ''}`.trim()
+    : null;
+  const techName = primaryAssignment?.user_name || assigneeName;
+  const techColorIdx = techName ? getColorIndexForName(techName) : -1;
+  const borderColorClass = techColorIdx >= 0 ? TECH_BORDER_COLORS[techColorIdx] : typeColor;
+  
   // Worker hours summary for this intervention
   const totalHours = intervention.hours?.reduce((sum, h) => sum + (h.durationHours || 0), 0) || 0;
 
@@ -99,7 +127,7 @@ export function InterventionCardCompact({ intervention, supabaseAssignments = []
           : "border-border/50 hover:border-primary/30"
       )}>
         {/* Type indicator line */}
-        <div className={cn("absolute left-0 top-2 bottom-2 w-0.5 rounded-full", typeColor)} />
+        <div className={cn("absolute left-0 top-2 bottom-2 w-1 rounded-full", borderColorClass)} />
         
         {/* Urgent banner - smaller */}
         {urgent && (
@@ -176,28 +204,31 @@ export function InterventionCardCompact({ intervention, supabaseAssignments = []
             <div className="flex items-center gap-0.5 min-w-0 flex-1">
               {supabaseAssignments.length > 0 ? (
                 <div className="flex items-center gap-0.5 text-muted-foreground">
-                  <Users className="w-2.5 h-2.5 text-primary" />
+                  <Users className={cn("w-2.5 h-2.5", techColorIdx >= 0 ? TECH_TEXT_COLORS[techColorIdx] : "text-primary")} />
                   <div className="flex items-center gap-0.5 truncate">
-                    {supabaseAssignments.slice(0, 2).map((a, idx) => (
-                      <span 
-                        key={a.id} 
-                        className={cn(
-                          "font-medium text-[9px]",
-                          a.is_primary && "text-primary"
-                        )}
-                      >
-                        {a.user_name.split(' ')[0]}{idx < Math.min(supabaseAssignments.length - 1, 1) ? ',' : ''}
-                      </span>
-                    ))}
+                    {supabaseAssignments.slice(0, 2).map((a, idx) => {
+                      const cIdx = getColorIndexForName(a.user_name);
+                      return (
+                        <span 
+                          key={a.id} 
+                          className={cn(
+                            "font-bold text-[9px]",
+                            TECH_TEXT_COLORS[cIdx]
+                          )}
+                        >
+                          {a.user_name.split(' ')[0]}{idx < Math.min(supabaseAssignments.length - 1, 1) ? ',' : ''}
+                        </span>
+                      );
+                    })}
                     {supabaseAssignments.length > 2 && (
                       <span className="text-muted-foreground text-[9px]">+{supabaseAssignments.length - 2}</span>
                     )}
                   </div>
                 </div>
               ) : intervention.assignedTo ? (
-                <div className="flex items-center gap-0.5 text-muted-foreground">
-                  <User className="w-2.5 h-2.5" />
-                  <span className="font-medium text-[9px]">
+                <div className="flex items-center gap-0.5">
+                  <User className={cn("w-2.5 h-2.5", techColorIdx >= 0 ? TECH_TEXT_COLORS[techColorIdx] : "text-muted-foreground")} />
+                  <span className={cn("font-bold text-[9px]", techColorIdx >= 0 ? TECH_TEXT_COLORS[techColorIdx] : "text-muted-foreground")}>
                     {intervention.assignedTo.firstName || intervention.assignedTo.name}
                     {totalHours > 0 && (
                       <span className="ml-0.5 text-primary">({totalHours.toFixed(1)}h)</span>
