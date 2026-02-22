@@ -65,34 +65,34 @@ interface PendingIntervention {
   colorIdx: number;
 }
 
-// ─── THEME: Blue/dark – original TV theme ───────────────────────────
+// ─── THEME: Light/white with blue accents (like dashboard) ──────────
 const THEME = {
-  bg: 'linear-gradient(160deg, #060d1f 0%, #0a1628 45%, #0d1f3a 100%)',
-  headerBg: 'rgba(0,0,0,0.25)',
-  headerBorder: 'rgba(255,255,255,0.07)',
-  cardBg: 'rgba(255,255,255,0.03)',
-  cardBorder: 'rgba(255,255,255,0.08)',
-  sectionTitle: '#60a5fa',
-  textPrimary: '#f1f5f9',
-  textSecondary: 'rgba(255,255,255,0.6)',
-  textMuted: 'rgba(255,255,255,0.35)',
-  clockColor: '#93c5fd',
-  clockGlow: 'rgba(96,165,250,0.5)',
-  accent: '#60a5fa',
-  accentLight: '#93c5fd',
-  divider: 'rgba(255,255,255,0.06)',
+  bg: 'linear-gradient(160deg, #f8fafc 0%, #f1f5f9 45%, #e8eef6 100%)',
+  headerBg: '#ffffff',
+  headerBorder: '#e2e8f0',
+  cardBg: '#ffffff',
+  cardBorder: '#e2e8f0',
+  sectionTitle: '#2563eb',
+  textPrimary: '#0f172a',
+  textSecondary: '#475569',
+  textMuted: '#94a3b8',
+  clockColor: '#2563eb',
+  clockGlow: 'rgba(37,99,235,0.25)',
+  accent: '#2563eb',
+  accentLight: '#3b82f6',
+  divider: '#e2e8f0',
 };
 
-// Tech color palette
+// Tech color palette (vivid on white background)
 const TECH_PALETTE = [
-  { accent: '#3b82f6', light: '#93c5fd', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.3)' },
-  { accent: '#10b981', light: '#6ee7b7', bg: 'rgba(16,185,129,0.12)', border: 'rgba(16,185,129,0.3)' },
-  { accent: '#8b5cf6', light: '#c4b5fd', bg: 'rgba(139,92,246,0.12)', border: 'rgba(139,92,246,0.3)' },
-  { accent: '#f59e0b', light: '#fcd34d', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)' },
-  { accent: '#06b6d4', light: '#67e8f9', bg: 'rgba(6,182,212,0.12)', border: 'rgba(6,182,212,0.3)' },
-  { accent: '#f43f5e', light: '#fda4af', bg: 'rgba(244,63,94,0.12)', border: 'rgba(244,63,94,0.3)' },
-  { accent: '#14b8a6', light: '#5eead4', bg: 'rgba(20,184,166,0.12)', border: 'rgba(20,184,166,0.3)' },
-  { accent: '#f97316', light: '#fdba74', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.3)' },
+  { accent: '#2563eb', light: '#2563eb', bg: 'rgba(37,99,235,0.06)', border: 'rgba(37,99,235,0.2)' },
+  { accent: '#059669', light: '#059669', bg: 'rgba(5,150,105,0.06)', border: 'rgba(5,150,105,0.2)' },
+  { accent: '#7c3aed', light: '#7c3aed', bg: 'rgba(124,58,237,0.06)', border: 'rgba(124,58,237,0.2)' },
+  { accent: '#d97706', light: '#d97706', bg: 'rgba(217,119,6,0.06)', border: 'rgba(217,119,6,0.2)' },
+  { accent: '#0891b2', light: '#0891b2', bg: 'rgba(8,145,178,0.06)', border: 'rgba(8,145,178,0.2)' },
+  { accent: '#e11d48', light: '#e11d48', bg: 'rgba(225,29,72,0.06)', border: 'rgba(225,29,72,0.2)' },
+  { accent: '#0d9488', light: '#0d9488', bg: 'rgba(13,148,136,0.06)', border: 'rgba(13,148,136,0.2)' },
+  { accent: '#ea580c', light: '#ea580c', bg: 'rgba(234,88,12,0.06)', border: 'rgba(234,88,12,0.2)' },
 ];
 
 // ─── Clock hook ──────────────────────────────────────────────────────
@@ -488,9 +488,9 @@ function Ticker({ messages }: { messages: string[] }) {
   const text = messages.join('     ◆     ');
   const duration = Math.max(messages.length * 6, 35);
   return (
-    <div className="relative overflow-hidden h-9 flex items-center flex-shrink-0" style={{ background: 'rgba(0,0,0,0.6)', borderTop: `1px solid ${THEME.divider}` }}>
+    <div className="relative overflow-hidden h-9 flex items-center flex-shrink-0" style={{ background: '#1e293b', borderTop: `1px solid ${THEME.divider}` }}>
       <div className="absolute whitespace-nowrap text-xs font-semibold"
-        style={{ animation: `ticker ${duration}s linear infinite`, color: THEME.textMuted }}>
+        style={{ animation: `ticker ${duration}s linear infinite`, color: '#94a3b8' }}>
         {text}
       </div>
       <style>{`@keyframes ticker { 0% { transform: translateX(100vw); } 100% { transform: translateX(-100%); } }`}</style>
@@ -501,12 +501,12 @@ function Ticker({ messages }: { messages: string[] }) {
 // ─── Status badge (compact) ──────────────────────────────────────────
 function StatusDot({ status }: { status: string | null }) {
   const configs: Record<string, { color: string; label: string }> = {
-    'a_faire':      { color: '#94a3b8', label: 'À faire' },
-    'en_cours':     { color: '#60a5fa', label: 'En cours' },
-    'a_terminer':   { color: '#fbbf24', label: 'À terminer' },
-    'pas_termine':  { color: '#f87171', label: 'Pas terminé' },
-    'a_revenir':    { color: '#c084fc', label: 'À revenir' },
-    'termine':      { color: '#34d399', label: 'Terminé' },
+    'a_faire':      { color: '#64748b', label: 'À faire' },
+    'en_cours':     { color: '#2563eb', label: 'En cours' },
+    'a_terminer':   { color: '#d97706', label: 'À terminer' },
+    'pas_termine':  { color: '#dc2626', label: 'Pas terminé' },
+    'a_revenir':    { color: '#7c3aed', label: 'À revenir' },
+    'termine':      { color: '#059669', label: 'Terminé' },
   };
   const cfg = configs[status || 'a_faire'] || configs['a_faire'];
   return (
@@ -520,12 +520,12 @@ function StatusDot({ status }: { status: string | null }) {
 // ─── Priority badge ──────────────────────────────────────────────────
 function PriorityBadge({ priority }: { priority: string }) {
   if (priority === 'critical') return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: 'rgba(239,68,68,0.3)', color: '#fca5a5', border: '1px solid rgba(239,68,68,0.5)' }}>
+    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: 'rgba(220,38,38,0.1)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)' }}>
       <AlertCircle className="h-2.5 w-2.5" /> CRITIQUE
     </span>
   );
   if (priority === 'urgent') return (
-    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: 'rgba(245,158,11,0.3)', color: '#fcd34d', border: '1px solid rgba(245,158,11,0.5)' }}>
+    <span className="inline-flex items-center gap-1 text-[10px] font-black uppercase px-1.5 py-0.5 rounded" style={{ background: 'rgba(217,119,6,0.1)', color: '#d97706', border: '1px solid rgba(217,119,6,0.3)' }}>
       <Zap className="h-2.5 w-2.5" /> URGENT
     </span>
   );
@@ -539,17 +539,17 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
 
   return (
     <div className="rounded-lg overflow-hidden" style={{
-      background: isDone ? 'rgba(52,211,153,0.04)' : isUrgent ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.025)',
-      border: `1px solid ${isDone ? 'rgba(52,211,153,0.3)' : isUrgent ? 'rgba(239,68,68,0.4)' : palette.border}`,
-      opacity: isDone ? 0.8 : 1,
+      background: isDone ? '#f0fdf4' : isUrgent ? '#fef2f2' : '#ffffff',
+      border: `1px solid ${isDone ? '#bbf7d0' : isUrgent ? '#fecaca' : palette.border}`,
+      opacity: isDone ? 0.85 : 1,
     }}>
       {/* Row 1: Ref + Client + Heure + Statut — tout sur une ligne */}
       <div className="flex items-center gap-2 px-2.5 py-1.5" style={{
-        background: isDone ? 'rgba(52,211,153,0.08)' : palette.accent + '15',
-        borderBottom: `1px solid ${isDone ? 'rgba(52,211,153,0.15)' : palette.border}`,
+        background: isDone ? '#dcfce7' : palette.bg,
+        borderBottom: `1px solid ${isDone ? '#bbf7d0' : palette.border}`,
       }}>
         {/* Ref */}
-        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: palette.accent + '25', color: palette.light }}>
+        <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: palette.accent + '15', color: palette.accent }}>
           {item.intervention_ref}
         </span>
 
@@ -565,7 +565,7 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
 
         {/* Heure — toujours bien visible */}
         {item.time_planned && (
-          <span className="inline-flex items-center gap-1 text-[12px] font-black px-2 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(59,130,246,0.5)', color: '#fff' }}>
+          <span className="inline-flex items-center gap-1 text-[12px] font-black px-2 py-0.5 rounded flex-shrink-0" style={{ background: '#2563eb', color: '#fff' }}>
             <Clock className="h-3 w-3" />
             {item.time_planned}
           </span>
@@ -573,14 +573,14 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
 
         {/* Date */}
         {item.date_planned_full && (
-          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(255,255,255,0.08)', color: THEME.textSecondary }}>
+          <span className="text-[10px] font-bold px-1.5 py-0.5 rounded flex-shrink-0" style={{ background: '#f1f5f9', color: THEME.textSecondary }}>
             {item.date_planned_full}
           </span>
         )}
 
         {/* Durée */}
         {item.duration_hours && (
-          <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(251,191,36,0.12)', color: '#fbbf24' }}>
+          <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(217,119,6,0.1)', color: '#d97706' }}>
             ~{item.duration_hours}h
           </span>
         )}
@@ -597,17 +597,17 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
         {/* Label + bon + type */}
         <div className="flex items-center gap-2 flex-wrap">
           {item.intervention_label && item.intervention_label !== 'Intervention' && (
-            <span className="text-[11px] font-semibold" style={{ color: isDone ? '#6ee7b7' : THEME.textSecondary }}>
+            <span className="text-[11px] font-semibold" style={{ color: isDone ? '#059669' : THEME.textSecondary }}>
               {isDone && '✓ '}{item.intervention_label}
             </span>
           )}
           {item.bon_gerance && (
-            <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: 'rgba(251,191,36,0.2)', color: '#fde047' }}>
+            <span className="text-[9px] font-black px-1.5 py-0.5 rounded" style={{ background: 'rgba(217,119,6,0.1)', color: '#d97706' }}>
               BON #{item.bon_gerance}
             </span>
           )}
           {item.intervention_type && (
-            <span className="text-[9px] font-bold px-1 py-0.5 rounded uppercase" style={{ background: 'rgba(167,139,250,0.15)', color: '#c4b5fd' }}>
+            <span className="text-[9px] font-bold px-1 py-0.5 rounded uppercase" style={{ background: 'rgba(124,58,237,0.08)', color: '#7c3aed' }}>
               {item.intervention_type}
             </span>
           )}
@@ -623,24 +623,24 @@ function InterventionCard({ item, palette }: { item: TodayIntervention; palette:
           )}
           {item.no_immeuble && (
             <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: THEME.textMuted }}>
-              <Hash className="h-2.5 w-2.5" style={{ color: palette.light }} /> Imm.{item.no_immeuble}
+              <Hash className="h-2.5 w-2.5" style={{ color: palette.accent }} /> Imm.{item.no_immeuble}
             </span>
           )}
           {item.proprietaire && (
             <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: THEME.textMuted }}>
-              <Building2 className="h-2.5 w-2.5" style={{ color: '#fbbf24' }} /> {item.proprietaire}
+              <Building2 className="h-2.5 w-2.5" style={{ color: '#d97706' }} /> {item.proprietaire}
             </span>
           )}
           {item.concierge && (
             <span className="inline-flex items-center gap-1 text-[10px]" style={{ color: THEME.textMuted }}>
-              <Phone className="h-2.5 w-2.5" style={{ color: '#34d399' }} /> {item.concierge}
+              <Phone className="h-2.5 w-2.5" style={{ color: '#059669' }} /> {item.concierge}
             </span>
           )}
         </div>
 
         {/* Description/Briefing — compact, 1-2 lines max */}
         {(item.description || item.briefing) && (
-          <div className="text-[10px] leading-snug rounded px-2 py-1" style={{ background: 'rgba(255,255,255,0.04)', borderLeft: `2px solid ${palette.accent}55`, color: THEME.textMuted }}>
+          <div className="text-[10px] leading-snug rounded px-2 py-1" style={{ background: '#f8fafc', borderLeft: `2px solid ${palette.accent}40`, color: THEME.textMuted }}>
             {item.description && <span>{item.description.slice(0, 150)}{item.description.length > 150 ? '…' : ''}</span>}
             {item.briefing && item.briefing !== item.description && (
               <span> — {item.briefing.slice(0, 100)}{item.briefing.length > 100 ? '…' : ''}</span>
@@ -658,20 +658,20 @@ function TechColumn({ tech }: { tech: TechSummary }) {
   const initials = tech.name.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
 
   return (
-    <div className="flex flex-col min-h-0 rounded-xl overflow-hidden flex-1" style={{ background: 'rgba(255,255,255,0.02)', border: `1px solid ${THEME.cardBorder}`, minWidth: 0 }}>
+    <div className="flex flex-col min-h-0 rounded-xl overflow-hidden flex-1" style={{ background: '#ffffff', border: `1px solid ${THEME.cardBorder}`, minWidth: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
       {/* Header */}
       <div className="px-3 py-2 flex items-center gap-2.5 flex-shrink-0" style={{ background: palette.bg, borderBottom: `1px solid ${palette.border}` }}>
         <div className="w-8 h-8 rounded-lg flex items-center justify-center text-[11px] font-black flex-shrink-0"
-          style={{ background: palette.accent + '40', color: '#fff', boxShadow: `0 0 10px ${palette.accent}30` }}>
+          style={{ background: palette.accent, color: '#fff' }}>
           {initials}
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[13px] font-bold truncate" style={{ color: palette.light }}>{tech.name}</div>
+          <div className="text-[13px] font-bold truncate" style={{ color: palette.accent }}>{tech.name}</div>
           <div className="text-[10px]" style={{ color: THEME.textMuted }}>
             {tech.interventions.length} intervention{tech.interventions.length !== 1 ? 's' : ''}
           </div>
         </div>
-        <div className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-sm font-black" style={{ background: palette.accent + '25', color: palette.light }}>
+        <div className="flex-shrink-0 w-7 h-7 rounded-lg flex items-center justify-center text-sm font-black" style={{ background: palette.bg, color: palette.accent }}>
           {tech.interventions.length}
         </div>
       </div>
@@ -695,8 +695,8 @@ function TechColumn({ tech }: { tech: TechSummary }) {
 // ─── Widget: Semaine par technicien ──────────────────────────────────
 function WeekStatsWidget({ stats }: { stats: TechWeekStat[] }) {
   return (
-    <div className="flex flex-col min-h-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${THEME.cardBorder}` }}>
-      <div className="px-3 py-2 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: `1px solid ${THEME.divider}`, background: 'rgba(59,130,246,0.08)' }}>
+    <div className="flex flex-col min-h-0 rounded-xl overflow-hidden" style={{ background: '#ffffff', border: `1px solid ${THEME.cardBorder}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      <div className="px-3 py-2 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: `1px solid ${THEME.divider}`, background: '#f8fafc' }}>
         <BarChart3 className="h-3.5 w-3.5" style={{ color: THEME.accent }} />
         <span className="text-xs font-bold" style={{ color: THEME.textSecondary }}>Semaine en cours</span>
       </div>
@@ -709,14 +709,14 @@ function WeekStatsWidget({ stats }: { stats: TechWeekStat[] }) {
           return (
             <div key={tech.name} className="rounded-lg p-2" style={{ background: palette.bg, border: `1px solid ${palette.border}` }}>
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-bold truncate" style={{ color: palette.light }}>{tech.name}</span>
+                <span className="text-[11px] font-bold truncate" style={{ color: palette.accent }}>{tech.name}</span>
                 <div className="flex items-center gap-2 text-[10px] flex-shrink-0">
-                  <span style={{ color: '#34d399' }}>{tech.doneWeek}✓</span>
+                  <span style={{ color: '#059669' }}>{tech.doneWeek}✓</span>
                   <span style={{ color: THEME.textMuted }}>{tech.totalWeek - tech.doneWeek} rest.</span>
                   {tech.todayCount > 0 && <span className="font-bold" style={{ color: THEME.accent }}>{tech.todayCount} auj.</span>}
                 </div>
               </div>
-              <div className="h-1 rounded-full overflow-hidden" style={{ background: 'rgba(255,255,255,0.06)' }}>
+              <div className="h-1 rounded-full overflow-hidden" style={{ background: '#e2e8f0' }}>
                 <div className="h-full rounded-full" style={{ width: `${pct}%`, background: palette.accent, transition: 'width 0.5s' }} />
               </div>
             </div>
@@ -730,12 +730,12 @@ function WeekStatsWidget({ stats }: { stats: TechWeekStat[] }) {
 // ─── Widget: Interventions restantes ─────────────────────────────────
 function PendingWidget({ pending }: { pending: PendingIntervention[] }) {
   return (
-    <div className="flex flex-col min-h-0 rounded-xl overflow-hidden" style={{ background: 'rgba(255,255,255,0.025)', border: `1px solid ${THEME.cardBorder}` }}>
-      <div className="px-3 py-2 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: `1px solid ${THEME.divider}`, background: 'rgba(251,146,60,0.06)' }}>
-        <ListChecks className="h-3.5 w-3.5" style={{ color: '#fb923c' }} />
+    <div className="flex flex-col min-h-0 rounded-xl overflow-hidden" style={{ background: '#ffffff', border: `1px solid ${THEME.cardBorder}`, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+      <div className="px-3 py-2 flex items-center gap-2 flex-shrink-0" style={{ borderBottom: `1px solid ${THEME.divider}`, background: '#f8fafc' }}>
+        <ListChecks className="h-3.5 w-3.5" style={{ color: '#ea580c' }} />
         <span className="text-xs font-bold" style={{ color: THEME.textSecondary }}>À réaliser</span>
         {pending.length > 0 && (
-          <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(251,146,60,0.2)', color: '#fb923c' }}>
+          <span className="ml-auto text-[10px] font-bold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(234,88,12,0.1)', color: '#ea580c' }}>
             {pending.length}
           </span>
         )}
@@ -743,7 +743,7 @@ function PendingWidget({ pending }: { pending: PendingIntervention[] }) {
       <div className="flex-1 overflow-y-auto p-2 space-y-1 min-h-0">
         {pending.length === 0 ? (
           <div className="flex flex-col items-center py-4 gap-1" style={{ color: THEME.textMuted }}>
-            <CheckCircle2 className="h-6 w-6" style={{ color: '#34d399', opacity: 0.5 }} />
+            <CheckCircle2 className="h-6 w-6" style={{ color: '#059669', opacity: 0.5 }} />
             <span className="text-[10px]">Tout est terminé 🎉</span>
           </div>
         ) : pending.map((item, idx) => {
@@ -751,20 +751,20 @@ function PendingWidget({ pending }: { pending: PendingIntervention[] }) {
           const isUrgent = item.priority === 'urgent' || item.priority === 'critical';
           return (
             <div key={idx} className="rounded-lg px-2 py-1.5" style={{
-              background: isUrgent ? 'rgba(239,68,68,0.06)' : 'rgba(255,255,255,0.02)',
-              border: `1px solid ${isUrgent ? 'rgba(239,68,68,0.3)' : THEME.cardBorder}`,
+              background: isUrgent ? '#fef2f2' : '#ffffff',
+              border: `1px solid ${isUrgent ? '#fecaca' : THEME.cardBorder}`,
             }}>
               <div className="flex items-center justify-between gap-1.5">
-                <span className="text-[10px] font-bold truncate" style={{ color: isUrgent ? '#fca5a5' : THEME.textPrimary }}>
+                <span className="text-[10px] font-bold truncate" style={{ color: isUrgent ? '#dc2626' : THEME.textPrimary }}>
                   {item.intervention_label}
                 </span>
-                <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ background: 'rgba(255,255,255,0.05)', color: THEME.textMuted }}>
+                <span className="text-[9px] font-bold px-1 py-0.5 rounded flex-shrink-0" style={{ background: '#f1f5f9', color: THEME.textMuted }}>
                   {item.date_label}
                 </span>
               </div>
               <div className="flex items-center gap-2 mt-0.5">
                 {item.client_name && <span className="text-[9px] truncate" style={{ color: THEME.textMuted }}>{item.client_name}</span>}
-                <span className="text-[9px] font-bold ml-auto flex-shrink-0" style={{ color: palette.light }}>{item.user_name}</span>
+                <span className="text-[9px] font-bold ml-auto flex-shrink-0" style={{ color: palette.accent }}>{item.user_name}</span>
               </div>
             </div>
           );
@@ -777,7 +777,7 @@ function PendingWidget({ pending }: { pending: PendingIntervention[] }) {
 // ─── Stat Chip ────────────────────────────────────────────────────────
 function StatChip({ icon, value, label, color }: { icon: React.ReactNode; value: number | string; label: string; color: string }) {
   return (
-    <div className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${THEME.cardBorder}` }}>
+    <div className="flex flex-col items-center gap-0.5 px-3 py-2 rounded-lg" style={{ background: '#ffffff', border: `1px solid ${THEME.cardBorder}`, boxShadow: '0 1px 2px rgba(0,0,0,0.04)' }}>
       <div style={{ color }}>{icon}</div>
       <div className="text-xl font-black tabular-nums" style={{ color }}>{value}</div>
       <div className="text-[9px] font-medium text-center leading-tight" style={{ color: THEME.textMuted }}>{label}</div>
@@ -829,7 +829,7 @@ export default function TVDisplayPage() {
       <div className="flex-shrink-0 flex items-center justify-between px-5 py-2 gap-3" style={{ borderBottom: `1px solid ${THEME.headerBorder}`, background: THEME.headerBg }}>
         {/* Logo + Date */}
         <div className="flex items-center gap-3">
-          <img src={logoEnes} alt="ENES" className="h-9 flex-shrink-0" style={{ filter: 'drop-shadow(0 0 8px rgba(59,130,246,0.3))' }} />
+          <img src={logoEnes} alt="ENES" className="h-9 flex-shrink-0" />
           <div>
             <div className="text-lg font-black" style={{ color: THEME.textPrimary }}>ENES Électricité</div>
             <div className="text-[11px] capitalize" style={{ color: THEME.textMuted }}>{dateStr.charAt(0).toUpperCase() + dateStr.slice(1)}</div>
@@ -839,16 +839,16 @@ export default function TVDisplayPage() {
         {/* KPI chips */}
         <div className="flex items-center gap-2">
           <StatChip icon={<Wrench className="h-3.5 w-3.5" />} value={stats.total} label="Aujourd'hui" color={THEME.accent} />
-          {stats.urgent > 0 && <StatChip icon={<Zap className="h-3.5 w-3.5" />} value={stats.urgent} label="Urgentes" color="#f87171" />}
-          <StatChip icon={<Users className="h-3.5 w-3.5" />} value={stats.techs} label="Techniciens" color="#34d399" />
-          {stats.weeklyHours > 0 && <StatChip icon={<Clock className="h-3.5 w-3.5" />} value={`${stats.weeklyHours}h`} label="Semaine" color="#fbbf24" />}
-          <StatChip icon={<TrendingUp className="h-3.5 w-3.5" />} value={pendingInterventions.length} label="Restantes" color="#c084fc" />
+          {stats.urgent > 0 && <StatChip icon={<Zap className="h-3.5 w-3.5" />} value={stats.urgent} label="Urgentes" color="#dc2626" />}
+          <StatChip icon={<Users className="h-3.5 w-3.5" />} value={stats.techs} label="Techniciens" color="#059669" />
+          {stats.weeklyHours > 0 && <StatChip icon={<Clock className="h-3.5 w-3.5" />} value={`${stats.weeklyHours}h`} label="Semaine" color="#d97706" />}
+          <StatChip icon={<TrendingUp className="h-3.5 w-3.5" />} value={pendingInterventions.length} label="Restantes" color="#7c3aed" />
         </div>
 
         {/* Weather + Clock */}
         <div className="flex items-center gap-3 flex-shrink-0">
           {weather && (
-            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: `1px solid ${THEME.cardBorder}` }}>
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg" style={{ background: '#f8fafc', border: `1px solid ${THEME.cardBorder}` }}>
               <WeatherIcon desc={weather.description} />
               <div>
                 <div className="text-lg font-black" style={{ color: THEME.textPrimary }}>{weather.temp}°C</div>
@@ -858,9 +858,9 @@ export default function TVDisplayPage() {
           )}
           {/* Clock */}
           <div className="tabular-nums flex items-baseline gap-0.5">
-            <span className="text-4xl font-black" style={{ color: THEME.clockColor, textShadow: `0 0 20px ${THEME.clockGlow}` }}>{hours}</span>
+            <span className="text-4xl font-black" style={{ color: THEME.clockColor }}>{hours}</span>
             <span className="text-4xl font-black" style={{ color: colonVisible ? THEME.clockColor : 'transparent', transition: 'color 0.1s' }}>:</span>
-            <span className="text-4xl font-black" style={{ color: THEME.clockColor, textShadow: `0 0 20px ${THEME.clockGlow}` }}>{minutes}</span>
+            <span className="text-4xl font-black" style={{ color: THEME.clockColor }}>{minutes}</span>
             <span className="text-base font-bold self-end mb-0.5 ml-0.5" style={{ color: THEME.accent, opacity: 0.5 }}>{seconds}</span>
           </div>
         </div>
@@ -887,7 +887,7 @@ export default function TVDisplayPage() {
             </div>
           ) : techSummaries.length === 0 && unassignedToday.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center gap-2" style={{ color: THEME.textMuted }}>
-              <CheckCircle2 className="h-14 w-14" style={{ color: '#34d399', opacity: 0.3 }} />
+              <CheckCircle2 className="h-14 w-14" style={{ color: '#059669', opacity: 0.3 }} />
               <p className="text-base">Aucune intervention aujourd'hui</p>
             </div>
           ) : (
@@ -896,9 +896,9 @@ export default function TVDisplayPage() {
                 <TechColumn key={tech.name} tech={tech} />
               ))}
               {unassignedToday.length > 0 && (
-                <div className="flex flex-col min-h-0 rounded-xl overflow-hidden flex-1" style={{ background: 'rgba(255,255,255,0.015)', border: `1px solid ${THEME.cardBorder}`, minWidth: 0 }}>
-                  <div className="px-3 py-2 flex items-center gap-2.5 flex-shrink-0" style={{ background: 'rgba(255,255,255,0.02)', borderBottom: `1px solid ${THEME.divider}` }}>
-                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: 'rgba(255,255,255,0.05)' }}>
+                <div className="flex flex-col min-h-0 rounded-xl overflow-hidden flex-1" style={{ background: '#ffffff', border: `1px solid ${THEME.cardBorder}`, minWidth: 0, boxShadow: '0 1px 3px rgba(0,0,0,0.06)' }}>
+                  <div className="px-3 py-2 flex items-center gap-2.5 flex-shrink-0" style={{ background: '#f8fafc', borderBottom: `1px solid ${THEME.divider}` }}>
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: '#f1f5f9' }}>
                       <Circle className="h-4 w-4" style={{ color: THEME.textMuted }} />
                     </div>
                     <div>
@@ -911,7 +911,7 @@ export default function TVDisplayPage() {
                       <InterventionCard
                         key={`unassigned-${item.intervention_ref}-${idx}`}
                         item={item}
-                        palette={{ accent: '#94a3b8', light: '#cbd5e1', bg: 'rgba(148,163,184,0.06)', border: 'rgba(148,163,184,0.15)' }}
+                        palette={{ accent: '#64748b', light: '#64748b', bg: 'rgba(100,116,139,0.06)', border: '#e2e8f0' }}
                       />
                     ))}
                   </div>
@@ -922,7 +922,7 @@ export default function TVDisplayPage() {
         </div>
 
         {/* ── DROITE: Widgets ── */}
-        <div className="w-72 flex-shrink-0 flex flex-col p-3 gap-3 min-h-0" style={{ background: 'rgba(0,0,0,0.15)' }}>
+        <div className="w-72 flex-shrink-0 flex flex-col p-3 gap-3 min-h-0" style={{ background: '#f1f5f9', borderLeft: `1px solid ${THEME.divider}` }}>
           <div className="flex-1 min-h-0 flex flex-col" style={{ flex: '1 1 50%' }}>
             <WeekStatsWidget stats={techWeekStats} />
           </div>
