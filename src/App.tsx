@@ -28,6 +28,7 @@ import EmergenciesPage from "./pages/EmergenciesPage";
 import CatalogsPage from "./pages/CatalogsPage";
 import VoucherScanPage from "./pages/VoucherScanPage";
 import AdminPage from "./pages/AdminPage";
+import AdminHoursPage from "./pages/AdminHoursPage";
 import TVDisplayPage from "./pages/TVDisplayPage";
 import TakeInterventionPage from "./pages/TakeInterventionPage";
 import NotFound from "./pages/NotFound";
