@@ -317,6 +317,7 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
     setEditHoursValue('');
   };
 
+  const handleCopy = async () => {
     if (!notes) return;
     try {
       await navigator.clipboard.writeText(notes);
