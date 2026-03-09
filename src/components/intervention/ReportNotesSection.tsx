@@ -493,6 +493,28 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
             <span className="text-sm font-bold text-primary">{formatMinutesToHM(totalMin)} total</span>
           </div>
         </div>
+        {/* Worker summary */}
+        {(() => {
+          const workerTotals = new Map<string, number>();
+          allEntries.forEach(e => {
+            const name = e.worker || 'Inconnu';
+            workerTotals.set(name, (workerTotals.get(name) || 0) + e.minutes);
+          });
+          if (workerTotals.size <= 1) return null;
+          return (
+            <div className="px-4 py-2 border-b border-border/40 bg-muted/10 flex flex-wrap gap-3">
+              {Array.from(workerTotals.entries()).map(([name, mins]) => (
+                <div key={name} className="flex items-center gap-1.5 text-xs">
+                  <span className="bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                    <Users className="w-2.5 h-2.5" />
+                    {name}
+                  </span>
+                  <span className="font-bold">{formatMinutesToHM(mins)}</span>
+                </div>
+              ))}
+            </div>
+          );
+        })()}
         <div className="divide-y divide-border/30 max-h-64 overflow-y-auto">
           {allEntries.map((entry) => {
             const isOwnEntry = entry.workerId === currentUserId;
