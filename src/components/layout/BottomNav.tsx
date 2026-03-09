@@ -11,7 +11,7 @@ export function BottomNav() {
   const { todayCount } = useTodayInterventionsCount();
   
   const currentWorker = worker as any;
-  const isAdmin = currentWorker?.isAdmin || currentWorker?.admin;
+  const isAdmin = currentWorker?.isAdmin === true || currentWorker?.admin === '1' || currentWorker?.admin === 1 || currentWorker?.login?.toLowerCase() === 'admin';
   
   const navItems: { to: string; icon: typeof Home; label: string; badge?: number }[] = [
     { to: '/dashboard', icon: Home, label: t('nav.home') },
