@@ -45,6 +45,9 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
   const [editHoursValue, setEditHoursValue] = React.useState('');
   const [isReportFinished, setIsReportFinished] = React.useState(false);
   
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const hoursInputRef = React.useRef<HTMLInputElement>(null);
+  
   const notesKey = `intervention_notes_${intervention.id}`;
   
   // Check if intervention is locked (already invoiced)
@@ -374,11 +377,19 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
         </span>
       </div>
       <Textarea
+        ref={textareaRef}
         value={newNote}
         onChange={(e) => setNewNote(e.target.value)}
         placeholder="Décrivez ce que vous avez fait, les problèmes rencontrés, les observations..."
         className="min-h-[100px] resize-none mb-3"
         disabled={isLocked}
+        enterKeyHint="next"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            hoursInputRef.current?.focus();
+          }
+        }}
       />
       
       {/* Hours input row */}
@@ -386,13 +397,21 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
         <Clock className="w-4 h-4 text-primary shrink-0" />
         <span className="text-xs font-medium text-muted-foreground shrink-0">Heures</span>
         <Input
+          ref={hoursInputRef}
           type="text"
+          inputMode="decimal"
+          enterKeyHint="send"
           placeholder="Ex: 2h30"
           value={hoursInput}
           onChange={(e) => setHoursInput(e.target.value)}
           className="h-8 text-xs w-20 text-center font-semibold"
           disabled={isLocked || isAddingHours}
-          onKeyDown={(e) => e.key === 'Enter' && hoursInput.trim() && handleAddHours()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && hoursInput.trim()) {
+              e.preventDefault();
+              handleAddHours();
+            }
+          }}
         />
         {hoursInput.trim() && (
           <Button
@@ -483,16 +502,22 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
             return (
               <div key={entry.key} className="flex items-center justify-between px-4 py-2.5 group">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <User className="w-2.5 h-2.5" />
+                      {entry.worker}
+                    </span>
+                    {entry.isLocal && (
+                      <span className="text-[9px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">nouveau</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs font-medium">
                       {entry.date.toLocaleDateString('fr-CH', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
                       à {entry.date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    {entry.isLocal && (
-                      <span className="text-[9px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">nouveau</span>
-                    )}
                   </div>
                   {entry.comment && (
                     <p className="text-[10px] text-muted-foreground truncate mt-0.5">{entry.comment}</p>
@@ -540,7 +565,6 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
                     <>
                       <div className="text-right">
                         <p className="text-sm font-bold">{formatMinutesToHM(entry.minutes)}</p>
-                        <p className="text-[10px] text-muted-foreground">{entry.worker}</p>
                       </div>
                       {canEdit && (
                         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
