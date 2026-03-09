@@ -684,17 +684,24 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
         
         {/* Status info banner */}
         {isLocked ? (
-          <div className="flex items-start gap-2 p-3 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg mb-4">
-            <Lock className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-amber-700 dark:text-amber-300">
+          <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg mb-4">
+            <Lock className="w-4 h-4 text-destructive shrink-0 mt-0.5" />
+            <p className="text-xs text-destructive">
               Intervention facturée - les notes sont en lecture seule.
             </p>
           </div>
+        ) : isReportFinished && !isAdmin ? (
+          <div className="flex items-start gap-2 p-3 bg-muted border border-border rounded-lg mb-4">
+            <Lock className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+            <p className="text-xs text-muted-foreground">
+              Rapport terminé — seul l'administrateur peut modifier les heures et les notes.
+            </p>
+          </div>
         ) : (
-          <div className="flex items-start gap-2 p-3 bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800 rounded-lg mb-4">
-            <Users className="w-4 h-4 text-green-600 dark:text-green-400 shrink-0 mt-0.5" />
-            <p className="text-xs text-green-700 dark:text-green-300">
-              Plusieurs ouvriers peuvent ajouter des notes tant que l'intervention n'est pas facturée.
+          <div className="flex items-start gap-2 p-3 bg-primary/5 border border-primary/20 rounded-lg mb-4">
+            <Users className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+            <p className="text-xs text-primary">
+              {isAdmin ? 'Mode administrateur — vous pouvez modifier toutes les entrées.' : 'Vous pouvez ajouter et modifier vos notes et heures.'}
             </p>
           </div>
         )}
