@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { FileText, Trash2, Copy, Check, AlertCircle, Lock, User, Users, Send, Clock, Plus } from 'lucide-react';
+import { FileText, Trash2, Copy, Check, AlertCircle, Lock, User, Users, Send, Clock, Plus, Pencil, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { addManualHours, getCurrentWorker } from '@/lib/api';
 import { parseHMToMinutes, formatMinutesToHM, getHoursSettings, checkDailyLimit } from '@/lib/hoursSettings';
+import { supabase } from '@/integrations/supabase/client';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,6 +24,7 @@ import {
 interface ReportNotesSectionProps {
   intervention: Intervention;
   onUpdate?: () => void;
+  isAdmin?: boolean;
 }
 
 interface ParsedNote {
@@ -32,18 +34,40 @@ interface ParsedNote {
   raw: string;
 }
 
-export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectionProps) {
+export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: ReportNotesSectionProps) {
   const [notes, setNotes] = React.useState<string>('');
   const [copied, setCopied] = React.useState(false);
   const [newNote, setNewNote] = React.useState('');
   const [hoursInput, setHoursInput] = React.useState('');
   const [isAddingHours, setIsAddingHours] = React.useState(false);
   const [localHoursLog, setLocalHoursLog] = React.useState<Array<{date: string; minutes: number; comment: string; worker: string}>>([]);
+  const [editingHourId, setEditingHourId] = React.useState<number | string | null>(null);
+  const [editHoursValue, setEditHoursValue] = React.useState('');
+  const [isReportFinished, setIsReportFinished] = React.useState(false);
   
   const notesKey = `intervention_notes_${intervention.id}`;
   
   // Check if intervention is locked (already invoiced)
   const isLocked = intervention.status === 'facture';
+
+  // Check operational status for "terminé"
+  React.useEffect(() => {
+    const TENANT_ID = '00000000-0000-0000-0000-000000000001';
+    supabase
+      .from('intervention_operational_status')
+      .select('operational_status')
+      .eq('intervention_id', intervention.id)
+      .eq('tenant_id', TENANT_ID)
+      .maybeSingle()
+      .then(({ data }) => {
+        setIsReportFinished(data?.operational_status === 'termine');
+      });
+  }, [intervention.id]);
+
+  // Can the current user edit hours?
+  // - If report finished: only admin
+  // - If not finished: worker can edit own, admin can edit all
+  const canEditHours = isAdmin || !isReportFinished;
 
   // Get current worker name
   const workerName = React.useMemo(() => {
