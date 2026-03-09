@@ -76,6 +76,15 @@ export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectio
   const settings = getHoursSettings();
   const totalInterventionHours = intervention.hours.reduce((acc, h) => acc + (h.durationHours || 0), 0);
 
+  // Load local hours log
+  React.useEffect(() => {
+    const hoursLogKey = `intervention_hours_log_${intervention.id}`;
+    try {
+      const log = JSON.parse(localStorage.getItem(hoursLogKey) || '[]');
+      setLocalHoursLog(log);
+    } catch {}
+  }, [intervention.id]);
+
   // Load notes on mount and listen for updates
   React.useEffect(() => {
     const loadNotes = () => {
