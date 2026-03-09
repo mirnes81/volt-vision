@@ -234,6 +234,25 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
     }
   };
 
+  const handleManualSubmit = () => {
+    if (!manualText.trim() || isLocked) return;
+    
+    const notesKey = `intervention_notes_${intervention.id}`;
+    const existingNotes = localStorage.getItem(notesKey) || '';
+    const timestamp = new Date().toLocaleString('fr-CH');
+    const newNote = `[${timestamp}] 👤 ${workerName}\n${manualText.trim()}`;
+    const updatedNotes = existingNotes ? `${existingNotes}\n\n${newNote}` : newNote;
+    
+    localStorage.setItem(notesKey, updatedNotes);
+    window.dispatchEvent(new CustomEvent('intervention-notes-updated', {
+      detail: { interventionId: intervention.id, notes: updatedNotes }
+    }));
+    
+    setManualText('');
+    setShowManualInput(false);
+    toast.success('✅ Note ajoutée au rapport !');
+  };
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
