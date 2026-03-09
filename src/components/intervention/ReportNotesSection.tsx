@@ -45,6 +45,9 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
   const [editHoursValue, setEditHoursValue] = React.useState('');
   const [isReportFinished, setIsReportFinished] = React.useState(false);
   
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
+  const hoursInputRef = React.useRef<HTMLInputElement>(null);
+  
   const notesKey = `intervention_notes_${intervention.id}`;
   
   // Check if intervention is locked (already invoiced)

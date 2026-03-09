@@ -178,6 +178,7 @@ export async function addManualHours(
       .insert({
         tenant_id: DEFAULT_TENANT_ID,
         user_id: String(worker.id),
+        user_name: `${worker.firstName || ''} ${worker.name || ''}`.trim() || worker.login || 'Ouvrier',
         clock_in: data.dateStart,
         clock_out: data.dateEnd,
         work_type: data.workType,
