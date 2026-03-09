@@ -430,6 +430,9 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
     const apiDates = new Set(intervention.hours.map(h => h.dateStart));
     const localOnly = localHoursLog.filter(l => !apiDates.has(l.date));
     
+    const worker = getCurrentWorker();
+    const currentUserId = worker ? String(worker.id) : '';
+
     const allEntries = [
       ...intervention.hours.map(h => ({
         key: `api-${h.id}`,
@@ -437,6 +440,7 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
         minutes: Math.round((h.durationHours || 0) * 60),
         comment: h.comment || '',
         worker: h.userName || '',
+        workerId: String(h.userId),
         isLocal: false,
       })),
       ...localOnly.map((l, i) => ({
@@ -445,6 +449,7 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
         minutes: l.minutes,
         comment: l.comment,
         worker: l.worker,
+        workerId: currentUserId,
         isLocal: true,
       })),
     ].sort((a, b) => b.date.getTime() - a.date.getTime());
@@ -460,33 +465,114 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
             <Clock className="w-3.5 h-3.5" />
             Historique des heures
           </h3>
-          <span className="text-sm font-bold text-primary">{formatMinutesToHM(totalMin)} total</span>
+          <div className="flex items-center gap-2">
+            {isReportFinished && !isAdmin && (
+              <span className="text-[9px] bg-muted text-muted-foreground px-1.5 py-0.5 rounded-full flex items-center gap-1">
+                <Lock className="w-2.5 h-2.5" /> Verrouillé
+              </span>
+            )}
+            <span className="text-sm font-bold text-primary">{formatMinutesToHM(totalMin)} total</span>
+          </div>
         </div>
         <div className="divide-y divide-border/30 max-h-64 overflow-y-auto">
-          {allEntries.map((entry) => (
-            <div key={entry.key} className="flex items-center justify-between px-4 py-2.5">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-medium">
-                    {entry.date.toLocaleDateString('fr-CH', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
-                  </span>
-                  <span className="text-[10px] text-muted-foreground">
-                    à {entry.date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
-                  </span>
-                  {entry.isLocal && (
-                    <span className="text-[9px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">nouveau</span>
+          {allEntries.map((entry) => {
+            const isOwnEntry = entry.workerId === currentUserId;
+            const canEdit = isAdmin || (isOwnEntry && !isReportFinished && !isLocked);
+            const isEditing = editingHourId === entry.key;
+
+            return (
+              <div key={entry.key} className="flex items-center justify-between px-4 py-2.5 group">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium">
+                      {entry.date.toLocaleDateString('fr-CH', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
+                    </span>
+                    <span className="text-[10px] text-muted-foreground">
+                      à {entry.date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                    {entry.isLocal && (
+                      <span className="text-[9px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">nouveau</span>
+                    )}
+                  </div>
+                  {entry.comment && (
+                    <p className="text-[10px] text-muted-foreground truncate mt-0.5">{entry.comment}</p>
                   )}
                 </div>
-                {entry.comment && (
-                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">{entry.comment}</p>
-                )}
+                <div className="flex items-center gap-2 shrink-0 ml-2">
+                  {isEditing ? (
+                    <div className="flex items-center gap-1">
+                      <Input
+                        type="text"
+                        value={editHoursValue}
+                        onChange={(e) => setEditHoursValue(e.target.value)}
+                        className="h-7 w-16 text-xs text-center"
+                        placeholder="2h30"
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            const mins = parseHMToMinutes(editHoursValue);
+                            if (mins && mins > 0) handleEditHours(entry.key, mins);
+                          }
+                          if (e.key === 'Escape') { setEditingHourId(null); setEditHoursValue(''); }
+                        }}
+                      />
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => {
+                          const mins = parseHMToMinutes(editHoursValue);
+                          if (mins && mins > 0) handleEditHours(entry.key, mins);
+                        }}
+                      >
+                        <Check className="w-3.5 h-3.5 text-primary" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => { setEditingHourId(null); setEditHoursValue(''); }}
+                      >
+                        <X className="w-3.5 h-3.5 text-muted-foreground" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="text-right">
+                        <p className="text-sm font-bold">{formatMinutesToHM(entry.minutes)}</p>
+                        <p className="text-[10px] text-muted-foreground">{entry.worker}</p>
+                      </div>
+                      {canEdit && (
+                        <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-7 w-7 p-0"
+                            onClick={() => {
+                              setEditingHourId(entry.key);
+                              setEditHoursValue(formatMinutesToHM(entry.minutes));
+                            }}
+                          >
+                            <Pencil className="w-3 h-3 text-muted-foreground" />
+                          </Button>
+                          {entry.isLocal && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-7 w-7 p-0"
+                              onClick={() => handleDeleteHours(entry.key, entry.worker)}
+                            >
+                              <Trash2 className="w-3 h-3 text-destructive" />
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
-              <div className="text-right shrink-0 ml-2">
-                <p className="text-sm font-bold">{formatMinutesToHM(entry.minutes)}</p>
-                <p className="text-[10px] text-muted-foreground">{entry.worker}</p>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     );
