@@ -38,6 +38,7 @@ export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectio
   const [newNote, setNewNote] = React.useState('');
   const [hoursInput, setHoursInput] = React.useState('');
   const [isAddingHours, setIsAddingHours] = React.useState(false);
+  const [localHoursLog, setLocalHoursLog] = React.useState<Array<{date: string; minutes: number; comment: string; worker: string}>>([]);
   
   const notesKey = `intervention_notes_${intervention.id}`;
   
@@ -74,6 +75,15 @@ export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectio
 
   const settings = getHoursSettings();
   const totalInterventionHours = intervention.hours.reduce((acc, h) => acc + (h.durationHours || 0), 0);
+
+  // Load local hours log
+  React.useEffect(() => {
+    const hoursLogKey = `intervention_hours_log_${intervention.id}`;
+    try {
+      const log = JSON.parse(localStorage.getItem(hoursLogKey) || '[]');
+      setLocalHoursLog(log);
+    } catch {}
+  }, [intervention.id]);
 
   // Load notes on mount and listen for updates
   React.useEffect(() => {
@@ -151,17 +161,38 @@ export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectio
       const endTime = new Date(now.getTime() + minutes * 60 * 1000);
       const noteText = newNote.trim() || 'Saisie depuis rapport';
       
+      const comment = `${noteText} (${formatMinutesToHM(minutes)})`;
+      
+      // Save hours entry to local log for display
+      const hoursLogKey = `intervention_hours_log_${intervention.id}`;
+      const existingLog = JSON.parse(localStorage.getItem(hoursLogKey) || '[]');
+      existingLog.push({
+        date: now.toISOString(),
+        minutes,
+        comment: noteText,
+        worker: workerName,
+      });
+      localStorage.setItem(hoursLogKey, JSON.stringify(existingLog));
+      setLocalHoursLog([...existingLog]);
+      
       await addManualHours(intervention.id, {
         dateStart: now.toISOString(),
         dateEnd: endTime.toISOString(),
         workType: intervention.type,
-        comment: `${noteText} (${formatMinutesToHM(minutes)})`,
+        comment,
       });
       
       toast.success(`${formatMinutesToHM(minutes)} ajoutées à l'intervention`);
       setHoursInput('');
-      onUpdate?.();
-    } catch {
+      
+      // Refresh without crashing - catch errors silently
+      try {
+        onUpdate?.();
+      } catch (e) {
+        console.warn('[Report] onUpdate failed, staying on page:', e);
+      }
+    } catch (err) {
+      console.error('[Report] addHours error:', err);
       toast.error("Erreur lors de l'ajout des heures");
     } finally {
       setIsAddingHours(false);
@@ -275,9 +306,35 @@ export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectio
     </div>
   );
 
-  // Hours history summary
+  // Hours history summary - merge API hours + local log
   const HoursSummary = () => {
-    if (intervention.hours.length === 0) return null;
+    // Build combined list: API hours + local entries not yet in API
+    const apiDates = new Set(intervention.hours.map(h => h.dateStart));
+    const localOnly = localHoursLog.filter(l => !apiDates.has(l.date));
+    
+    const allEntries = [
+      ...intervention.hours.map(h => ({
+        key: `api-${h.id}`,
+        date: new Date(h.dateStart),
+        minutes: Math.round((h.durationHours || 0) * 60),
+        comment: h.comment || '',
+        worker: h.userName || '',
+        isLocal: false,
+      })),
+      ...localOnly.map((l, i) => ({
+        key: `local-${i}`,
+        date: new Date(l.date),
+        minutes: l.minutes,
+        comment: l.comment,
+        worker: l.worker,
+        isLocal: true,
+      })),
+    ].sort((a, b) => b.date.getTime() - a.date.getTime());
+
+    if (allEntries.length === 0) return null;
+
+    const totalMin = allEntries.reduce((acc, e) => acc + e.minutes, 0);
+
     return (
       <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
         <div className="px-4 py-2.5 border-b border-border/40 bg-muted/30 flex items-center justify-between">
@@ -285,27 +342,30 @@ export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectio
             <Clock className="w-3.5 h-3.5" />
             Historique des heures
           </h3>
-          <span className="text-sm font-bold text-primary">{formatDuration(totalInterventionHours)} total</span>
+          <span className="text-sm font-bold text-primary">{formatMinutesToHM(totalMin)} total</span>
         </div>
-        <div className="divide-y divide-border/30 max-h-48 overflow-y-auto">
-          {intervention.hours.map((hour) => (
-            <div key={hour.id} className="flex items-center justify-between px-4 py-2">
+        <div className="divide-y divide-border/30 max-h-64 overflow-y-auto">
+          {allEntries.map((entry) => (
+            <div key={entry.key} className="flex items-center justify-between px-4 py-2.5">
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2">
                   <span className="text-xs font-medium">
-                    {new Date(hour.dateStart).toLocaleDateString('fr-CH', { day: '2-digit', month: '2-digit' })}
+                    {entry.date.toLocaleDateString('fr-CH', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
                   </span>
                   <span className="text-[10px] text-muted-foreground">
-                    {new Date(hour.dateStart).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
+                    à {entry.date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
                   </span>
+                  {entry.isLocal && (
+                    <span className="text-[9px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">nouveau</span>
+                  )}
                 </div>
-                {hour.comment && (
-                  <p className="text-[10px] text-muted-foreground truncate">{hour.comment}</p>
+                {entry.comment && (
+                  <p className="text-[10px] text-muted-foreground truncate mt-0.5">{entry.comment}</p>
                 )}
               </div>
               <div className="text-right shrink-0 ml-2">
-                <p className="text-sm font-bold">{formatDuration(hour.durationHours || 0)}</p>
-                <p className="text-[10px] text-muted-foreground">{hour.userName}</p>
+                <p className="text-sm font-bold">{formatMinutesToHM(entry.minutes)}</p>
+                <p className="text-[10px] text-muted-foreground">{entry.worker}</p>
               </div>
             </div>
           ))}
