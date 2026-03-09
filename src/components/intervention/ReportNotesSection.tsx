@@ -217,6 +217,9 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
 
   return (
     <div className="space-y-4">
+      {/* Write note input */}
+      {!isLocked && <WriteNoteInput />}
+      
       {/* Header with actions */}
       <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
         <div className="flex items-center justify-between mb-4">
