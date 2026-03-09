@@ -46,6 +46,8 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
   const [transcribingId, setTranscribingId] = React.useState<number | null>(null);
   const [transcriptions, setTranscriptions] = React.useState<Record<number, string>>({});
   const [copiedId, setCopiedId] = React.useState<number | null>(null);
+  const [manualText, setManualText] = React.useState('');
+  const [showManualInput, setShowManualInput] = React.useState(false);
   
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
