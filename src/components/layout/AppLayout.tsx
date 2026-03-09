@@ -14,7 +14,7 @@ export function AppLayout() {
       {/* Main Content */}
       <div className="flex-1 flex flex-col max-w-full lg:max-w-none">
         {/* Mobile: max-w-lg centered, Desktop: full width */}
-        <main className="flex-1 pb-20 lg:pb-4 w-full max-w-lg mx-auto lg:max-w-none">
+        <main className="flex-1 pb-20 lg:pb-4 w-full max-w-lg mx-auto lg:max-w-none overflow-x-hidden">
           <Outlet />
         </main>
         
