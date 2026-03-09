@@ -151,10 +151,10 @@ export default function DashboardPage() {
   };
 
   return (
-    <div className="pb-2">
+    <div className="pb-2 overflow-x-hidden max-w-full">
       <Header title="ENES Électricité" showNotifications />
 
-      <div className="px-3 lg:px-6 space-y-3">
+      <div className="px-3 lg:px-6 space-y-3 overflow-x-hidden">
         {/* Welcome Section - Compact */}
         <div className="pt-2">
           <div className="flex items-center justify-between">
