@@ -151,17 +151,37 @@ export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectio
       const endTime = new Date(now.getTime() + minutes * 60 * 1000);
       const noteText = newNote.trim() || 'Saisie depuis rapport';
       
+      const comment = `${noteText} (${formatMinutesToHM(minutes)})`;
+      
+      // Save hours entry to local log for display
+      const hoursLogKey = `intervention_hours_log_${intervention.id}`;
+      const existingLog = JSON.parse(localStorage.getItem(hoursLogKey) || '[]');
+      existingLog.push({
+        date: now.toISOString(),
+        minutes,
+        comment: noteText,
+        worker: workerName,
+      });
+      localStorage.setItem(hoursLogKey, JSON.stringify(existingLog));
+      
       await addManualHours(intervention.id, {
         dateStart: now.toISOString(),
         dateEnd: endTime.toISOString(),
         workType: intervention.type,
-        comment: `${noteText} (${formatMinutesToHM(minutes)})`,
+        comment,
       });
       
       toast.success(`${formatMinutesToHM(minutes)} ajoutées à l'intervention`);
       setHoursInput('');
-      onUpdate?.();
-    } catch {
+      
+      // Refresh without crashing - catch errors silently
+      try {
+        onUpdate?.();
+      } catch (e) {
+        console.warn('[Report] onUpdate failed, staying on page:', e);
+      }
+    } catch (err) {
+      console.error('[Report] addHours error:', err);
       toast.error("Erreur lors de l'ajout des heures");
     } finally {
       setIsAddingHours(false);
