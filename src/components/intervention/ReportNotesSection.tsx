@@ -565,7 +565,6 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
                     <>
                       <div className="text-right">
                         <p className="text-sm font-bold">{formatMinutesToHM(entry.minutes)}</p>
-                        <p className="text-[10px] text-muted-foreground">{entry.worker}</p>
                       </div>
                       {canEdit && (
                         <div className="flex gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
