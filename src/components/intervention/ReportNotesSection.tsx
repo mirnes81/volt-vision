@@ -502,16 +502,22 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
             return (
               <div key={entry.key} className="flex items-center justify-between px-4 py-2.5 group">
                 <div className="min-w-0 flex-1">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-full font-medium flex items-center gap-1">
+                      <User className="w-2.5 h-2.5" />
+                      {entry.worker}
+                    </span>
+                    {entry.isLocal && (
+                      <span className="text-[9px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">nouveau</span>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-2 mt-1">
                     <span className="text-xs font-medium">
                       {entry.date.toLocaleDateString('fr-CH', { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric' })}
                     </span>
                     <span className="text-[10px] text-muted-foreground">
                       à {entry.date.toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
                     </span>
-                    {entry.isLocal && (
-                      <span className="text-[9px] bg-accent text-accent-foreground px-1.5 py-0.5 rounded-full">nouveau</span>
-                    )}
                   </div>
                   {entry.comment && (
                     <p className="text-[10px] text-muted-foreground truncate mt-0.5">{entry.comment}</p>
