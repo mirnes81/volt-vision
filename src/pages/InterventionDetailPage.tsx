@@ -201,6 +201,7 @@ export default function InterventionDetailPage() {
       }
     } catch (error) {
       console.error('[InterventionDetail] handleUpdate error:', error);
+      // Don't rethrow - prevent page crash
     }
   };
 
