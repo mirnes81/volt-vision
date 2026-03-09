@@ -173,6 +173,7 @@ export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectio
         worker: workerName,
       });
       localStorage.setItem(hoursLogKey, JSON.stringify(existingLog));
+      setLocalHoursLog([...existingLog]);
       
       await addManualHours(intervention.id, {
         dateStart: now.toISOString(),
