@@ -317,8 +317,8 @@ export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectio
   if (!notes) {
     return (
       <div className="space-y-4">
-        {/* Write note input */}
         {!isLocked && <WriteNoteInput />}
+        <HoursSummary />
         
         <div className="bg-card rounded-2xl p-6 shadow-card border border-border/50 text-center">
           <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
