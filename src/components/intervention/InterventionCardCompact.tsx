@@ -121,7 +121,7 @@ export function InterventionCardCompact({ intervention, supabaseAssignments = []
   return (
     <Link to={`/intervention/${intervention.id}`}>
       <article className={cn(
-        "group relative bg-card rounded-lg p-2 shadow-sm border transition-all duration-200",
+        "group relative bg-card rounded-lg p-2 shadow-sm border transition-all duration-200 overflow-hidden",
         urgent 
           ? "border-destructive/50 hover:border-destructive" 
           : "border-border/50 hover:border-primary/30"
