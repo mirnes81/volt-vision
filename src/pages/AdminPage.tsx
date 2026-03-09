@@ -65,6 +65,14 @@ const adminMenuItems: AdminMenuItem[] = [
     color: 'text-green-500 bg-green-500/10',
   },
   {
+    title: 'Tableau des Heures',
+    description: 'Vue complète des heures par ouvrier avec export PDF',
+    icon: Clock,
+    href: '/admin/hours',
+    badge: 'Nouveau',
+    color: 'text-teal-500 bg-teal-500/10',
+  },
+  {
     title: 'Validation Heures',
     description: 'Valider les heures de travail des employés',
     icon: Clock,
