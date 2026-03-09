@@ -377,11 +377,19 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
         </span>
       </div>
       <Textarea
+        ref={textareaRef}
         value={newNote}
         onChange={(e) => setNewNote(e.target.value)}
         placeholder="Décrivez ce que vous avez fait, les problèmes rencontrés, les observations..."
         className="min-h-[100px] resize-none mb-3"
         disabled={isLocked}
+        enterKeyHint="next"
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && !e.shiftKey) {
+            e.preventDefault();
+            hoursInputRef.current?.focus();
+          }
+        }}
       />
       
       {/* Hours input row */}
@@ -389,13 +397,21 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
         <Clock className="w-4 h-4 text-primary shrink-0" />
         <span className="text-xs font-medium text-muted-foreground shrink-0">Heures</span>
         <Input
+          ref={hoursInputRef}
           type="text"
+          inputMode="decimal"
+          enterKeyHint="send"
           placeholder="Ex: 2h30"
           value={hoursInput}
           onChange={(e) => setHoursInput(e.target.value)}
           className="h-8 text-xs w-20 text-center font-semibold"
           disabled={isLocked || isAddingHours}
-          onKeyDown={(e) => e.key === 'Enter' && hoursInput.trim() && handleAddHours()}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && hoursInput.trim()) {
+              e.preventDefault();
+              handleAddHours();
+            }
+          }}
         />
         {hoursInput.trim() && (
           <Button
