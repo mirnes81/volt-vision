@@ -1,10 +1,13 @@
 import * as React from 'react';
-import { FileText, Trash2, Copy, Check, AlertCircle, Lock, User, Users, Send } from 'lucide-react';
+import { FileText, Trash2, Copy, Check, AlertCircle, Lock, User, Users, Send, Clock, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
+import { Input } from '@/components/ui/input';
 import { Intervention } from '@/types/intervention';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
+import { addManualHours, getCurrentWorker } from '@/lib/api';
+import { parseHMToMinutes, formatMinutesToHM, getHoursSettings, checkDailyLimit } from '@/lib/hoursSettings';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -19,6 +22,7 @@ import {
 
 interface ReportNotesSectionProps {
   intervention: Intervention;
+  onUpdate?: () => void;
 }
 
 interface ParsedNote {
@@ -28,10 +32,12 @@ interface ParsedNote {
   raw: string;
 }
 
-export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
+export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectionProps) {
   const [notes, setNotes] = React.useState<string>('');
   const [copied, setCopied] = React.useState(false);
   const [newNote, setNewNote] = React.useState('');
+  const [hoursInput, setHoursInput] = React.useState('');
+  const [isAddingHours, setIsAddingHours] = React.useState(false);
   
   const notesKey = `intervention_notes_${intervention.id}`;
   
@@ -52,6 +58,23 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
     return 'Ouvrier';
   }, []);
 
+  // Calculate daily total for current worker
+  const dailyTotal = React.useMemo(() => {
+    const worker = getCurrentWorker();
+    if (!worker) return 0;
+    const today = new Date().toISOString().split('T')[0];
+    const todayHours = intervention.hours
+      .filter(h => {
+        const hourDate = h.dateStart.split('T')[0];
+        return hourDate === today && h.userId === worker.id;
+      })
+      .reduce((acc, h) => acc + (h.durationHours || 0), 0);
+    return Math.round(todayHours * 60);
+  }, [intervention.hours]);
+
+  const settings = getHoursSettings();
+  const totalInterventionHours = intervention.hours.reduce((acc, h) => acc + (h.durationHours || 0), 0);
+
   // Load notes on mount and listen for updates
   React.useEffect(() => {
     const loadNotes = () => {
@@ -61,7 +84,6 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
     
     loadNotes();
     
-    // Listen for custom event from VoiceNotesSection
     const handleNotesUpdate = (event: CustomEvent) => {
       if (event.detail.interventionId === intervention.id) {
         setNotes(event.detail.notes);
@@ -70,7 +92,6 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
     
     window.addEventListener('intervention-notes-updated', handleNotesUpdate as EventListener);
     
-    // Also listen for storage changes (cross-tab sync)
     const handleStorage = (e: StorageEvent) => {
       if (e.key === notesKey) {
         setNotes(e.newValue || '');
@@ -88,11 +109,8 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
     if (!newNote.trim() || isLocked) return;
     
     const timestamp = new Date().toLocaleString('fr-CH', {
-      day: '2-digit',
-      month: '2-digit',
-      year: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit'
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
     });
     
     const formattedNote = `[${timestamp}] 👤 ${workerName}\n${newNote.trim()}`;
@@ -102,7 +120,6 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
     setNotes(updatedNotes);
     setNewNote('');
     
-    // Dispatch event to sync with other components
     window.dispatchEvent(new CustomEvent('intervention-notes-updated', {
       detail: { interventionId: intervention.id, notes: updatedNotes }
     }));
@@ -110,16 +127,55 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
     toast.success('Note ajoutée au rapport');
   };
 
+  const handleAddHours = async () => {
+    if (!hoursInput.trim() || isLocked) return;
+    
+    const minutes = parseHMToMinutes(hoursInput);
+    if (minutes === null || minutes <= 0) {
+      toast.error('Format invalide. Ex: 2h30, 2:30 ou 2.5');
+      return;
+    }
+
+    const limitCheck = checkDailyLimit(dailyTotal, minutes, settings);
+    if (!limitCheck.allowed) {
+      toast.error(limitCheck.message);
+      return;
+    }
+    if (limitCheck.warning) {
+      toast.warning(limitCheck.message);
+    }
+
+    setIsAddingHours(true);
+    try {
+      const now = new Date();
+      const endTime = new Date(now.getTime() + minutes * 60 * 1000);
+      const noteText = newNote.trim() || 'Saisie depuis rapport';
+      
+      await addManualHours(intervention.id, {
+        dateStart: now.toISOString(),
+        dateEnd: endTime.toISOString(),
+        workType: intervention.type,
+        comment: `${noteText} (${formatMinutesToHM(minutes)})`,
+      });
+      
+      toast.success(`${formatMinutesToHM(minutes)} ajoutées à l'intervention`);
+      setHoursInput('');
+      onUpdate?.();
+    } catch {
+      toast.error("Erreur lors de l'ajout des heures");
+    } finally {
+      setIsAddingHours(false);
+    }
+  };
+
   const handleCopy = async () => {
     if (!notes) return;
-    
     try {
       await navigator.clipboard.writeText(notes);
       setCopied(true);
       toast.success('Notes copiées dans le presse-papier');
       setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error('Copy error:', error);
+    } catch {
       toast.error('Impossible de copier les notes');
     }
   };
@@ -134,41 +190,31 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
     toast.success('Notes du rapport effacées');
   };
 
-  // Parse notes into individual entries with author info
   const noteEntries = React.useMemo((): ParsedNote[] => {
     if (!notes) return [];
-    
     return notes.split('\n\n').filter(entry => entry.trim()).map(entry => {
-      // Parse format: [timestamp] 👤 AuthorName\nContent
       const timestampMatch = entry.match(/^\[(.+?)\]\s*/);
       const timestamp = timestampMatch ? timestampMatch[1] : null;
-      
       let remaining = timestamp ? entry.replace(timestampMatch[0], '') : entry;
-      
-      // Parse author (👤 Name format)
       const authorMatch = remaining.match(/^👤\s*(.+?)(?:\n|$)/);
       const author = authorMatch ? authorMatch[1].trim() : null;
-      
       const content = author ? remaining.replace(authorMatch[0], '').trim() : remaining.trim();
-      
-      return {
-        timestamp,
-        author,
-        content,
-        raw: entry
-      };
+      return { timestamp, author, content, raw: entry };
     });
   }, [notes]);
 
-  // Get unique authors
   const uniqueAuthors = React.useMemo(() => {
-    const authors = noteEntries
-      .map(n => n.author)
-      .filter((a): a is string => a !== null);
+    const authors = noteEntries.map(n => n.author).filter((a): a is string => a !== null);
     return [...new Set(authors)];
   }, [noteEntries]);
 
-  // Write note input component (always shown unless locked)
+  const formatDuration = (hours: number) => {
+    const h = Math.floor(hours);
+    const m = Math.round((hours - h) * 60);
+    return `${h}h${m.toString().padStart(2, '0')}`;
+  };
+
+  // Write note + hours input component
   const WriteNoteInput = () => (
     <div className="bg-card rounded-2xl p-4 shadow-card border-2 border-primary/30">
       <div className="flex items-center gap-2 mb-3">
@@ -182,9 +228,42 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
         value={newNote}
         onChange={(e) => setNewNote(e.target.value)}
         placeholder="Décrivez ce que vous avez fait, les problèmes rencontrés, les observations..."
-        className="min-h-[120px] resize-none mb-3"
+        className="min-h-[100px] resize-none mb-3"
         disabled={isLocked}
       />
+      
+      {/* Hours input row */}
+      <div className="flex items-center gap-2 mb-3 p-2.5 bg-secondary/50 rounded-xl border border-border/50">
+        <Clock className="w-4 h-4 text-primary shrink-0" />
+        <span className="text-xs font-medium text-muted-foreground shrink-0">Heures</span>
+        <Input
+          type="text"
+          placeholder="Ex: 2h30"
+          value={hoursInput}
+          onChange={(e) => setHoursInput(e.target.value)}
+          className="h-8 text-xs w-20 text-center font-semibold"
+          disabled={isLocked || isAddingHours}
+          onKeyDown={(e) => e.key === 'Enter' && hoursInput.trim() && handleAddHours()}
+        />
+        {hoursInput.trim() && (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleAddHours}
+            disabled={isLocked || isAddingHours}
+            className="h-8 px-2 gap-1 text-xs"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            Ajouter
+          </Button>
+        )}
+        <div className="ml-auto text-right">
+          <p className="text-[10px] text-muted-foreground">
+            Aujourd'hui: {formatMinutesToHM(dailyTotal)}
+          </p>
+        </div>
+      </div>
+
       <Button
         onClick={handleAddNote}
         disabled={!newNote.trim() || isLocked}
@@ -195,6 +274,45 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
       </Button>
     </div>
   );
+
+  // Hours history summary
+  const HoursSummary = () => {
+    if (intervention.hours.length === 0) return null;
+    return (
+      <div className="bg-card rounded-2xl border border-border/50 overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-border/40 bg-muted/30 flex items-center justify-between">
+          <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5" />
+            Historique des heures
+          </h3>
+          <span className="text-sm font-bold text-primary">{formatDuration(totalInterventionHours)} total</span>
+        </div>
+        <div className="divide-y divide-border/30 max-h-48 overflow-y-auto">
+          {intervention.hours.map((hour) => (
+            <div key={hour.id} className="flex items-center justify-between px-4 py-2">
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-medium">
+                    {new Date(hour.dateStart).toLocaleDateString('fr-CH', { day: '2-digit', month: '2-digit' })}
+                  </span>
+                  <span className="text-[10px] text-muted-foreground">
+                    {new Date(hour.dateStart).toLocaleTimeString('fr-CH', { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                </div>
+                {hour.comment && (
+                  <p className="text-[10px] text-muted-foreground truncate">{hour.comment}</p>
+                )}
+              </div>
+              <div className="text-right shrink-0 ml-2">
+                <p className="text-sm font-bold">{formatDuration(hour.durationHours || 0)}</p>
+                <p className="text-[10px] text-muted-foreground">{hour.userName}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  };
 
   if (!notes) {
     return (
