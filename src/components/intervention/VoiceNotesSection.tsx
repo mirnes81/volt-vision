@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2, Copy, Send, Check, Lock } from 'lucide-react';
+import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2, Copy, Send, Check, Lock, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { useLanguage } from '@/contexts/LanguageContext';
