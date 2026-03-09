@@ -310,7 +310,7 @@ export default function InterventionDetailPage() {
       case 'oibt': return <OIBTSection intervention={intervention} onUpdate={handleUpdate} />;
       case 'gps': return <GPSSection intervention={intervention} />;
       case 'voice': return <VoiceNotesSection intervention={intervention} />;
-      case 'report': return <ReportNotesSection intervention={intervention} />;
+      case 'report': return <ReportNotesSection intervention={intervention} onUpdate={handleUpdate} />;
       case 'ai': return <AiSection intervention={intervention} onUpdate={handleUpdate} />;
       case 'history': return <HistorySection intervention={intervention} />;
       case 'stock': return <StockSection />;
