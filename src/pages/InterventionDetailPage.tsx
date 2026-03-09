@@ -471,6 +471,42 @@ export default function InterventionDetailPage() {
         </div>
       )}
 
+      {/* Worker report - quick access */}
+      <div className="bg-card rounded-2xl border-2 border-primary/30 overflow-hidden">
+        <div className="px-4 py-2.5 border-b border-border/40 bg-primary/5">
+          <h3 className="text-xs font-semibold text-primary uppercase tracking-wider flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5" />
+            Rapport de l'ouvrier
+          </h3>
+        </div>
+        <div className="p-3 grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setActiveTab('voice')}
+            className="flex items-center gap-3 p-3 rounded-xl bg-primary/10 border border-primary/20 active:scale-95 transition-transform"
+          >
+            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+              <Mic className="w-5 h-5 text-primary" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold text-primary">Dictée vocale</p>
+              <p className="text-[10px] text-muted-foreground">Parler pour écrire</p>
+            </div>
+          </button>
+          <button
+            onClick={() => setActiveTab('report')}
+            className="flex items-center gap-3 p-3 rounded-xl bg-secondary border border-border/50 active:scale-95 transition-transform"
+          >
+            <div className="w-10 h-10 rounded-xl bg-muted flex items-center justify-center shrink-0">
+              <FileText className="w-5 h-5 text-foreground" />
+            </div>
+            <div className="text-left">
+              <p className="text-sm font-semibold">Écrire un rapport</p>
+              <p className="text-[10px] text-muted-foreground">Saisie manuelle</p>
+            </div>
+          </button>
+        </div>
+      </div>
+
       {/* Quick summary */}
       <div className="grid grid-cols-3 gap-2">
         <button onClick={() => setActiveTab('tasks')}
