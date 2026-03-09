@@ -38,6 +38,7 @@ export function ReportNotesSection({ intervention, onUpdate }: ReportNotesSectio
   const [newNote, setNewNote] = React.useState('');
   const [hoursInput, setHoursInput] = React.useState('');
   const [isAddingHours, setIsAddingHours] = React.useState(false);
+  const [localHoursLog, setLocalHoursLog] = React.useState<Array<{date: string; minutes: number; comment: string; worker: string}>>([]);
   
   const notesKey = `intervention_notes_${intervention.id}`;
   
