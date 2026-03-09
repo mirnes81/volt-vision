@@ -1,5 +1,5 @@
 import * as React from 'react';
-import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2, Copy, Send, Check, Lock } from 'lucide-react';
+import { Mic, Square, Play, Pause, Trash2, MicOff, FileText, Loader2, Copy, Send, Check, Lock, PenLine } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Intervention } from '@/types/intervention';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -46,6 +46,8 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
   const [transcribingId, setTranscribingId] = React.useState<number | null>(null);
   const [transcriptions, setTranscriptions] = React.useState<Record<number, string>>({});
   const [copiedId, setCopiedId] = React.useState<number | null>(null);
+  const [manualText, setManualText] = React.useState('');
+  const [showManualInput, setShowManualInput] = React.useState(false);
   
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
@@ -232,6 +234,25 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
     }
   };
 
+  const handleManualSubmit = () => {
+    if (!manualText.trim() || isLocked) return;
+    
+    const notesKey = `intervention_notes_${intervention.id}`;
+    const existingNotes = localStorage.getItem(notesKey) || '';
+    const timestamp = new Date().toLocaleString('fr-CH');
+    const newNote = `[${timestamp}] 👤 ${workerName}\n${manualText.trim()}`;
+    const updatedNotes = existingNotes ? `${existingNotes}\n\n${newNote}` : newNote;
+    
+    localStorage.setItem(notesKey, updatedNotes);
+    window.dispatchEvent(new CustomEvent('intervention-notes-updated', {
+      detail: { interventionId: intervention.id, notes: updatedNotes }
+    }));
+    
+    setManualText('');
+    setShowManualInput(false);
+    toast.success('✅ Note ajoutée au rapport !');
+  };
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -318,6 +339,57 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
           </>
         )}
       </div>
+
+      {/* Manual text input */}
+      {!isLocked && !isRecording && (
+        <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
+          {showManualInput ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 mb-1">
+                <PenLine className="w-4 h-4 text-primary" />
+                <span className="text-sm font-semibold">Écrire une note</span>
+                <span className="text-xs text-muted-foreground">👤 {workerName}</span>
+              </div>
+              <textarea
+                value={manualText}
+                onChange={(e) => setManualText(e.target.value)}
+                placeholder="Décrivez les travaux effectués, observations, remarques..."
+                className="flex min-h-[100px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                autoFocus
+              />
+              <div className="flex gap-2">
+                <Button
+                  variant="worker"
+                  size="sm"
+                  onClick={handleManualSubmit}
+                  disabled={!manualText.trim()}
+                  className="gap-2 flex-1"
+                >
+                  <Send className="w-4 h-4" />
+                  Ajouter au rapport
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => { setShowManualInput(false); setManualText(''); }}
+                >
+                  Annuler
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="outline"
+              size="full"
+              onClick={() => setShowManualInput(true)}
+              className="gap-2 h-12"
+            >
+              <PenLine className="w-5 h-5" />
+              ✍️ Écrire une note manuellement
+            </Button>
+          )}
+        </div>
+      )}
 
       {/* Voice Notes List */}
       <div className="space-y-2">
