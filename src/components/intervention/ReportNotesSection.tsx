@@ -1,6 +1,7 @@
 import * as React from 'react';
-import { FileText, Trash2, Copy, Check, AlertCircle, Lock, User, Users } from 'lucide-react';
+import { FileText, Trash2, Copy, Check, AlertCircle, Lock, User, Users, Send } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { Intervention } from '@/types/intervention';
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
@@ -30,11 +31,26 @@ interface ParsedNote {
 export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
   const [notes, setNotes] = React.useState<string>('');
   const [copied, setCopied] = React.useState(false);
+  const [newNote, setNewNote] = React.useState('');
   
   const notesKey = `intervention_notes_${intervention.id}`;
   
   // Check if intervention is locked (already invoiced)
   const isLocked = intervention.status === 'facture';
+
+  // Get current worker name
+  const workerName = React.useMemo(() => {
+    try {
+      const workerData = localStorage.getItem('mv3_worker') || localStorage.getItem('worker');
+      if (workerData) {
+        const worker = JSON.parse(workerData);
+        return worker.firstName && worker.name 
+          ? `${worker.firstName} ${worker.name}`.trim()
+          : worker.name || worker.login || 'Ouvrier';
+      }
+    } catch {}
+    return 'Ouvrier';
+  }, []);
 
   // Load notes on mount and listen for updates
   React.useEffect(() => {
@@ -67,6 +83,32 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
       window.removeEventListener('storage', handleStorage);
     };
   }, [intervention.id, notesKey]);
+
+  const handleAddNote = () => {
+    if (!newNote.trim() || isLocked) return;
+    
+    const timestamp = new Date().toLocaleString('fr-CH', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+    
+    const formattedNote = `[${timestamp}] 👤 ${workerName}\n${newNote.trim()}`;
+    const updatedNotes = notes ? `${notes}\n\n${formattedNote}` : formattedNote;
+    
+    localStorage.setItem(notesKey, updatedNotes);
+    setNotes(updatedNotes);
+    setNewNote('');
+    
+    // Dispatch event to sync with other components
+    window.dispatchEvent(new CustomEvent('intervention-notes-updated', {
+      detail: { interventionId: intervention.id, notes: updatedNotes }
+    }));
+    
+    toast.success('Note ajoutée au rapport');
+  };
 
   const handleCopy = async () => {
     if (!notes) return;
@@ -126,22 +168,48 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
     return [...new Set(authors)];
   }, [noteEntries]);
 
+  // Write note input component (always shown unless locked)
+  const WriteNoteInput = () => (
+    <div className="bg-card rounded-2xl p-4 shadow-card border-2 border-primary/30">
+      <div className="flex items-center gap-2 mb-3">
+        <FileText className="w-5 h-5 text-primary" />
+        <h3 className="font-semibold">Écrire une note</h3>
+        <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded-full ml-auto">
+          {workerName}
+        </span>
+      </div>
+      <Textarea
+        value={newNote}
+        onChange={(e) => setNewNote(e.target.value)}
+        placeholder="Décrivez ce que vous avez fait, les problèmes rencontrés, les observations..."
+        className="min-h-[120px] resize-none mb-3"
+        disabled={isLocked}
+      />
+      <Button
+        onClick={handleAddNote}
+        disabled={!newNote.trim() || isLocked}
+        className="w-full gap-2"
+      >
+        <Send className="w-4 h-4" />
+        Ajouter au rapport
+      </Button>
+    </div>
+  );
+
   if (!notes) {
     return (
       <div className="space-y-4">
+        {/* Write note input */}
+        {!isLocked && <WriteNoteInput />}
+        
         <div className="bg-card rounded-2xl p-6 shadow-card border border-border/50 text-center">
           <div className="w-16 h-16 rounded-full bg-muted/50 flex items-center justify-center mx-auto mb-4">
             <FileText className="w-8 h-8 text-muted-foreground" />
           </div>
           <h3 className="font-semibold text-lg mb-2">Aucune note de rapport</h3>
           <p className="text-sm text-muted-foreground">
-            Les transcriptions vocales ajoutées depuis l'onglet "Notes vocales" apparaîtront ici.
+            Écrivez votre première note ci-dessus ou utilisez la dictée vocale depuis l'onglet "Notes".
           </p>
-          {!isLocked && (
-            <p className="text-xs text-muted-foreground mt-2">
-              Plusieurs ouvriers peuvent ajouter des notes tant que l'intervention n'est pas facturée.
-            </p>
-          )}
         </div>
       </div>
     );
@@ -149,6 +217,9 @@ export function ReportNotesSection({ intervention }: ReportNotesSectionProps) {
 
   return (
     <div className="space-y-4">
+      {/* Write note input */}
+      {!isLocked && <WriteNoteInput />}
+      
       {/* Header with actions */}
       <div className="bg-card rounded-2xl p-4 shadow-card border border-border/50">
         <div className="flex items-center justify-between mb-4">
