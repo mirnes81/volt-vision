@@ -28,6 +28,7 @@ import EmergenciesPage from "./pages/EmergenciesPage";
 import CatalogsPage from "./pages/CatalogsPage";
 import VoucherScanPage from "./pages/VoucherScanPage";
 import AdminPage from "./pages/AdminPage";
+import AdminHoursPage from "./pages/AdminHoursPage";
 import TVDisplayPage from "./pages/TVDisplayPage";
 import TakeInterventionPage from "./pages/TakeInterventionPage";
 import NotFound from "./pages/NotFound";
@@ -72,6 +73,7 @@ const AppRoutes = () => (
       <Route path="/catalogs" element={<CatalogsPage />} />
       <Route path="/voucher-scan" element={<VoucherScanPage />} />
       <Route path="/admin" element={<AdminPage />} />
+      <Route path="/admin/hours" element={<AdminHoursPage />} />
       <Route path="/profile" element={<ProfilePage />} />
       <Route path="/settings" element={<SettingsPage />} />
     </Route>
