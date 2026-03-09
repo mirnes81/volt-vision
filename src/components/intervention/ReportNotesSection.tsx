@@ -581,7 +581,7 @@ export function ReportNotesSection({ intervention, onUpdate, isAdmin = false }: 
   if (!notes) {
     return (
       <div className="space-y-4">
-        {!isLocked && <WriteNoteInput />}
+        {canEditHours && !isLocked && <WriteNoteInput />}
         <HoursSummary />
         
         <div className="bg-card rounded-2xl p-6 shadow-card border border-border/50 text-center">
