@@ -312,9 +312,9 @@ serve(async (req) => {
         endpoint = '/users/info';
         break;
 
-      // Thirdparties (Clients)
+      // Thirdparties (Clients) - Always fetch ALL, filtering is done client-side
       case 'get-thirdparties':
-        endpoint = '/thirdparties' + (params?.search ? `?sqlfilters=(t.nom:like:'%${params.search}%')&limit=50` : '?limit=100');
+        endpoint = '/thirdparties?limit=500&sortfield=nom&sortorder=ASC';
         break;
       case 'get-thirdparty':
         endpoint = `/thirdparties/${params.id}`;
