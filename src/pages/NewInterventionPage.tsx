@@ -56,6 +56,8 @@ export default function NewInterventionPage() {
   const [canvasRef, setCanvasRef] = React.useState<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = React.useState(false);
 
+  const [showConfirmCreate, setShowConfirmCreate] = React.useState(false);
+
   const [allClients, setAllClients] = React.useState<Client[]>([]);
   const [isLoadingClients, setIsLoadingClients] = React.useState(true);
   const [clientLoadError, setClientLoadError] = React.useState(false);
