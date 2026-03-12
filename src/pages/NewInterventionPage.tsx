@@ -57,23 +57,28 @@ export default function NewInterventionPage() {
 
   const [allClients, setAllClients] = React.useState<Client[]>([]);
   const [isLoadingClients, setIsLoadingClients] = React.useState(true);
+  const [clientLoadError, setClientLoadError] = React.useState(false);
 
   // Load ALL clients once on mount (avoids WAF-blocked search queries)
-  React.useEffect(() => {
-    const loadAllClients = async () => {
-      setIsLoadingClients(true);
-      try {
-        const result = await getClients();
-        setAllClients(result);
-        setClients(result);
-      } catch (error) {
-        console.error('Erreur chargement clients:', error);
-      } finally {
-        setIsLoadingClients(false);
-      }
-    };
-    loadAllClients();
+  const loadAllClients = React.useCallback(async () => {
+    setIsLoadingClients(true);
+    setClientLoadError(false);
+    try {
+      const result = await getClients();
+      console.log('[NewIntervention] Loaded', result.length, 'clients');
+      setAllClients(result);
+    } catch (error) {
+      console.error('Erreur chargement clients:', error);
+      setClientLoadError(true);
+      toast.error('Impossible de charger les clients');
+    } finally {
+      setIsLoadingClients(false);
+    }
   }, []);
+
+  React.useEffect(() => {
+    loadAllClients();
+  }, [loadAllClients]);
 
   // Filter clients locally based on search input (letter by letter)
   React.useEffect(() => {
