@@ -603,7 +603,8 @@ serve(async (req) => {
           description: params.label,
           note_public: params.description || '',
           fk_statut: 0,
-          fk_project: params.projectId || null,
+          // Dolibarr requires the field to be present with a numeric value
+          fk_project: Number.isFinite(Number(params.projectId)) ? Number(params.projectId) : 0,
         });
         break;
       case 'update-intervention': {
