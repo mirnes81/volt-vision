@@ -75,10 +75,10 @@ export default function NewInterventionPage() {
     loadAllClients();
   }, []);
 
-  // Filter clients locally based on search input
+  // Filter clients locally based on search input (letter by letter)
   React.useEffect(() => {
     if (!clientSearch.trim()) {
-      setClients(allClients);
+      setClients([]);
       return;
     }
     const search = clientSearch.toLowerCase();
