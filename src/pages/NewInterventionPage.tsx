@@ -57,23 +57,28 @@ export default function NewInterventionPage() {
 
   const [allClients, setAllClients] = React.useState<Client[]>([]);
   const [isLoadingClients, setIsLoadingClients] = React.useState(true);
+  const [clientLoadError, setClientLoadError] = React.useState(false);
 
   // Load ALL clients once on mount (avoids WAF-blocked search queries)
-  React.useEffect(() => {
-    const loadAllClients = async () => {
-      setIsLoadingClients(true);
-      try {
-        const result = await getClients();
-        setAllClients(result);
-        setClients(result);
-      } catch (error) {
-        console.error('Erreur chargement clients:', error);
-      } finally {
-        setIsLoadingClients(false);
-      }
-    };
-    loadAllClients();
+  const loadAllClients = React.useCallback(async () => {
+    setIsLoadingClients(true);
+    setClientLoadError(false);
+    try {
+      const result = await getClients();
+      console.log('[NewIntervention] Loaded', result.length, 'clients');
+      setAllClients(result);
+    } catch (error) {
+      console.error('Erreur chargement clients:', error);
+      setClientLoadError(true);
+      toast.error('Impossible de charger les clients');
+    } finally {
+      setIsLoadingClients(false);
+    }
   }, []);
+
+  React.useEffect(() => {
+    loadAllClients();
+  }, [loadAllClients]);
 
   // Filter clients locally based on search input (letter by letter)
   React.useEffect(() => {
@@ -326,7 +331,23 @@ export default function NewInterventionPage() {
               />
               
               {isLoadingClients && (
-                <p className="text-sm text-muted-foreground py-2">Chargement des clients...</p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Chargement des clients...
+                </div>
+              )}
+
+              {clientLoadError && !isLoadingClients && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                  <p className="text-sm text-destructive">Erreur de chargement des clients</p>
+                  <Button size="sm" variant="outline" onClick={loadAllClients}>
+                    Réessayer
+                  </Button>
+                </div>
+              )}
+
+              {!isLoadingClients && !clientLoadError && allClients.length > 0 && (
+                <p className="text-xs text-muted-foreground">{allClients.length} clients disponibles</p>
               )}
 
               {clientSearch.trim().length > 0 && clients.length > 0 && !selectedClient && (
