@@ -329,13 +329,14 @@ export default function NewInterventionPage() {
                 <p className="text-sm text-muted-foreground py-2">Chargement des clients...</p>
               )}
 
-              {clients.length > 0 && !selectedClient && (
+              {clientSearch.trim().length > 0 && clients.length > 0 && !selectedClient && (
                 <div className="max-h-60 overflow-y-auto space-y-1 border border-border/50 rounded-xl p-1">
-                  {clients.slice(0, 50).map((client) => (
+                  {clients.map((client) => (
                     <button
                       key={client.id}
                       onClick={() => {
                         setSelectedClient(client);
+                        setClientSearch('');
                         setLocation(`${client.address || ''}, ${client.zip || ''} ${client.town || ''}`);
                       }}
                       className="w-full text-left p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
@@ -344,15 +345,10 @@ export default function NewInterventionPage() {
                       <p className="text-xs text-muted-foreground truncate">{client.address}, {client.zip} {client.town}</p>
                     </button>
                   ))}
-                  {clients.length > 50 && (
-                    <p className="text-xs text-muted-foreground text-center py-1">
-                      {clients.length - 50} clients supplémentaires — affinez la recherche
-                    </p>
-                  )}
                 </div>
               )}
 
-              {!isLoadingClients && clients.length === 0 && clientSearch.length > 0 && (
+              {!isLoadingClients && clients.length === 0 && clientSearch.trim().length > 0 && (
                 <p className="text-sm text-muted-foreground py-2">Aucun client trouvé pour "{clientSearch}"</p>
               )}
 
