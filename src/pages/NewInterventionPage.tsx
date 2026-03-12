@@ -225,26 +225,8 @@ export default function NewInterventionPage() {
     }
 
     if (step === 1) {
-      // Create intervention
-      setIsLoading(true);
-      try {
-        const result = await createIntervention({
-          clientId: selectedClient!.id,
-          label,
-          location: location || `${selectedClient!.address}, ${selectedClient!.zip} ${selectedClient!.town}`,
-          type: interventionType,
-          priority: priority === 'urgent' ? 1 : 0,
-          description,
-        });
-        setCreatedInterventionId(result.id);
-        toast.success('Intervention créée: ' + result.ref);
-        setStep(2);
-      } catch (error) {
-        toast.error('Erreur création intervention');
-        console.error(error);
-      } finally {
-        setIsLoading(false);
-      }
+      // Show confirmation dialog before creating
+      setShowConfirmCreate(true);
       return;
     }
 
