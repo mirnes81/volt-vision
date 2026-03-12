@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { toast } from '@/components/ui/sonner';
 import { cn } from '@/lib/utils';
 import { createIntervention, getClients, uploadPhoto, saveSignature, generatePdf, sendInterventionEmail } from '@/lib/api';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 
 interface Client {
   id: number;
