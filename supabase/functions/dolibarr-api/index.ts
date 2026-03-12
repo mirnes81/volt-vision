@@ -132,6 +132,46 @@ serve(async (req) => {
       return usersMap;
     }
 
+    // Helper to fetch ALL thirdparties (paginated) without SQL filters (WAF-safe)
+    async function fetchAllThirdparties(): Promise<any[]> {
+      const pageSize = 500;
+      const maxPages = 40;
+      const allClients: any[] = [];
+      const seenIds = new Set<string>();
+
+      for (let page = 0; page < maxPages; page++) {
+        const url = `${baseUrl}/thirdparties?limit=${pageSize}&page=${page}&sortfield=nom&sortorder=ASC`;
+        const response = await fetchWithTimeout(url, { method: 'GET', headers }, 20000);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(`Erreur chargement clients page ${page}: ${response.status} ${errorText}`);
+        }
+
+        const pageData = await response.json();
+        if (!Array.isArray(pageData) || pageData.length === 0) {
+          break;
+        }
+
+        let addedCount = 0;
+        pageData.forEach((client: any, index: number) => {
+          const id = String(client?.id ?? `page-${page}-index-${index}`);
+          if (!seenIds.has(id)) {
+            seenIds.add(id);
+            allClients.push(client);
+            addedCount += 1;
+          }
+        });
+
+        // Stop if API repeats the same page or if this is the last page
+        if (addedCount === 0 || pageData.length < pageSize) {
+          break;
+        }
+      }
+
+      return allClients;
+    }
+
     // Helper to get cached clients
     async function getCachedClients(): Promise<Map<string, any>> {
       const now = Date.now();
@@ -141,29 +181,26 @@ serve(async (req) => {
       
       const clientsMap = new Map();
       try {
-        const response = await fetchWithTimeout(`${baseUrl}/thirdparties?limit=1000`, { method: 'GET', headers }, 15000);
-        if (response.ok) {
-          const clientsData = await response.json();
-          if (Array.isArray(clientsData)) {
-            clientsData.forEach((c: any) => {
-              const extrafields = c.array_options || c.extrafields || {};
-              clientsMap.set(String(c.id), {
-                id: parseInt(c.id),
-                name: c.name || c.nom || '',
-                address: c.address || '',
-                zip: c.zip || '',
-                town: c.town || '',
-                phone: c.phone || '',
-                email: c.email || '',
-                extrafields: extrafields,
-                ref_client: c.ref_client || c.code_client || extrafields.options_ref_client || '',
-                contact_name: extrafields.options_contact_name || extrafields.options_contact || '',
-                intercom: extrafields.options_intercom || extrafields.options_code_intercom || '',
-                access_code: extrafields.options_code_acces || extrafields.options_access_code || '',
-                notes: c.note_public || c.note_private || '',
-              });
+        const clientsData = await fetchAllThirdparties();
+        if (Array.isArray(clientsData)) {
+          clientsData.forEach((c: any) => {
+            const extrafields = c.array_options || c.extrafields || {};
+            clientsMap.set(String(c.id), {
+              id: parseInt(c.id),
+              name: c.name || c.nom || '',
+              address: c.address || '',
+              zip: c.zip || '',
+              town: c.town || '',
+              phone: c.phone || '',
+              email: c.email || '',
+              extrafields: extrafields,
+              ref_client: c.ref_client || c.code_client || extrafields.options_ref_client || '',
+              contact_name: extrafields.options_contact_name || extrafields.options_contact || '',
+              intercom: extrafields.options_intercom || extrafields.options_code_intercom || '',
+              access_code: extrafields.options_code_acces || extrafields.options_access_code || '',
+              notes: c.note_public || c.note_private || '',
             });
-          }
+          });
         }
       } catch (e) {
         console.error('Could not fetch thirdparties:', e);
