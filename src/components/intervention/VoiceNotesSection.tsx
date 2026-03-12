@@ -52,7 +52,7 @@ export function VoiceNotesSection({ intervention }: VoiceNotesSectionProps) {
   const mediaRecorderRef = React.useRef<MediaRecorder | null>(null);
   const audioChunksRef = React.useRef<Blob[]>([]);
   const audioRef = React.useRef<HTMLAudioElement | null>(null);
-  const timerRef = React.useRef<NodeJS.Timeout | null>(null);
+  const timerRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   const isLocked = intervention.status === 'facture';
   const workerName = worker ? `${worker.firstName} ${worker.name}`.trim() || worker.login : 'Anonyme';

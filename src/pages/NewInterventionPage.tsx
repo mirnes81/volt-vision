@@ -55,27 +55,41 @@ export default function NewInterventionPage() {
   const [canvasRef, setCanvasRef] = React.useState<HTMLCanvasElement | null>(null);
   const [isDrawing, setIsDrawing] = React.useState(false);
 
+  const [allClients, setAllClients] = React.useState<Client[]>([]);
+  const [isLoadingClients, setIsLoadingClients] = React.useState(true);
+
+  // Load ALL clients once on mount (avoids WAF-blocked search queries)
   React.useEffect(() => {
-    loadClients();
+    const loadAllClients = async () => {
+      setIsLoadingClients(true);
+      try {
+        const result = await getClients();
+        setAllClients(result);
+        setClients(result);
+      } catch (error) {
+        console.error('Erreur chargement clients:', error);
+      } finally {
+        setIsLoadingClients(false);
+      }
+    };
+    loadAllClients();
   }, []);
 
-  const loadClients = async (search?: string) => {
-    try {
-      const result = await getClients(search);
-      setClients(result);
-    } catch (error) {
-      console.error('Erreur chargement clients:', error);
-    }
-  };
-
+  // Filter clients locally based on search input
   React.useEffect(() => {
-    const debounce = setTimeout(() => {
-      if (clientSearch.length >= 2) {
-        loadClients(clientSearch);
-      }
-    }, 300);
-    return () => clearTimeout(debounce);
-  }, [clientSearch]);
+    if (!clientSearch.trim()) {
+      setClients(allClients);
+      return;
+    }
+    const search = clientSearch.toLowerCase();
+    const filtered = allClients.filter(c =>
+      c.name.toLowerCase().includes(search) ||
+      (c.address && c.address.toLowerCase().includes(search)) ||
+      (c.town && c.town.toLowerCase().includes(search)) ||
+      (c.zip && c.zip.toLowerCase().includes(search))
+    );
+    setClients(filtered);
+  }, [clientSearch, allClients]);
 
   // Signature canvas handlers
   const initCanvas = (canvas: HTMLCanvasElement | null) => {
@@ -311,9 +325,13 @@ export default function NewInterventionPage() {
                 className="mb-3"
               />
               
+              {isLoadingClients && (
+                <p className="text-sm text-muted-foreground py-2">Chargement des clients...</p>
+              )}
+
               {clients.length > 0 && !selectedClient && (
-                <div className="max-h-40 overflow-y-auto space-y-2">
-                  {clients.map((client) => (
+                <div className="max-h-60 overflow-y-auto space-y-1 border border-border/50 rounded-xl p-1">
+                  {clients.slice(0, 50).map((client) => (
                     <button
                       key={client.id}
                       onClick={() => {
@@ -322,11 +340,20 @@ export default function NewInterventionPage() {
                       }}
                       className="w-full text-left p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors"
                     >
-                      <p className="font-medium">{client.name}</p>
-                      <p className="text-xs text-muted-foreground">{client.address}, {client.zip} {client.town}</p>
+                      <p className="font-medium text-sm">{client.name}</p>
+                      <p className="text-xs text-muted-foreground truncate">{client.address}, {client.zip} {client.town}</p>
                     </button>
                   ))}
+                  {clients.length > 50 && (
+                    <p className="text-xs text-muted-foreground text-center py-1">
+                      {clients.length - 50} clients supplémentaires — affinez la recherche
+                    </p>
+                  )}
                 </div>
+              )}
+
+              {!isLoadingClients && clients.length === 0 && clientSearch.length > 0 && (
+                <p className="text-sm text-muted-foreground py-2">Aucun client trouvé pour "{clientSearch}"</p>
               )}
 
               {selectedClient && (
