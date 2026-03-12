@@ -86,13 +86,35 @@ export default function NewInterventionPage() {
       setClients([]);
       return;
     }
-    const search = clientSearch.toLowerCase();
-    const filtered = allClients.filter(c =>
-      c.name.toLowerCase().includes(search) ||
-      (c.address && c.address.toLowerCase().includes(search)) ||
-      (c.town && c.town.toLowerCase().includes(search)) ||
-      (c.zip && c.zip.toLowerCase().includes(search))
-    );
+
+    const normalize = (value: string) =>
+      value
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '');
+
+    const searchNormalized = normalize(clientSearch);
+    const searchTerms = clientSearch
+      .toLowerCase()
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean)
+      .map(normalize);
+
+    const filtered = allClients.filter((c) => {
+      const searchable = normalize([
+        c.name,
+        c.address,
+        c.town,
+        c.zip,
+        c.email,
+      ].filter(Boolean).join(' '));
+
+      if (searchable.includes(searchNormalized)) return true;
+      return searchTerms.every(term => searchable.includes(term));
+    });
+
     setClients(filtered);
   }, [clientSearch, allClients]);
 
