@@ -23,7 +23,7 @@ export function usePendingSync() {
     errors: [],
   });
   const syncInProgress = React.useRef(false);
-  const intervalRef = React.useRef<NodeJS.Timeout | null>(null);
+  const intervalRef = React.useRef<ReturnType<typeof setInterval> | null>(null);
 
   // Load pending count on mount
   const loadPendingCount = React.useCallback(async () => {
