@@ -603,6 +603,7 @@ serve(async (req) => {
           description: params.label,
           note_public: params.description || '',
           fk_statut: 0,
+          fk_project: params.projectId || null,
         });
         break;
       case 'update-intervention': {
