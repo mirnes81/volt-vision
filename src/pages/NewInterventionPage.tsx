@@ -331,7 +331,23 @@ export default function NewInterventionPage() {
               />
               
               {isLoadingClients && (
-                <p className="text-sm text-muted-foreground py-2">Chargement des clients...</p>
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-2">
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Chargement des clients...
+                </div>
+              )}
+
+              {clientLoadError && !isLoadingClients && (
+                <div className="flex items-center justify-between p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                  <p className="text-sm text-destructive">Erreur de chargement des clients</p>
+                  <Button size="sm" variant="outline" onClick={loadAllClients}>
+                    Réessayer
+                  </Button>
+                </div>
+              )}
+
+              {!isLoadingClients && !clientLoadError && allClients.length > 0 && (
+                <p className="text-xs text-muted-foreground">{allClients.length} clients disponibles</p>
               )}
 
               {clientSearch.trim().length > 0 && clients.length > 0 && !selectedClient && (
