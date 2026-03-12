@@ -349,10 +349,26 @@ serve(async (req) => {
         endpoint = '/users/info';
         break;
 
-      // Thirdparties (Clients) - Always fetch ALL, filtering is done client-side
-      case 'get-thirdparties':
-        endpoint = '/thirdparties?limit=500&sortfield=nom&sortorder=ASC';
-        break;
+      // Thirdparties (Clients) - Fetch ALL pages, optional filtering done safely in function
+      case 'get-thirdparties': {
+        const search = String(params?.search || '').trim().toLowerCase();
+        const allClients = await fetchAllThirdparties();
+
+        const filteredClients = search
+          ? allClients.filter((c: any) => {
+              const searchable = [c?.name, c?.nom, c?.address, c?.town, c?.zip, c?.email]
+                .filter(Boolean)
+                .join(' ')
+                .toLowerCase();
+              return searchable.includes(search);
+            })
+          : allClients;
+
+        return new Response(
+          JSON.stringify(filteredClients),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       case 'get-thirdparty':
         endpoint = `/thirdparties/${params.id}`;
         break;
