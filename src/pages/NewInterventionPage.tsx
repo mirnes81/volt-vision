@@ -285,9 +285,59 @@ export default function NewInterventionPage() {
     }
   };
 
+  const confirmCreateIntervention = async () => {
+    setShowConfirmCreate(false);
+    setIsLoading(true);
+    try {
+      const result = await createIntervention({
+        clientId: selectedClient!.id,
+        label,
+        location: location || `${selectedClient!.address}, ${selectedClient!.zip} ${selectedClient!.town}`,
+        type: interventionType,
+        priority: priority === 'urgent' ? 1 : 0,
+        description,
+      });
+      setCreatedInterventionId(result.id);
+      toast.success('Intervention créée: ' + result.ref);
+      setStep(2);
+    } catch (error) {
+      toast.error('Erreur création intervention');
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen pb-8">
       <Header title="Nouvelle intervention" showBack />
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirmCreate} onOpenChange={setShowConfirmCreate}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirmer la création</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-2">
+                <p>Voulez-vous créer cette intervention ?</p>
+                <div className="bg-muted rounded-lg p-3 text-sm space-y-1">
+                  <p><strong>Client :</strong> {selectedClient?.name}</p>
+                  <p><strong>Libellé :</strong> {label}</p>
+                  <p><strong>Type :</strong> {interventionTypes.find(t => t.value === interventionType)?.label}</p>
+                  <p><strong>Priorité :</strong> {priority === 'urgent' ? 'Urgent' : 'Normal'}</p>
+                  {location && <p><strong>Lieu :</strong> {location}</p>}
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annuler</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmCreateIntervention}>
+              Créer l'intervention
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* Progress Steps */}
       <div className="px-4 py-4">
